@@ -5,6 +5,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/ui_text_service.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -36,13 +37,17 @@ const uint8_t kMagic[8] = { 0x55, 0x00, 0x40, 0x00, 0x61, 0x00, 0x34, 0x00 };
 HpPalmtopVgaCard::HpPalmtopVgaCard(CerfEmulator& emu) : PcmciaCard(emu) {}
 HpPalmtopVgaCard::~HpPalmtopVgaCard() { if (window_) window_->Close(); }
 
+std::string HpPalmtopVgaCard::DisplayName() const {
+    return GetUiText(emu_, "pcmcia.hp_vga", kDisplayName);
+}
+
 void HpPalmtopVgaCard::OnInserted() {
     /* The window's eject is a posted UI job; this card can be gone and another
        resident by the time it runs, so it ejects only this residency. */
     PcmciaSlot*    slot = slot_;
     const uint64_t id   = card_id_;
     window_ = emu_.Get<ExternalDisplayFactory>().Create(
-        controller_, kDisplayName, [slot, id] { slot->EjectCardIfResident(id); });
+        controller_, DisplayName(), [slot, id] { slot->EjectCardIfResident(id); });
     window_->Open(640u, 480u);   /* blank until the guest sets a mode */
     last_w_ = 640u;
     last_h_ = 480u;

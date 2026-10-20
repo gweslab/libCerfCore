@@ -3,6 +3,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/ui_text_service.h>
 #include "../pcmcia/pcmcia_slot.h"
 #include <cerfcore/state/state_stream.h>
 
@@ -93,11 +94,12 @@ std::string CompactFlashCard::DisplayName() const {
     const std::size_t slash = image_path_.find_last_of("\\/");
     const std::string name = slash == std::string::npos
         ? image_path_ : image_path_.substr(slash + 1);
-    return "CompactFlash (" + name + ")";
+    return FormatUiText(emu_, "pcmcia.cf.image_name", "CompactFlash ({name})", {{"name", name}});
 }
 
 std::string CompactFlashCard::TooltipDetail() const {
-    if (!file_.IsOpen()) return DisplayName() + " - image not found";
+    if (!file_.IsOpen())
+        return DisplayName() + " - " + GetUiText(emu_, "pcmcia.cf.image_missing", "image not found");
     return DisplayName() + " - " + std::to_string(total_sectors_ / 2048u) + " MB";
 }
 

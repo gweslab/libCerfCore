@@ -23,6 +23,7 @@ public:
     }
 
     std::string SourceName() const override { return "Stock PS/2 mouse"; }
+    const char* SourceLabelKey() const override { return "input.stock_ps2_mouse"; }
 };
 
 }  /* namespace */

@@ -3,6 +3,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/utf16.h>
+#include <cerfcore/core/ui_text_service.h>
 #include <cerfcore/host/host_widget_registry.h>
 #include <cerfcore/host/pointer_host_options.h>
 #include <cerfcore/host/pointer_router.h>
@@ -12,6 +13,10 @@
 namespace cerfcore {
 
 REGISTER_SERVICE(PointerWidget);
+
+std::string PointerWidget::DisplayName() const {
+    return GetUiText(emu_, "common.pointing_device", "Pointing device");
+}
 
 bool PointerWidget::ShouldRegister() {
     if (emu_.Get<DeviceConfig>().guest_additions) return true;
@@ -27,10 +32,15 @@ void PointerWidget::OnReady() {
 std::string PointerWidget::Tooltip() const {
     auto& router = emu_.Get<PointerRouter>();
     PointerSource* active = router.Active();
-    std::string tip = active ? active->SourceName() : "Pointing device";
+    std::string tip = active
+        ? (active->SourceLabelKey() ? GetUiText(emu_, active->SourceLabelKey(), active->SourceName())
+                                    : active->SourceName())
+        : GetUiText(emu_, "common.pointing_device", "Pointing device");
     PointerHostOptions* options = emu_.TryGet<PointerHostOptions>();
-    if (router.Sources().size() > 1)                      tip += " - click to switch input device";
-    else if (options != nullptr && !options->Controls().empty()) tip += " - click to configure";
+    if (router.Sources().size() > 1)
+        tip += GetUiText(emu_, "input.pointer.click_to_switch_input_device", " - click to switch input device");
+    else if (options != nullptr && !options->Controls().empty())
+        tip += GetUiText(emu_, "input.pointer.click_to_configure", " - click to configure");
     return tip;
 }
 
@@ -50,7 +60,10 @@ std::vector<WidgetControl> PointerWidget::Controls() {
         ChoiceControl source;
         source.id = "source";
         for (auto* s : sources) {
-            source.options.push_back(ChoiceOption{s->SourceName(), s->SourceName()});
+            source.options.push_back(ChoiceOption{
+                s->SourceName(), s->SourceLabelKey()
+                    ? GetUiText(emu_, s->SourceLabelKey(), s->SourceName())
+                    : s->SourceName()});
             if (s == active) source.selected = s->SourceName();
         }
         source.select = [this](const std::string& name) {

@@ -12,6 +12,7 @@ namespace cerfcore {
 REGISTER_SERVICE(HostWidgetRegistry);
 
 void HostWidgetRegistry::Register(HostWidget* w) {
+    w->BindUiContext(emu_);
     std::lock_guard<std::mutex> lk(mtx_);
     widgets_.push_back(w);
 }

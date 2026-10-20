@@ -5,6 +5,7 @@ namespace cerfcore {
 
 struct CerfConfig {
     const char* device_override = nullptr;
+    const char* ui_language_override = nullptr;
 
     const char* log_file = nullptr;
     bool flush_outputs = false;
@@ -13,6 +14,7 @@ struct CerfConfig {
 };
 
 inline constexpr char kArgBoardId[]        = "--board-id=";
+inline constexpr char kArgUiLanguage[]     = "--language=";
 inline constexpr char kArgRomPrimary[]     = "--rom-primary=";
 inline constexpr char kArgScreenWidth[]    = "--screen-width=";
 inline constexpr char kArgScreenHeight[]   = "--screen-height=";

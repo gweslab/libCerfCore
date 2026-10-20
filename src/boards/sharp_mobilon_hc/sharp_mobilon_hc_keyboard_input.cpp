@@ -25,6 +25,7 @@ public:
     void OnReady() override { emu_.Get<KeyboardRouter>().Register(this); }
 
     std::string SourceName() const override { return "HC-4100 keyboard"; }
+    const char* SourceLabelKey() const override { return "input.hc4100_keyboard"; }
 
     void OnHostKey(uint8_t vk, bool key_up) override {
         uint32_t code;

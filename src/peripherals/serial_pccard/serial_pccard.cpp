@@ -6,6 +6,7 @@
 
 #include "../pcmcia/pcmcia_slot.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/ui_text_service.h>
 #include <cerfcore/state/emulation_freeze.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -24,10 +25,17 @@ SerialPcCard::SerialPcCard(CerfEmulator& emu, std::string host_com_port)
       host_port_(std::move(host_com_port)) { BuildCis(); }
 SerialPcCard::~SerialPcCard() = default;
 
+std::string SerialPcCard::DisplayName() const {
+    return mode_ == Mode::HostForward
+        ? GetUiText(emu_, "pcmcia.serial_forward", kForwardDisplayName)
+        : GetUiText(emu_, "pcmcia.serial_modem", kDisplayName);
+}
+
 std::string SerialPcCard::TooltipDetail() const {
     if (mode_ == Mode::HostForward)
-        return std::string(kForwardDisplayName) + " → host " + host_port_;
-    return kDisplayName;
+        return FormatUiText(emu_, "pcmcia.forward_to_host", "Serial Port Forwarder → host {port}",
+                            {{"port", host_port_}});
+    return GetUiText(emu_, "pcmcia.serial_modem", kDisplayName);
 }
 
 void SerialPcCard::BuildCis() {

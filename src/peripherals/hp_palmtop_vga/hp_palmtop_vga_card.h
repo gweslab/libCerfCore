@@ -33,7 +33,7 @@ public:
     explicit HpPalmtopVgaCard(CerfEmulator& emu);
     ~HpPalmtopVgaCard() override;
 
-    std::string DisplayName() const override { return kDisplayName; }
+    std::string DisplayName() const override;
     const char* IconResource() const override { return "ICON_PCMCIA_VGA"; }
 
     void OnInserted() override;

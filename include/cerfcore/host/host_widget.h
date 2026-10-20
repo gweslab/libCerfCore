@@ -11,6 +11,7 @@ namespace cerfcore {
 
 class StateWriter;
 class StateReader;
+class CerfEmulator;
 
 /* HostWidget is Service-free: implementers already derive Service (a
    peripheral via Peripheral), so a Service base here would make emu_
@@ -48,8 +49,12 @@ public:
     virtual ~HostWidget() = default;
 
     virtual std::string WidgetName() const = 0;
+    /* Stable WidgetName is persisted in saved UI state; DisplayName is for the
+       current UI and may be localized. */
+    virtual std::string DisplayName() const { return WidgetName(); }
     virtual WidgetGroup Group() const = 0;
     virtual std::string Tooltip() const { return WidgetName(); }
+    virtual void BindUiContext(CerfEmulator&) {}
 
     virtual bool TryPrimaryAction() { return false; }
     virtual std::vector<WidgetControl> Controls() { return {}; }

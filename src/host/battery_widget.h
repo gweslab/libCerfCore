@@ -9,6 +9,8 @@
 
 namespace cerfcore {
 
+class CerfEmulator;
+
 /* Reusable cross-board battery status-bar widget (charge level + AC/battery
    toggle, icon/tooltip/menu). Owner holds one as a member and reads the getters
    to drive its hardware model. */
@@ -24,6 +26,7 @@ public:
     void SetChangeHandler(std::function<void()> cb) { on_change_ = std::move(cb); }
 
     std::string WidgetName() const override { return "Battery"; }
+    std::string DisplayName() const override;
     WidgetGroup Group() const override { return WidgetGroup::Power; }
     std::string Tooltip() const override;
     WidgetIcon  Icon() const override;
@@ -32,6 +35,7 @@ public:
 
     void SaveWidgetState(StateWriter& w) const override;
     void RestoreWidgetState(StateReader& r) override;
+    void BindUiContext(CerfEmulator& emu) override { emu_ = &emu; }
 
 private:
     void SetOnBattery(bool on_battery);
@@ -40,6 +44,7 @@ private:
 
     mutable std::mutex state_mutex_;
     std::function<void()> on_change_;
+    CerfEmulator* emu_ = nullptr;
     bool on_battery_   = false;   /* default: on AC */
     int  fill_percent_ = 100;     /* default: full  */
 

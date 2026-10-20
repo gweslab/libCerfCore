@@ -16,6 +16,7 @@ public:
     void OnReady() override;
 
     std::string WidgetName() const override { return "Guest Additions"; }
+    std::string DisplayName() const override;
     WidgetGroup Group() const override { return WidgetGroup::GuestAdditions; }
     std::string Tooltip() const override;
     bool TryPrimaryAction() override;

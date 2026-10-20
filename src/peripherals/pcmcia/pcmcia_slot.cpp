@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/ui_text_service.h>
 #include <cerfcore/core/utf16.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -299,7 +300,9 @@ std::vector<SlotEntry> PcmciaSlot::AvailableLocked(uint64_t gen) {
             entry.insert = [this, gen, id = e.id] { MenuInsert(gen, id); };
         }
         entry.id    = e.id;
-        entry.label = e.display_name;
+        entry.label = e.display_key.empty()
+            ? e.display_name
+            : GetUiText(emu_, e.display_key, e.display_name);
         entries.push_back(std::move(entry));
     }
     return entries;
@@ -352,7 +355,7 @@ std::vector<WidgetControl> PcmciaSlot::Controls() {
 
 std::string PcmciaSlot::Tooltip() const {
     std::lock_guard<std::mutex> lk(bus_mutex_);
-    if (!card_) return label_ + " - empty";
+    if (!card_) return label_ + " - " + GetUiText(emu_, "pcmcia.empty", "empty");
     return label_ + " - " + card_->TooltipDetail();
 }
 

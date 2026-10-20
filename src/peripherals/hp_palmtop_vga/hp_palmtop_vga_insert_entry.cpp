@@ -2,6 +2,7 @@
 
 #include "hp_palmtop_vga_card.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/ui_text_service.h>
 
 #include <memory>
 
@@ -15,9 +16,9 @@ SlotEntry HpPalmtopVgaInsertEntry::BuildInsertEntry(PcmciaCardCatalog::CardInser
         inserter(std::make_unique<HpPalmtopVgaCard>(emu_));
     };
     entry.details = {
-        WidgetControl{InfoControl{"External VGA monitor output, in its own window."}},
-        WidgetControl{InfoControl{"Works on the HP Jornada series."}},
-        WidgetControl{InfoControl{"Verified on the HP Jornada 720."}},
+        WidgetControl{InfoControl{GetUiText(emu_, "pcmcia.hp_vga.external_output", "External VGA monitor output, in its own window.")}},
+        WidgetControl{InfoControl{GetUiText(emu_, "pcmcia.hp_vga.jornada_support", "Works on the HP Jornada series.")}},
+        WidgetControl{InfoControl{GetUiText(emu_, "pcmcia.hp_vga.verified_720", "Verified on the HP Jornada 720.")}},
     };
     return entry;
 }

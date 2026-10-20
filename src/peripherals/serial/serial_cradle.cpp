@@ -10,6 +10,7 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/utf16.h>
+#include <cerfcore/core/ui_text_service.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -109,12 +110,12 @@ std::vector<SlotEntry> SerialCradle::AvailableLocked(uint64_t gen) {
     SlotEntry modem = emu_.Get<SerialModemInsertEntry>().BuildInsertEntry(
         [this, gen] { SwapModem(gen); });
     modem.id    = kModemId;
-    modem.label = serial_endpoint_kind::kModemName;
+    modem.label = GetUiText(emu_, "pcmcia.serial_modem", serial_endpoint_kind::kModemName);
 
     SlotEntry fwd = emu_.Get<SerialForwardInsertEntry>().BuildInsertEntry(
         [this, gen](std::string port) { SwapForward(gen, std::move(port)); });
     fwd.id    = kForwardId;
-    fwd.label = serial_endpoint_kind::kForwardName;
+    fwd.label = GetUiText(emu_, "pcmcia.serial_forward", serial_endpoint_kind::kForwardName);
 
     std::vector<SlotEntry> entries;
     entries.push_back(std::move(modem));
@@ -131,9 +132,11 @@ std::vector<WidgetControl> SerialCradle::Controls() {
     slot.kind      = SlotKind::kSerialPort;
     slot.available = AvailableLocked(gen);
     if (kind_ == Kind::Modem)
-        slot.inserted = ChoiceOption{kModemId, serial_endpoint_kind::kModemName};
+        slot.inserted = ChoiceOption{kModemId,
+            GetUiText(emu_, "pcmcia.serial_modem", serial_endpoint_kind::kModemName)};
     else if (kind_ == Kind::Forward)
-        slot.inserted = ChoiceOption{kForwardId, serial_endpoint_kind::kForwardName};
+        slot.inserted = ChoiceOption{kForwardId,
+            GetUiText(emu_, "pcmcia.serial_forward", serial_endpoint_kind::kForwardName)};
     if (kind_ != Kind::None) slot.eject = [this, gen] { Eject(gen); };
     return {WidgetControl{std::move(slot)}};
 }
@@ -167,12 +170,12 @@ std::string SerialCradle::Tooltip() const {
     std::lock_guard<std::mutex> lk(mtx_);
     switch (kind_) {
         case Kind::Modem:
-            return label_ + " - " + serial_endpoint_kind::kModemName;
+            return label_ + " - " + GetUiText(emu_, "pcmcia.serial_modem", serial_endpoint_kind::kModemName);
         case Kind::Forward:
-            return label_ + " - " + serial_endpoint_kind::kForwardName +
-                   " -> host " + host_port_;
+            return label_ + " - " + FormatUiText(emu_, "pcmcia.forward_to_host",
+                "Serial Port Forwarder → host {port}", {{"port", host_port_}});
         case Kind::None:
-            return label_ + " - empty";
+            return label_ + " - " + GetUiText(emu_, "pcmcia.empty", "empty");
     }
     return label_;
 }

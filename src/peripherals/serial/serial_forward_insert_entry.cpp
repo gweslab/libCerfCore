@@ -1,6 +1,7 @@
 #include "serial_forward_insert_entry.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/ui_text_service.h>
 #include "../../platform/host_serial_port.h"
 
 #include <utility>
@@ -22,7 +23,7 @@ SlotEntry SerialForwardInsertEntry::BuildInsertEntry(
     const std::vector<std::string> ports = host_platform::EnumerateSerialPorts();
     if (ports.empty()) {
         entry.details.push_back(WidgetControl{GroupControl{
-            "", {WidgetControl{InfoControl{"   (no host serial ports found)"}}}}});
+            "", {WidgetControl{InfoControl{GetUiText(emu_, "pcmcia.no_serial_ports", "   (no host serial ports found)")}}}}});
     } else {
         for (const std::string& p : ports) {
             SlotEntry port;
@@ -34,7 +35,8 @@ SlotEntry SerialForwardInsertEntry::BuildInsertEntry(
     }
 
     entry.details.push_back(WidgetControl{GroupControl{
-        "", {WidgetControl{LinkControl{"Connecting to ActiveSync tutorial", kActiveSyncUrl}}}}});
+        "", {WidgetControl{LinkControl{
+            GetUiText(emu_, "pcmcia.activesync_help", "Connecting to ActiveSync tutorial"), kActiveSyncUrl}}}}});
     return entry;
 }
 
