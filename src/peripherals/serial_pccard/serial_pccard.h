@@ -21,9 +21,7 @@ public:
     SerialPcCard(CerfEmulator& emu, std::string host_com_port);
     ~SerialPcCard() override;
 
-    std::string DisplayName() const override {
-        return mode_ == Mode::HostForward ? kForwardDisplayName : kDisplayName;
-    }
+    std::string DisplayName() const override;
     std::string TooltipDetail() const override;
     const char* IconResource() const override {
         return mode_ == Mode::HostForward ? "ICON_PCMCIA_SERIAL_COM"

@@ -18,10 +18,9 @@ public:
     void NotePresent();
 
     std::string WidgetName() const override { return "Audio"; }
+    std::string DisplayName() const override;
     WidgetGroup Group() const override { return WidgetGroup::Indicator; }
-    std::string Tooltip() const override {
-        return "Audio - TX: sound output, RX: microphone";
-    }
+    std::string Tooltip() const override;
 
     WidgetIcon Icon() const override { return ResourceIcon{"ICON_SPEAKER"}; }
 

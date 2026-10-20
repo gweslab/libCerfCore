@@ -6,6 +6,7 @@
 #include <cerfcore/core/folder_share_config.h>
 #include <cerfcore/host/customizations_editor.h>
 #include <cerfcore/host/host_widget_registry.h>
+#include <cerfcore/core/ui_text_service.h>
 
 #include <string>
 #include <vector>
@@ -23,13 +24,15 @@ public:
     void OnReady() override { emu_.Get<HostWidgetRegistry>().Register(this); }
 
     std::string WidgetName() const override { return "Shared folder"; }
+    std::string DisplayName() const override { return GetUiText(emu_, "common.shared_folder", "Shared folder"); }
     WidgetGroup Group() const override { return WidgetGroup::Storage; }
 
     std::string Tooltip() const override {
         auto& cfg = emu_.Get<FolderShareConfig>();
         if (!cfg.Enabled())
-            return "Shared folder: off - click to configure";
-        return "Shared folder: " + cfg.HostRoot();
+            return GetUiText(emu_, "share.shared_folder_off_click_to_configure",
+                             "Shared folder: off - click to configure");
+        return GetUiText(emu_, "share.shared_folder", "Shared folder: ") + cfg.HostRoot();
     }
 
     bool ControlsAreOneAction() const override { return true; }
@@ -38,7 +41,7 @@ public:
         if (emu_.TryGet<CustomizationsEditor>() == nullptr) return {};
         ActionControl configure;
         configure.id    = "configure";
-        configure.label = "Configure shared folder…";
+        configure.label = GetUiText(emu_, "share.configure_shared_folder", "Configure shared folder…");
         configure.press = [this] { emu_.Get<CustomizationsEditor>().Open(); };
         return {WidgetControl{std::move(configure)}};
     }

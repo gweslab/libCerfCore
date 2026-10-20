@@ -20,6 +20,7 @@ public:
     virtual bool CanDeliverVk(uint8_t vk) const;
 
     virtual std::string SourceName() const { return "Stock keyboard"; }
+    virtual const char* SourceLabelKey() const { return "input.stock_keyboard"; }
     virtual int SourcePriority() const { return 0; }
     virtual bool SourceReady() const { return true; }
     /* cerf.rc ICON resource the keyboard widget draws while this source is active. */

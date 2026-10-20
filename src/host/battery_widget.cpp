@@ -1,9 +1,11 @@
 #include "battery_widget.h"
 
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/core/ui_text_service.h>
 
 #include <cstdint>
 #include <cstdio>
+#include <string>
 
 namespace cerfcore {
 
@@ -18,6 +20,10 @@ BatteryLevel BatteryWidget::LevelOf(int fill) {
     return fill >= kLevelHigh ? BatteryLevel::kHigh
          : fill >= kLevelLow  ? BatteryLevel::kLow
                               : BatteryLevel::kCritical;
+}
+
+std::string BatteryWidget::DisplayName() const {
+    return emu_ ? GetUiText(*emu_, "common.battery", "Battery") : "Battery";
 }
 
 int BatteryWidget::FillPercent() const {
@@ -57,13 +63,19 @@ std::string BatteryWidget::Tooltip() const {
         fill    = fill_percent_;
     }
     const BatteryLevel lvl = LevelOf(fill);
-    const char* level = lvl == BatteryLevel::kHigh ? "High"
-                      : lvl == BatteryLevel::kLow  ? "Low"
-                                                   : "Critical";
-    char buf[96];
-    std::snprintf(buf, sizeof(buf), "Battery - %s, %d%% (%s)",
-                  on_batt ? "on battery" : "on AC", fill, level);
-    return buf;
+    const std::string level = emu_
+        ? GetUiText(*emu_, lvl == BatteryLevel::kHigh ? "battery.high"
+                         : lvl == BatteryLevel::kLow ? "battery.low" : "battery.critical",
+                    lvl == BatteryLevel::kHigh ? "High" : lvl == BatteryLevel::kLow ? "Low" : "Critical")
+        : (lvl == BatteryLevel::kHigh ? "High" : lvl == BatteryLevel::kLow ? "Low" : "Critical");
+    const std::string source = emu_
+        ? GetUiText(*emu_, on_batt ? "battery.on_battery" : "battery.on_ac",
+                    on_batt ? "on battery" : "on AC")
+        : (on_batt ? "on battery" : "on AC");
+    const std::string fallback = "Battery - {source}, {percent}% ({level})";
+    return emu_ ? FormatUiText(*emu_, "battery.tooltip", fallback,
+                                {{"source", source}, {"percent", std::to_string(fill)}, {"level", level}})
+                : "Battery - " + source + ", " + std::to_string(fill) + "% (" + level + ")";
 }
 
 WidgetIcon BatteryWidget::Icon() const {
@@ -82,7 +94,7 @@ std::vector<WidgetControl> BatteryWidget::Controls() {
 
     ToggleControl ac;
     ac.id    = "on_battery";
-    ac.label = "On battery power";
+    ac.label = emu_ ? GetUiText(*emu_, "battery.on_battery_power", "On battery power") : "On battery power";
     ac.value = on_batt;
     ac.set   = [this](bool on) { SetOnBattery(on); };
 
@@ -97,7 +109,8 @@ std::vector<WidgetControl> BatteryWidget::Controls() {
 
     return {
         WidgetControl{GroupControl{"", {WidgetControl{std::move(ac)}}}},
-        WidgetControl{GroupControl{"Charge level", {WidgetControl{std::move(level)}}}},
+        WidgetControl{GroupControl{emu_ ? GetUiText(*emu_, "battery.charge_level", "Charge level") : "Charge level",
+                                   {WidgetControl{std::move(level)}}}},
     };
 }
 

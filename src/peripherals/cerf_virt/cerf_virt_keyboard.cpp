@@ -76,6 +76,7 @@ public:
     }
 
     std::string    SourceName() const override { return "Guest Additions keyboard"; }
+    const char* SourceLabelKey() const override { return "input.guest_keyboard"; }
     int            SourcePriority() const override { return 100; }
     const char*    IconResourceName() const override { return "ICON_GA_KEYBOARD"; }
 

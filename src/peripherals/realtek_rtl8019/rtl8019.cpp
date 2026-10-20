@@ -6,6 +6,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/ui_text_service.h>
 #include "../../net/ipv4_packet.h"
 #include "../../net/mac_address.h"
 #include "../../net/network_backend.h"
@@ -86,6 +87,10 @@ Rtl8019::Rtl8019(CerfEmulator& emu)
 }
 
 Rtl8019::~Rtl8019() { DetachRx(); }
+
+std::string Rtl8019::DisplayName() const {
+    return GetUiText(emu_, "pcmcia.ne2000", kDisplayName);
+}
 
 void Rtl8019::DetachRx() {
     if (!rx_installed_) return;
@@ -375,12 +380,14 @@ void Rtl8019::WriteIo16(uint32_t card_io, uint16_t value) {
 }
 
 std::string Rtl8019::TooltipDetail() const {
-    return std::string("Ethernet  ") + cerf::inet::FormatMac(guest_mac_.data()).s;
+    return FormatUiText(emu_, "pcmcia.ethernet_address", "Ethernet  {mac}",
+                        {{"mac", cerf::inet::FormatMac(guest_mac_.data()).s}});
 }
 
 std::vector<WidgetControl> Rtl8019::CardControls() {
     return {WidgetControl{
-        InfoControl{std::string("MAC  ") + cerf::inet::FormatMac(guest_mac_.data()).s}}};
+        InfoControl{FormatUiText(emu_, "pcmcia.ethernet_address", "Ethernet  {mac}",
+                                 {{"mac", cerf::inet::FormatMac(guest_mac_.data()).s}})}}};
 }
 
 void Rtl8019::SaveState(StateWriter& w) {

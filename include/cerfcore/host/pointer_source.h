@@ -15,6 +15,7 @@ public:
     virtual ~PointerSource() = default;
 
     virtual std::string    SourceName()       const = 0;
+    virtual const char*    SourceLabelKey()   const { return nullptr; }
     /* cerf.rc ICON resource the pointer widget draws while this source is active. */
     virtual const char*    IconResourceName() const = 0;
     virtual int            SourcePriority()   const = 0;

@@ -1,6 +1,7 @@
 #include "serial_modem_insert_entry.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/ui_text_service.h>
 
 #include <utility>
 
@@ -17,7 +18,8 @@ REGISTER_SERVICE(SerialModemInsertEntry);
 SlotEntry SerialModemInsertEntry::BuildInsertEntry(std::function<void()> on_insert) {
     SlotEntry entry;
     entry.insert  = std::move(on_insert);
-    entry.details = {WidgetControl{LinkControl{"Getting online tutorial", kGettingOnlineUrl}}};
+    entry.details = {WidgetControl{LinkControl{
+        GetUiText(emu_, "pcmcia.getting_online_help", "Getting online tutorial"), kGettingOnlineUrl}}};
     return entry;
 }
 

@@ -4,6 +4,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/utf16.h>
+#include <cerfcore/core/ui_text_service.h>
 #include <cerfcore/host/host_widget_registry.h>
 #include <cerfcore/host/keyboard_hotkeys.h>
 #include <cerfcore/host/keyboard_input.h>
@@ -31,6 +32,7 @@ public:
     void OnReady() override { emu_.Get<HostWidgetRegistry>().Register(this); }
 
     std::string WidgetName() const override { return "Keyboard"; }
+    std::string DisplayName() const override { return GetUiText(emu_, "common.keyboard", "Keyboard"); }
     WidgetGroup Group() const override { return WidgetGroup::InputControl; }
     std::string Tooltip() const override;
     WidgetIcon  Icon() const override;
@@ -47,10 +49,12 @@ private:
 std::string KeyboardWidget::Tooltip() const {
     auto& router = emu_.Get<KeyboardRouter>();
     KeyboardInput* active = router.Active();
-    std::string tip = active ? active->SourceName() : "Keyboard";
+    std::string tip = active ? GetUiText(emu_, active->SourceLabelKey(), active->SourceName())
+                             : GetUiText(emu_, "common.keyboard", "Keyboard");
     const bool has_menu = router.Sources().size() > 1 ||
                           emu_.TryGet<KeyboardMap>() != nullptr;
-    if (has_menu) tip += " - click to configure input / see key mappings";
+    if (has_menu) tip += GetUiText(emu_, "input.keyboard.click_to_configure_input_see_key_mappings",
+                                   " - click to configure input / see key mappings");
     return tip;
 }
 
@@ -77,7 +81,8 @@ std::vector<WidgetControl> KeyboardWidget::Controls() {
         source.id = "source";
         KeyboardInput* active = router.Active();
         for (auto* s : sources) {
-            source.options.push_back(ChoiceOption{s->SourceName(), s->SourceName()});
+            source.options.push_back(ChoiceOption{
+                s->SourceName(), GetUiText(emu_, s->SourceLabelKey(), s->SourceName())});
             if (s == active) source.selected = s->SourceName();
         }
         source.select = [this](const std::string& name) {
@@ -92,7 +97,7 @@ std::vector<WidgetControl> KeyboardWidget::Controls() {
         if (emu_.TryGet<KeyboardMappingView>()) {
             ActionControl see;
             see.id    = "see_mapping";
-            see.label = "See keyboard mapping";
+            see.label = GetUiText(emu_, "input.keyboard.see_keyboard_mapping", "See keyboard mapping");
             see.press = [this] { emu_.Get<KeyboardMappingView>().Show(); };
             controls.push_back(WidgetControl{GroupControl{"", {WidgetControl{std::move(see)}}}});
         }

@@ -18,6 +18,7 @@ public:
     void OnReady() override;
 
     std::string WidgetName() const override { return "Pointing device"; }
+    std::string DisplayName() const override;
     WidgetGroup Group() const override { return WidgetGroup::InputControl; }
     std::string Tooltip() const override;
     bool TryPrimaryAction() override;

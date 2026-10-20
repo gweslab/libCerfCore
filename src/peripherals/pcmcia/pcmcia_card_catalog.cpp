@@ -27,10 +27,12 @@ void PcmciaCardCatalog::OnReady() {
     Entry ne2000;
     ne2000.id           = kIdNe2000;
     ne2000.display_name = Rtl8019::kDisplayName;
+    ne2000.display_key  = "pcmcia.ne2000";
 
     Entry cf;
     cf.id           = "cf";
     cf.display_name = "Compact Flash";
+    cf.display_key  = "pcmcia.compact_flash";
     cf.build_entry = [this](CardInserter inserter) {
         return emu_.Get<CompactFlashInsertEntry>().BuildInsertEntry(std::move(inserter));
     };
@@ -38,6 +40,7 @@ void PcmciaCardCatalog::OnReady() {
     Entry hpvga;
     hpvga.id           = kIdHpVga;
     hpvga.display_name = HpPalmtopVgaCard::kDisplayName;
+    hpvga.display_key  = "pcmcia.hp_vga";
     hpvga.build_entry = [this](CardInserter inserter) {
         return emu_.Get<HpPalmtopVgaInsertEntry>().BuildInsertEntry(std::move(inserter));
     };
@@ -45,6 +48,7 @@ void PcmciaCardCatalog::OnReady() {
     Entry serial;
     serial.id           = kIdSerial;
     serial.display_name = SerialPcCard::kDisplayName;
+    serial.display_key  = "pcmcia.serial_modem";
     serial.build_entry = [this](CardInserter inserter) {
         return emu_.Get<SerialModemInsertEntry>().BuildInsertEntry(
             [this, inserter] { inserter(std::make_unique<SerialPcCard>(emu_)); });
@@ -53,6 +57,7 @@ void PcmciaCardCatalog::OnReady() {
     Entry serial_fwd;
     serial_fwd.id           = kIdSerialFwd;
     serial_fwd.display_name = SerialPcCard::kForwardDisplayName;
+    serial_fwd.display_key  = "pcmcia.serial_forward";
     serial_fwd.build_entry = [this](CardInserter inserter) {
         return emu_.Get<SerialForwardInsertEntry>().BuildInsertEntry(
             [this, inserter](std::string port) {

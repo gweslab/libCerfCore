@@ -22,6 +22,7 @@ public:
     struct Entry {
         std::string                            id;
         std::string                            display_name;
+        std::string                            display_key;
         std::function<SlotEntry(CardInserter)> build_entry;
     };
 

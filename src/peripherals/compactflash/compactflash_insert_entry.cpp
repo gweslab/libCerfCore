@@ -8,6 +8,7 @@
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/host_fs_path.h>
+#include <cerfcore/core/ui_text_service.h>
 #include <cerfcore/host/file_chooser.h>
 #include <cerfcore/host/number_prompt.h>
 #include <cerfcore/platform/host_file.h>
@@ -29,13 +30,15 @@ std::string CompactFlashInsertEntry::CfImgPath() const {
 
 std::string CompactFlashInsertEntry::ChooseImageFile() const {
     return emu_.Get<FileChooser>().ChooseFile(
-        "Choose CompactFlash image",
-        {{"CF image (*.img;*.bin;*.ima)", "*.img;*.bin;*.ima"}, {"All files", "*.*"}});
+        GetUiText(emu_, "pcmcia.cf.choose_image_title", "Choose CompactFlash image"),
+        {{GetUiText(emu_, "pcmcia.cf.image_filter", "CF image (*.img;*.bin;*.ima)"), "*.img;*.bin;*.ima"},
+         {GetUiText(emu_, "common.all_files", "All files"), "*.*"}});
 }
 
 std::vector<std::string> CompactFlashInsertEntry::ChooseFilesToGenerate() const {
     return emu_.Get<FileChooser>().ChooseFiles(
-        "Choose files to write into the CompactFlash image", {{"All files", "*.*"}});
+        GetUiText(emu_, "pcmcia.cf.choose_payload_title", "Choose files to write into the CompactFlash image"),
+        {{GetUiText(emu_, "common.all_files", "All files"), "*.*"}});
 }
 
 uint32_t CompactFlashInsertEntry::PayloadMb(const std::vector<std::string>& files) const {
@@ -50,8 +53,10 @@ uint32_t CompactFlashInsertEntry::PayloadMb(const std::vector<std::string>& file
 
 uint32_t CompactFlashInsertEntry::PromptSizeMb(uint32_t min_mb) const {
     return emu_.Get<NumberPrompt>().AskAtLeast(
-        "Generate CompactFlash image",
-        "Card data size in MiB (minimum " + std::to_string(min_mb) + "):", min_mb);
+        GetUiText(emu_, "pcmcia.cf.generate_title", "Generate CompactFlash image"),
+        FormatUiText(emu_, "pcmcia.cf.minimum_size",
+                     "Card data size in MiB (minimum {minimum}):",
+                     {{"minimum", std::to_string(min_mb)}}), min_mb);
 }
 
 SlotEntry CompactFlashInsertEntry::BuildInsertEntry(PcmciaCardCatalog::CardInserter inserter) {
@@ -64,7 +69,7 @@ SlotEntry CompactFlashInsertEntry::BuildInsertEntry(PcmciaCardCatalog::CardInser
         if (!host_platform::HostPathExists(path)) continue;
         SlotEntry it;
         it.id     = "bundled:" + card.file;
-        it.label  = "Insert - " + card.name;
+        it.label  = FormatUiText(emu_, "pcmcia.insert_named", "Insert - {name}", {{"name", card.name}});
         it.insert = [this, inserter, path] {
             inserter(std::make_unique<CompactFlashCard>(emu_, path));
         };
@@ -74,7 +79,7 @@ SlotEntry CompactFlashInsertEntry::BuildInsertEntry(PcmciaCardCatalog::CardInser
     {
         SlotEntry it;
         it.id    = "choose";
-        it.label = "Choose image...";
+        it.label = GetUiText(emu_, "pcmcia.cf.choose_image", "Choose image...");
         it.insert = [this, inserter] {
             const std::string p = ChooseImageFile();
             if (!p.empty())
@@ -86,7 +91,7 @@ SlotEntry CompactFlashInsertEntry::BuildInsertEntry(PcmciaCardCatalog::CardInser
         SlotEntry it;
         const std::string cf = CfImgPath();
         it.id      = "default";
-        it.label   = "Choose default image (CF.IMG)";
+        it.label   = GetUiText(emu_, "pcmcia.cf.choose_default", "Choose default image (CF.IMG)");
         it.enabled = host_platform::HostPathExists(cf);
         it.insert  = [this, inserter, cf] {
             inserter(std::make_unique<CompactFlashCard>(emu_, cf));
@@ -96,7 +101,8 @@ SlotEntry CompactFlashInsertEntry::BuildInsertEntry(PcmciaCardCatalog::CardInser
     {
         SlotEntry it;
         it.id    = "generate_fat16";
-        it.label = "Generate FAT16 into CF.IMG and choose it...";
+        it.label = FormatUiText(emu_, "pcmcia.cf.generate_and_choose",
+                                "Generate {format} into CF.IMG and choose it...", {{"format", "FAT16"}});
         it.insert = [this, inserter] {
             const std::vector<std::string> files = ChooseFilesToGenerate();
             if (files.empty()) return;
@@ -112,7 +118,8 @@ SlotEntry CompactFlashInsertEntry::BuildInsertEntry(PcmciaCardCatalog::CardInser
     {
         SlotEntry it;
         it.id    = "generate_fat32";
-        it.label = "Generate FAT32 into CF.IMG and choose it...";
+        it.label = FormatUiText(emu_, "pcmcia.cf.generate_and_choose",
+                                "Generate {format} into CF.IMG and choose it...", {{"format", "FAT32"}});
         it.insert = [this, inserter] {
             const std::vector<std::string> files = ChooseFilesToGenerate();
             if (files.empty()) return;

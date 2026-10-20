@@ -21,7 +21,7 @@ public:
     explicit Rtl8019(CerfEmulator& emu);
     ~Rtl8019() override;
 
-    std::string DisplayName() const override { return kDisplayName; }
+    std::string DisplayName() const override;
     std::string TooltipDetail() const override;
     const char* IconResource() const override { return "ICON_PCMCIA_ETHERNET"; }
 

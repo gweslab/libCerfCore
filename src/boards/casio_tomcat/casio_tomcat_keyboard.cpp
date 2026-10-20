@@ -33,6 +33,7 @@ public:
     }
 
     std::string SourceName() const override { return "Cassiopeia buttons"; }
+    const char* SourceLabelKey() const override { return "input.cassiopeia_buttons"; }
 
     /* casio_cassiopeia_e55 keybddr.dll sub_14E37C4 @0x14E37C4 inverts scan lanes 1-8 with
        ^0x3FC0; NetBSD sys/arch/hpcmips/conf/VR41XX:315-322 gives ports 6-13 "active 0". */
