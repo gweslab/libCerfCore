@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cerfcore/core/service.h>
+#include "../../execution/guest_cycle_clock.h"
+#include "../uart_rx_line.h"
 
 #include <array>
 #include <cstddef>
@@ -32,6 +34,13 @@ public:
     using RxIntFn    = std::function<void(const RxInts&)>;
     using LineIdleFn = std::function<void()>;
 
+    struct LineTiming {
+        GuestCycleClock::Rate uart_clock{0u, 1u};
+        uint64_t              uart_clocks_per_bit = 0;
+        uint32_t              transfer_bits       = 0;
+        uint32_t              frame_bits          = 0;
+    };
+
     using Service::Service;
 
     bool ShouldRegister() override;
@@ -43,25 +52,26 @@ public:
     void SetLength(uint32_t port, uint32_t bytes);
     void SetControl(uint32_t port, bool receiver_on, bool armed);
     void ResetLine(uint32_t port);
-    void SetClockRunning(uint32_t port, bool running);
+    void SetLine(uint32_t port, const LineTiming& timing);
 
     uint32_t Count(uint32_t port) const;
     uint32_t Length(uint32_t port) const;
     bool     LineIdle(uint32_t port) const;
-    bool     RxHoldFull(uint32_t port) const;
-    bool     PrxHoldFull(uint32_t port) const;
+    void     ReadHolds(uint32_t port, bool& rxhold_full, bool& prxhold_full);
 
     void Receive(uint32_t port, const uint8_t* data, size_t n);
     void TransmitBlock(uint32_t port, std::vector<uint8_t>& out);
 
     void SaveState(uint32_t port, StateWriter& w);
-    void RestoreState(uint32_t port, StateReader& r);
+    void RestoreState(uint32_t port, StateReader& r, const LineTiming& framing);
 
 private:
     static constexpr uint32_t kPorts = 2u;
 
     struct Channel {
-        const char* source = "";
+        explicit Channel(const char* src) : source(src), line(src) {}
+
+        const char* source;
         RxIntFn     raise_ints;
         LineIdleFn  on_line_idle;
 
@@ -73,22 +83,28 @@ private:
         bool     armed       = false;
         bool     receiver_on = false;
 
-        uint8_t rxhold       = 0;
-        uint8_t prxhold      = 0;
-        bool    rxhold_full  = false;
-        bool    prxhold_full = false;
-        uint8_t rxshift      = 0;
-        bool    rxshift_full = false;
+        uint8_t rxhold          = 0;
+        uint8_t prxhold         = 0;
+        bool    rxhold_full     = false;
+        bool    prxhold_full    = false;
+        bool    prxhold_overrun = false;
 
-        std::vector<uint8_t> wire;
-        size_t               wire_pos = 0;
-
-        bool clock_running = false;
+        LineTiming              timing;
+        UartRxLine              line;
+        GuestCycleClock::Event* event = nullptr;
     };
 
-    Channel&       Ch(uint32_t port);
-    const Channel& Ch(uint32_t port) const;
-    void           LandPending(Channel& c);
+    static UartRxLine::Frame FrameOf(const LineTiming& t);
+
+    Channel&              Ch(uint32_t port);
+    const Channel&        Ch(uint32_t port) const;
+    void                  OnHostRequest();
+    void                  OnCharEvent(Channel& c);
+    GuestCycleClock::Rate BitRateLocked(const Channel& c);
+    bool                  RetimeLocked(Channel& c, const LineTiming& old, uint64_t now);
+    bool                  IdleLocked(const Channel& c) const;
+    bool                  SettleLocked(Channel& c, uint64_t now, RxInts& ints);
+    void                  ArmLocked(Channel& c, uint64_t now);
     void           ReceiveByteLocked(Channel& c, uint8_t byte, RxInts& ints);
     void           StoreLocked(Channel& c, uint8_t byte, RxInts& ints);
     void           DrainHoldsLocked(Channel& c, RxInts& ints);
@@ -98,6 +114,7 @@ private:
     uint32_t                                     count_ = 0;
 
     EmulatedMemory*     mem_           = nullptr;
+    GuestCycleClock*    clock_         = nullptr;
     cerfengine::HostRequestChannel* host_requests_ = nullptr;
 };
 

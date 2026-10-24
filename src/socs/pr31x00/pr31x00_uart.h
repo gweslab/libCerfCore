@@ -82,8 +82,10 @@ private:
     void       DeliverTx(const uint8_t* data, size_t n);
     void       ApplyClockState();
     void       RaiseTxInts(const Pr31x00UartTransmitter::TxInts& ints);
+    LineConfig FramingLocked() const;
     LineConfig ComputeLineConfigLocked() const;
-    bool       UartClockRunning() const;
+    Pr31x00UartDma::LineTiming FrameTimingLocked() const;
+    Pr31x00UartDma::LineTiming LineTimingLocked() const;
     void       OnRxLineIdle();
     void       RaiseRxInts(const Pr31x00UartDma::RxInts& ints);
     void       NotifyControlLines(bool dtr, bool rts);

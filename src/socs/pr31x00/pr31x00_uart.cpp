@@ -151,9 +151,11 @@ uint32_t Pr31x00Uart::ReadWord(uint32_t addr) {
            the Transmit Holding Register and Transmit Shift Register are empty"; EMPTY "is high
            if the Transmit Holding Register and Transmit Shift Register are both empty". */
         case kOffCtl1: {
-            uint32_t v = 0;
-            if (dma_->PrxHoldFull(dma_port_)) v |= kCtl1PrxHoldFull;
-            if (dma_->RxHoldFull(dma_port_))  v |= kCtl1RxHoldFull;
+            uint32_t v           = 0;
+            bool     rxhold_full = false, prxhold_full = false;
+            dma_->ReadHolds(dma_port_, rxhold_full, prxhold_full);
+            if (prxhold_full) v |= kCtl1PrxHoldFull;
+            if (rxhold_full)  v |= kCtl1RxHoldFull;
             const bool tx_empty = tx_->Empty(tx_port_);
             std::lock_guard<std::mutex> lk(mu_);
             v |= ctl1_ & kCtl1Writable;
@@ -318,11 +320,8 @@ void Pr31x00Uart::SetModemInputs(bool cts, bool dsr, bool ri, bool dcd) {
     if (modem_) modem_lines_->SetInputs(modem_port_, cts, dsr, ri, dcd);
 }
 
-SerialLine::LineConfig Pr31x00Uart::ComputeLineConfigLocked() const {
+SerialLine::LineConfig Pr31x00Uart::FramingLocked() const {
     LineConfig c;
-    const GuestCycleClock::Rate uartclk = module_clock_->UartClockRate(ClockEnableBit());
-    c.baud      = static_cast<uint32_t>(
-        uartclk.num / (uartclk.den * kClocksPerBaud * (static_cast<uint64_t>(ctl2_baud_) + 1u)));
     c.data_bits = (ctl1_ & kCtl1Bit7) ? 7u : 8u;
     if ((ctl1_ & kCtl1EnParity) == 0u) c.parity = LineConfig::Parity::None;
     else c.parity = (ctl1_ & kCtl1EvenParity) ? LineConfig::Parity::Even
@@ -331,14 +330,39 @@ SerialLine::LineConfig Pr31x00Uart::ComputeLineConfigLocked() const {
     return c;
 }
 
-bool Pr31x00Uart::UartClockRunning() const {
-    return module_clock_->UartClockRate(ClockEnableBit()).num != 0u;
+SerialLine::LineConfig Pr31x00Uart::ComputeLineConfigLocked() const {
+    LineConfig c = FramingLocked();
+    const GuestCycleClock::Rate uartclk = module_clock_->UartClockRate(ClockEnableBit());
+    c.baud = static_cast<uint32_t>(
+        uartclk.num / (uartclk.den * kClocksPerBaud * (static_cast<uint64_t>(ctl2_baud_) + 1u)));
+    return c;
+}
+
+/* TMPR3911 §16.4 (page 16-9): start, 7 or 8 data bits, parity, then the transfer as the stop bit
+   is clocked in; TWOSTOP sets two stop bits on the transmitter (page 16-13). */
+Pr31x00UartDma::LineTiming Pr31x00Uart::FrameTimingLocked() const {
+    const LineConfig c = FramingLocked();
+    Pr31x00UartDma::LineTiming t;
+    t.uart_clocks_per_bit = kClocksPerBaud * (static_cast<uint64_t>(ctl2_baud_) + 1u);
+    t.transfer_bits = 1u + c.data_bits + (c.parity != LineConfig::Parity::None ? 1u : 0u) + 1u;
+    t.frame_bits    = t.transfer_bits + (c.stop == LineConfig::Stop::Two ? 1u : 0u);
+    return t;
+}
+
+Pr31x00UartDma::LineTiming Pr31x00Uart::LineTimingLocked() const {
+    Pr31x00UartDma::LineTiming t = FrameTimingLocked();
+    t.uart_clock = module_clock_->UartClockRate(ClockEnableBit());
+    return t;
 }
 
 void Pr31x00Uart::ApplyClockState() {
-    const bool running = UartClockRunning();
-    dma_->SetClockRunning(dma_port_, running);
-    tx_->SetClockRunning(tx_port_, running);
+    Pr31x00UartDma::LineTiming timing;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        timing = LineTimingLocked();
+    }
+    dma_->SetLine(dma_port_, timing);
+    tx_->SetClockRunning(tx_port_, timing.uart_clock.num != 0u);
 }
 
 SerialLine::LineConfig Pr31x00Uart::GetLineConfig() const {
@@ -398,10 +422,12 @@ void Pr31x00Uart::SaveState(StateWriter& w) {
 }
 
 void Pr31x00Uart::RestoreState(StateReader& r) {
+    Pr31x00UartDma::LineTiming framing;
     {
         std::lock_guard<std::mutex> lk(mu_);
         r.Read("ctl1_v", ctl1_);
         r.Read("baud", ctl2_baud_);
+        framing = FrameTimingLocked();
     }
     modem_lines_->RestoreState(modem_port_, r);
     {
@@ -410,7 +436,7 @@ void Pr31x00Uart::RestoreState(StateReader& r) {
         rx_drain_cb_ = nullptr;
         line_cfg_cb_ = nullptr;
     }
-    dma_->RestoreState(dma_port_, r);
+    dma_->RestoreState(dma_port_, r, framing);
     tx_->RestoreState(tx_port_, r);
     if (cradle_) cradle_->RestoreCradleState(r);
 }

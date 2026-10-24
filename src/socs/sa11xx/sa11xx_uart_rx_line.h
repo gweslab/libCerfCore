@@ -2,16 +2,13 @@
 
 #include <cerfcore/core/service.h>
 #include "../../execution/guest_cycle_clock.h"
-#include "../rated_tick_count.h"
+#include "../uart_rx_line.h"
 #include "sa11xx_uart_regs.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <deque>
 #include <memory>
-#include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -25,7 +22,7 @@ public:
 
     static constexpr uint16_t kBreakBegin = 1u << 8;
     static constexpr uint16_t kBreakEnd   = 1u << 9;
-    static constexpr uint64_t kNever      = UINT64_MAX;
+    static constexpr uint64_t kNever      = UartRxLine::kNever;
 
     using Service::Service;
 
@@ -45,33 +42,21 @@ public:
     void     Rescale(uint32_t port, uint64_t now);
     bool     Retime(uint32_t port, const Control& old_ctl, const Control& ctl, uint64_t now);
 
-    bool FrontDue(uint32_t port, uint64_t now) const {
-        const Line& l = *line_[port];
-        if (l.next_due == kNever) return false;
-        return l.next_due == 0u || (l.timed && l.next_due <= l.half.TicksAt(now));
-    }
-    uint16_t Front(uint32_t port) const { return line_[port]->entries.front(); }
-    void     PopFront(uint32_t port, uint64_t now);
+    bool     FrontDue(uint32_t port, uint64_t now) const { return line_[port]->rx.FrontDue(now); }
+    uint16_t Front(uint32_t port) const { return line_[port]->rx.Front(); }
+    void     PopFront(uint32_t port, uint64_t now) { line_[port]->rx.PopFront(now); }
     /* §11.11.1.3 (printed 11-110): "If the receive FIFO contains valid data and three frame periods
        elapse without the reception of data on RXD3, the receiver idle interrupt is generated." */
     bool Quiet(uint32_t port, const Control& ctl, uint64_t now) {
-        Line& l = *line_[port];
-        if (!l.entries.empty() || !l.timed) return false;
-        if (!l.quiet && l.half.TicksAt(now) >= l.last_land + 6u * sa11xx_uart::FrameBits(ctl.utcr0)) {
-            l.quiet = true;
-        }
-        return l.quiet;
+        return line_[port]->rx.Quiet(6u * sa11xx_uart::FrameBits(ctl.utcr0), now);
     }
-    uint64_t DueTick(uint32_t port, size_t index) const { return line_[port]->due[index]; }
+    uint64_t DueTick(uint32_t port, size_t index) const { return line_[port]->rx.DueTick(index); }
     uint64_t QuietTick(uint32_t port, const Control& ctl) const {
-        const Line& l = *line_[port];
-        if (!l.timed) return kNever;
-        if (!l.entries.empty()) return l.due.back() + 6u * sa11xx_uart::FrameBits(ctl.utcr0);
-        return l.quiet ? kNever : l.last_land + 6u * sa11xx_uart::FrameBits(ctl.utcr0);
+        return line_[port]->rx.QuietTick(6u * sa11xx_uart::FrameBits(ctl.utcr0));
     }
-    size_t   Pending(uint32_t port) const { return line_[port]->entries.size(); }
+    size_t   Pending(uint32_t port) const { return line_[port]->rx.Pending(); }
     uint64_t CycleOfTick(uint32_t port, uint64_t tick) const {
-        return line_[port]->half.CycleOfTick(tick);
+        return line_[port]->rx.CycleOfTick(tick);
     }
 
     void Save(uint32_t port, StateWriter& w);
@@ -81,26 +66,15 @@ private:
     static constexpr uint32_t kPorts = 3u;
 
     struct Line {
-        Sa11xxUartBase*       owner = nullptr;
-        const char*           name  = "";
-        std::deque<uint16_t>  entries;
-        std::deque<uint64_t>  due;
-        uint64_t              next_due = kNever;
-        NarrowRatedTickCount  half;
-        GuestCycleClock::Rate half_rate{};
-        bool                  timed      = false;
-        uint64_t              next_start = 0;
-        uint64_t              last_land  = 0;
-        bool                  quiet      = true;
-        std::mutex            wire_mtx;
-        std::vector<uint8_t>  wire;
+        Line(Sa11xxUartBase* o, const char* name) : owner(o), rx(name) {}
+
+        Sa11xxUartBase* owner;
+        UartRxLine      rx;
     };
 
+    static UartRxLine::Frame FrameOf(const Control& ctl);
     void StartClock(Line& l, const Control& ctl, uint64_t now);
-    static void Append(Line& l, uint16_t entry, uint64_t due);
-    static void ClearEntries(Line& l);
-    static bool Reframe(Line& l, const Control& old_ctl, const Control& ctl);
-    static void LogNoClock(const Line& l, size_t n);
+    void RateOverflow(const Line& l);
     static void LogLoopback(const Line& l, size_t n);
 
     GuestCycleClock* clock_ = nullptr;

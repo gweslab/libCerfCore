@@ -231,7 +231,7 @@ void Pr31x00Clock::RestoreState(StateReader& r) {
 }
 
 void Pr31x00Clock::PostRestore() {
-    SetCoreRate(config_->ReducedFrequency());
+    ApplyCoreRate(config_->ReducedFrequency());
 }
 
 }
