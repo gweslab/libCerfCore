@@ -2042,15 +2042,15 @@
     },
     {
       "id": "ipaq_h36xx",
-      "name": "iPAQ H36xx",
-      "short_name": "iPAQ H36xx",
+      "name": "Compaq iPAQ H3600 Series",
+      "short_name": "iPAQ H3600",
       "board_family_id": "compaq_ipaq_h3000",
       "support_level": "bootable_full"
     },
     {
       "id": "ipaq_h31xx",
-      "name": "iPAQ H31xx",
-      "short_name": "iPAQ H31xx",
+      "name": "Compaq iPAQ H3100 Series",
+      "short_name": "iPAQ H3100",
       "board_family_id": "compaq_ipaq_h3000",
       "support_level": "bootable_full",
       "internal__spec_divergences": "16 MB RAM, 15-level grayscale STN panel",
@@ -2058,7 +2058,7 @@
     },
     {
       "id": "ipaq_h3660_h3670",
-      "name": "iPAQ H3660/H3670",
+      "name": "Compaq iPAQ H3660/H3670",
       "short_name": "iPAQ H3660/H3670",
       "board_family_id": "compaq_ipaq_h3000",
       "support_level": "bootable_full",
@@ -2067,7 +2067,7 @@
     },
     {
       "id": "ipaq_h37xx",
-      "name": "iPAQ H37xx",
+      "name": "Compaq iPAQ H37xx",
       "short_name": "iPAQ H37xx",
       "board_family_id": "compaq_ipaq_h3000",
       "support_level": "unknown_partial",
