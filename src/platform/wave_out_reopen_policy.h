@@ -7,10 +7,9 @@
 namespace cerfcore {
 
 struct WaveOutFormat {
-    uint32_t rate_hz         = 0;
-    uint16_t channels        = 0;
-    uint16_t bits            = 0;
-    bool     allow_resampler = false;
+    uint32_t rate_hz  = 0;
+    uint16_t channels = 0;
+    uint16_t bits     = 0;
 };
 
 class WaveOutDevice {

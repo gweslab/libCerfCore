@@ -27,7 +27,7 @@ constexpr uint32_t kRightHalf = 2u;
 void Pxa2xxAc97Pcm::OnReady() {
     Pxa2xxAc97OutFifo::OnReady();
     bit_clock_ = &emu_.Get<Pxa2xxAc97BitClock>();
-    host_.Start("Pxa2xxAc97Pcm", 0u, kChannels, kBits, true);
+    host_.Start("Pxa2xxAc97Pcm", 0u, kChannels, kBits);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }
 

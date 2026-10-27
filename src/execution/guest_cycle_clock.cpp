@@ -6,7 +6,7 @@
 #include "../core/tick_scale.h"
 #include "../core/virtual_clock.h"
 #include "engine_bridge.h"
-#include "../platform/host_error.h"
+#include <cerfcore/platform/host_error.h>
 
 #include <algorithm>
 #include <numeric>

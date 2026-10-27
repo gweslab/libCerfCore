@@ -2,6 +2,9 @@
 
 #include "host_win32_upcase_table.h"
 
+#include <cerfcore/core/path_segments.h>
+#include <cerfcore/core/utf16.h>
+
 #include <algorithm>
 #include <iterator>
 
@@ -15,7 +18,7 @@ constexpr char16_t kDosStar = u'<';
 constexpr char16_t kDosQm   = u'>';
 constexpr char16_t kDosDot  = u'"';
 
-bool IsSeparator(char16_t c) { return c == u'\\' || c == u'/'; }
+bool IsSeparator(char16_t c) { return IsPathSeparator(c, kWindowsPathSeparators<char16_t>); }
 
 void TrimSinglePeriod(std::u16string& s) {
     if (s.size() >= 2u && s.back() == u'.' && s[s.size() - 2u] != u'.') s.pop_back();
@@ -92,12 +95,7 @@ Win32FullPath NormalizeWin32Path(std::vector<Win32PathSegment> base, std::u16str
         out.segments.back().from_tail = true;
     }
     out.trailing_separator = !tail.empty() && IsSeparator(tail.back());
-    while (i < tail.size()) {
-        while (i < tail.size() && IsSeparator(tail[i])) ++i;
-        const size_t start = i;
-        while (i < tail.size() && !IsSeparator(tail[i])) ++i;
-        if (start == i) break;
-        const std::u16string_view segment = tail.substr(start, i - start);
+    for (const std::u16string_view segment : PathSegments(tail, i, kWindowsPathSeparators<char16_t>)) {
         if (segment == u".") continue;
         if (segment == u"..") {
             if (!out.segments.empty()) out.segments.pop_back();
@@ -179,6 +177,25 @@ std::u16string FixWin32Mask(std::u16string_view mask) {
 bool MatchWin32Mask(std::u16string_view name, std::u16string_view fixed_mask) {
     if (name == u"..") name = name.substr(0, 1);
     return MatchFrom(name, 0u, fixed_mask, 0u);
+}
+
+bool UsableWin32Name(const std::string& host_name, std::u16string& name16) {
+    name16 = Utf8ToUtf16(host_name);
+    return Utf16ToUtf8(name16) == host_name && IsWin32FileName(name16);
+}
+
+std::vector<Win32NameMatch> MatchWin32Names(const std::vector<std::string>& host_names, std::u16string_view mask) {
+    const std::u16string        fixed = FixWin32Mask(mask);
+    std::vector<Win32NameMatch> matches;
+    for (std::size_t i = 0; i < host_names.size(); ++i) {
+        std::u16string name16;
+        if (UsableWin32Name(host_names[i], name16) && MatchWin32Mask(name16, fixed)) {
+            matches.push_back({i, std::move(name16)});
+        }
+    }
+    std::sort(matches.begin(), matches.end(),
+              [](const Win32NameMatch& a, const Win32NameMatch& b) { return Win32NameLess(a.name, b.name); });
+    return matches;
 }
 
 }

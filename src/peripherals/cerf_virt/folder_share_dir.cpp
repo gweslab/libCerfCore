@@ -74,29 +74,29 @@ uint32_t FolderShareDir::Run(uint32_t code, ServerPB& pb) {
 }
 
 uint16_t FolderShareDir::MkDir(ServerPB& pb) {
+    FolderSharePath& fsp = emu_.Get<FolderSharePath>();
     std::u16string path;
-    uint16_t e = emu_.Get<FolderSharePath>().ToHostPath(
-        pb.fLfn.fName, pb.fLfn.fNameLength, path);
+    uint16_t e = fsp.ToHostPath(pb.fLfn.fName, pb.fLfn.fNameLength, path);
     if (e != kErrorNoError) return e;
-    const SharedFsStatus st = host_platform::CreateSharedDirectory(path);
+    const SharedFsStatus st = fsp.Folder().MakeDirectory(path);
     return st.Ok() ? kErrorNoError : FolderSharePath::CeError(st);
 }
 
 uint16_t FolderShareDir::RmDir(ServerPB& pb) {
+    FolderSharePath& fsp = emu_.Get<FolderSharePath>();
     std::u16string path;
-    uint16_t e = emu_.Get<FolderSharePath>().ToHostPath(
-        pb.fLfn.fName, pb.fLfn.fNameLength, path);
+    uint16_t e = fsp.ToHostPath(pb.fLfn.fName, pb.fLfn.fNameLength, path);
     if (e != kErrorNoError) return e;
-    const SharedFsStatus st = host_platform::RemoveSharedDirectory(path);
+    const SharedFsStatus st = fsp.Folder().RemoveEmptyDirectory(path);
     return st.Ok() ? kErrorNoError : FolderSharePath::CeError(st);
 }
 
 uint16_t FolderShareDir::Delete(ServerPB& pb) {
+    FolderSharePath& fsp = emu_.Get<FolderSharePath>();
     std::u16string path;
-    uint16_t e = emu_.Get<FolderSharePath>().ToHostPath(
-        pb.fLfn.fName, pb.fLfn.fNameLength, path);
+    uint16_t e = fsp.ToHostPath(pb.fLfn.fName, pb.fLfn.fNameLength, path);
     if (e != kErrorNoError) return e;
-    const SharedFsStatus st = host_platform::DeleteSharedFile(path);
+    const SharedFsStatus st = fsp.Folder().RemoveFile(path);
     return st.Ok() ? kErrorNoError : FolderSharePath::CeError(st);
 }
 
@@ -107,25 +107,25 @@ uint16_t FolderShareDir::Rename(ServerPB& pb) {
     if (e != kErrorNoError) return e;
     e = fsp.ToHostPath(pb.fLfn.fName2, pb.fLfn.fName2Length, dst);
     if (e != kErrorNoError) return e;
-    const SharedFsStatus st = host_platform::MoveSharedFile(src, dst);
+    const SharedFsStatus st = fsp.Folder().Move(src, dst);
     return st.Ok() ? kErrorNoError : FolderSharePath::CeError(st);
 }
 
 uint16_t FolderShareDir::SetAttributes(ServerPB& pb) {
+    FolderSharePath& fsp = emu_.Get<FolderSharePath>();
     std::u16string path;
-    uint16_t e = emu_.Get<FolderSharePath>().ToHostPath(
-        pb.fLfn.fName, pb.fLfn.fNameLength, path);
+    uint16_t e = fsp.ToHostPath(pb.fLfn.fName, pb.fLfn.fNameLength, path);
     if (e != kErrorNoError) return e;
 
     if (pb.fFileTimeDate != 0) {
-        const SharedFsStatus st = host_platform::SetSharedWriteTime(path, pb.fFileTimeDate);
+        const SharedFsStatus st = fsp.Folder().SetWriteTime(path, pb.fFileTimeDate);
         if (!st.Ok()) return FolderSharePath::CeError(st);
     }
 
     const uint8_t attrs = (uint8_t)(pb.fFileAttributes &
                                     (host_platform::kSharedReadOnly | host_platform::kSharedHidden |
                                      host_platform::kSharedSystem | host_platform::kSharedArchive));
-    const SharedFsStatus st = host_platform::SetSharedAttributes(path, attrs);
+    const SharedFsStatus st = fsp.Folder().SetAttributes(path, attrs);
     return st.Ok() ? kErrorNoError : FolderSharePath::CeError(st);
 }
 
@@ -135,13 +135,13 @@ uint16_t FolderShareDir::CloseFind(ServerPB& pb) {
 }
 
 uint16_t FolderShareDir::GetInfo(ServerPB& pb) {
+    FolderSharePath& fsp = emu_.Get<FolderSharePath>();
     if (pb.fIndex == -1) {
         std::u16string path;
-        uint16_t e = emu_.Get<FolderSharePath>().ToHostPath(
-            pb.fLfn.fName, pb.fLfn.fNameLength, path);
+        uint16_t e = fsp.ToHostPath(pb.fLfn.fName, pb.fLfn.fNameLength, path);
         if (e != kErrorNoError) return e;
         SharedFsInfo info;
-        const SharedFsStatus st = host_platform::QuerySharedInfo(path, info);
+        const SharedFsStatus st = fsp.Folder().QueryInfo(path, info);
         if (!st.Ok()) return FolderSharePath::CeError(st);
         FolderSharePath::FillInfo(pb, info);
         return kErrorNoError;
@@ -153,11 +153,10 @@ uint16_t FolderShareDir::GetInfo(ServerPB& pb) {
     if (pb.fIndex == 0) {
         finds_.erase(tid);
         std::u16string spec;
-        uint16_t e = emu_.Get<FolderSharePath>().ToHostPath(
-            pb.fLfn.fName, pb.fLfn.fNameLength, spec);
+        uint16_t e = fsp.ToHostPath(pb.fLfn.fName, pb.fLfn.fNameLength, spec);
         if (e != kErrorNoError) return e;
-        auto find = std::make_unique<host_platform::SharedFsFind>();
-        const SharedFsStatus st = find->First(spec, info, name);
+        std::unique_ptr<host_platform::SharedFsFind> find;
+        const SharedFsStatus st = fsp.Folder().FindFirst(spec, find, info, name);
         if (!st.Ok()) {
             return (st.error == SharedFsError::kFileNotFound)
                        ? kErrorNoMoreFiles

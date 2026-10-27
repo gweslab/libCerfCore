@@ -8,7 +8,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
-#include "../../core/host_file_bytes.h"
+#include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
 

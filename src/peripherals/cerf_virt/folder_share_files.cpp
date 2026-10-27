@@ -101,18 +101,18 @@ uint16_t FolderShareFiles::GetDriveConfig(ServerPB&) {
 }
 
 uint16_t FolderShareFiles::Create(ServerPB& pb) {
+    FolderSharePath& fsp = emu_.Get<FolderSharePath>();
     std::u16string path;
-    uint16_t e = emu_.Get<FolderSharePath>().ToHostPath(
-        pb.fLfn.fName, pb.fLfn.fNameLength, path);
+    uint16_t e = fsp.ToHostPath(pb.fLfn.fName, pb.fLfn.fNameLength, path);
     if (e != kErrorNoError) return e;
-    const SharedFsStatus st = host_platform::CreateNewSharedFile(path);
+    const SharedFsStatus st = fsp.Folder().CreateNewFile(path);
     return st.Ok() ? kErrorNoError : FolderSharePath::CeError(st);
 }
 
 uint16_t FolderShareFiles::Open(ServerPB& pb) {
+    FolderSharePath& fsp = emu_.Get<FolderSharePath>();
     std::u16string path;
-    uint16_t e = emu_.Get<FolderSharePath>().ToHostPath(
-        pb.fLfn.fName, pb.fLfn.fNameLength, path);
+    uint16_t e = fsp.ToHostPath(pb.fLfn.fName, pb.fLfn.fNameLength, path);
     if (e != kErrorNoError) return e;
 
     uint16_t handle;
@@ -140,8 +140,8 @@ uint16_t FolderShareFiles::Open(ServerPB& pb) {
             CerfFatalExit();
     }
 
-    auto opened = std::make_unique<host_platform::SharedFsFile>();
-    const SharedFsStatus st = opened->Open(path, access, share);
+    std::unique_ptr<host_platform::SharedFsFile> opened;
+    const SharedFsStatus st = fsp.Folder().Open(path, access, share, opened);
     if (!st.Ok()) return FolderSharePath::CeError(st);
 
     OpenFile& file = files_[handle];
@@ -211,8 +211,7 @@ uint16_t FolderShareFiles::GetFcbInfo(ServerPB& pb) {
 uint16_t FolderShareFiles::GetSpace(ServerPB& pb) {
     uint64_t total = 0;
     uint64_t avail = 0;
-    const SharedFsStatus st = host_platform::QuerySharedSpace(
-        emu_.Get<FolderShareConfig>().HostRoot(), total, avail);
+    const SharedFsStatus st = emu_.Get<FolderSharePath>().Folder().QuerySpace(total, avail);
     if (!st.Ok()) return FolderSharePath::CeError(st);
     const uint64_t cluster = 512ull * 64ull;
     uint64_t total_cl = total / cluster;

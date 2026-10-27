@@ -5,7 +5,6 @@
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/utf16.h>
 #include <cerfcore/host/host_widget_registry.h>
-#include <cerfcore/host/keyboard_hotkeys.h>
 #include <cerfcore/host/keyboard_input.h>
 #include <cerfcore/host/keyboard_map.h>
 #include <cerfcore/host/keyboard_mapping_view.h>
@@ -88,21 +87,12 @@ std::vector<WidgetControl> KeyboardWidget::Controls() {
         controls.push_back(WidgetControl{std::move(source)});
     }
 
-    if (emu_.TryGet<KeyboardMap>()) {
-        if (emu_.TryGet<KeyboardMappingView>()) {
-            ActionControl see;
-            see.id    = "see_mapping";
-            see.label = "See keyboard mapping";
-            see.press = [this] { emu_.Get<KeyboardMappingView>().Show(); };
-            controls.push_back(WidgetControl{GroupControl{"", {WidgetControl{std::move(see)}}}});
-        }
-
-        if (auto* hk = emu_.TryGet<KeyboardHotkeys>()) {
-            for (auto& sec : hk->HotkeySections()) {
-                if (sec.empty()) continue;
-                controls.push_back(WidgetControl{GroupControl{"", std::move(sec)}});
-            }
-        }
+    if (emu_.TryGet<KeyboardMap>() && emu_.TryGet<KeyboardMappingView>()) {
+        ActionControl see;
+        see.id    = "see_mapping";
+        see.label = "See keyboard mapping";
+        see.press = [this] { emu_.Get<KeyboardMappingView>().Show(); };
+        controls.push_back(WidgetControl{GroupControl{"", {WidgetControl{std::move(see)}}}});
     }
     return controls;
 }

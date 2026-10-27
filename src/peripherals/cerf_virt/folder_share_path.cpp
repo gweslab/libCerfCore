@@ -11,15 +11,26 @@ REGISTER_SERVICE(FolderSharePath);
 using host_platform::SharedFsError;
 using host_platform::SharedPathResult;
 
+void FolderSharePath::ReconcileRoot() {
+    std::string root = emu_.Get<FolderShareConfig>().HostRoot();
+    if (folder_ && root == folder_root_) return;
+    folder_      = host_platform::OpenHostSharedFolder(root);
+    folder_root_ = std::move(root);
+}
+
+host_platform::HostSharedFolder& FolderSharePath::Folder() {
+    if (!folder_) ReconcileRoot();
+    return *folder_;
+}
+
 uint16_t FolderSharePath::ToHostPath(const uint16_t* ce_name,
                                      uint16_t ce_len_bytes,
-                                     std::u16string& out) const {
+                                     std::u16string& out) {
     if (ce_len_bytes > CerfVirt::kMaxLfn * sizeof(uint16_t))
         ce_len_bytes = (uint16_t)(CerfVirt::kMaxLfn * sizeof(uint16_t));
     const std::u16string name(ce_name, ce_name + ce_len_bytes / sizeof(uint16_t));
 
-    const SharedPathResult r = host_platform::ResolveSharedPath(
-        emu_.Get<FolderShareConfig>().HostRoot(), name, out);
+    const SharedPathResult r = Folder().Resolve(name, out);
     if (r == SharedPathResult::kResolved) return CerfVirt::kErrorNoError;
     if (r == SharedPathResult::kRootUnavailable) return CerfVirt::kErrorPathNotFound;
     return CerfVirt::kErrorInvalidName;

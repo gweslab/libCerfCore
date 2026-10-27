@@ -1,14 +1,20 @@
 #include "host_crash.h"
 
+#include "host_install_directory.h"
+
 #define NOMINMAX
 #include <windows.h>
 #include <dbghelp.h>
 #include <tlhelp32.h>
 
+#include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/text_append.h>
+#include <cerfcore/platform/wide_text_win32.h>
 
 #include <cstdint>
 #include <mutex>
+#include <string>
 
 namespace cerfcore {
 
@@ -19,6 +25,15 @@ namespace {
 std::mutex g_dbghelp_mutex;
 bool       g_dbghelp_inited = false;
 HANDLE     g_crash_file     = INVALID_HANDLE_VALUE;
+wchar_t    g_crash_path[MAX_PATH];
+
+void CaptureLogPath() {
+    const std::string directory = InstallDirectory();
+    if (directory.empty()) return;
+    const std::string path = directory + kCrashLogFileName;
+    if (!AppendText(g_crash_path, Utf8ToWide(path.c_str()).c_str()))
+        LOG(Cerf, "crash log path too long, no crash log: %s\n", path.c_str());
+}
 
 void EnsureDbgHelpInited_Locked() {
     if (g_dbghelp_inited) return;
@@ -146,18 +161,10 @@ void CrashFreezeOtherThreads() {
 }
 
 void CrashOpenLog() {
-    wchar_t crash_path[MAX_PATH];
-    const DWORD mod_len = GetModuleFileNameW(NULL, crash_path, MAX_PATH);
-    int cut = 0;
-    if (mod_len > 0 && mod_len < MAX_PATH) {
-        for (int i = 0; i < (int)mod_len; ++i) {
-            if (crash_path[i] == L'\\' || crash_path[i] == L'/') cut = i + 1;
-        }
-    }
-    lstrcpynW(crash_path + cut, L"cerf.crash.log", MAX_PATH - cut);
-    g_crash_file = CreateFileW(crash_path, GENERIC_WRITE,
-                               FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (g_crash_path[0] != L'\0')
+        g_crash_file = CreateFileW(g_crash_path, GENERIC_WRITE,
+                                   FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     SYSTEMTIME st;
     GetLocalTime(&st);
     char hdr[256];
@@ -265,6 +272,7 @@ bool CrashSymbolize(const void* addr, char* out, size_t out_size) {
 }
 
 void CrashInstallUnhandledFilter() {
+    CaptureLogPath();
     SetUnhandledExceptionFilter(CerfTopLevelExceptionFilter);
 }
 

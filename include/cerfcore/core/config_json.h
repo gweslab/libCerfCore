@@ -1,37 +1,80 @@
 #pragma once
 
-#include "host_fs_path.h"
+#include "host_file_read.h"
 #include "log.h"
 
 #include <nlohmann/json.hpp>
 
-#include <fstream>
+#include <cstdint>
+#include <functional>
+#include <initializer_list>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace cerfcore {
 
-[[noreturn]] inline void CfgFatal(const std::string& path,
-                                  const std::string& msg) {
-    LOG(Caution, "FATAL: '%s' %s\n", path.c_str(), msg.c_str());
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
-}
+[[noreturn]] void CfgFatal(const std::string& path, const std::string& msg);
 
-inline nlohmann::json CfgReadJsonFile(const std::string& path) {
-    std::ifstream f(HostFsPath(path));
-    if (!f.is_open()) return nlohmann::json();
-    nlohmann::json j;
+std::string CfgKeyPath(std::initializer_list<std::string_view> keys);
+std::string CfgElementPath(std::string_view array_path);
+
+HostFileRead CfgReadTextFile(const std::string& path, std::string& text);
+bool         CfgWriteJsonFile(const std::string& path, const nlohmann::ordered_json& value, uint32_t& error);
+
+enum class CfgEmptyObject : uint8_t {
+    kWrite,
+    kRemoveFile,
+};
+
+bool CfgUpdateJsonFile(const std::string& path, const std::function<void(nlohmann::ordered_json&)>& mutate,
+                       CfgEmptyObject empty, std::string& error);
+
+std::vector<std::string> CfgReadStringArray(const nlohmann::json& list, const std::string& path,
+                                            const std::string& ctx);
+const nlohmann::json* CfgReadOptObjectArray(const nlohmann::json& obj, const char* key, const std::string& path,
+                                            const std::string& ctx);
+
+template <class JsonT = nlohmann::json>
+std::optional<JsonT> CfgParseJsonObject(std::string_view text, std::string& error) {
+    JsonT j;
     try {
-        f >> j;
+        j = JsonT::parse(text.begin(), text.end());
     } catch (const std::exception& e) {
-        CfgFatal(path, std::string("JSON parse error: ") + e.what());
+        error = std::string("is not valid JSON: ") + e.what();
+        return std::nullopt;
     }
-    if (!j.is_object())
-        CfgFatal(path, "top-level value must be a JSON object");
+    if (!j.is_object()) {
+        error = "is not a JSON object";
+        return std::nullopt;
+    }
     return j;
 }
 
-inline nlohmann::json CfgReadLoggedJsonFile(const std::string& path) {
-    nlohmann::json j = CfgReadJsonFile(path);
+enum class CfgBrokenFile : uint8_t {
+    kHalt,
+    kSkip,
+};
+
+template <class JsonT = nlohmann::json>
+JsonT CfgReadJsonFile(const std::string& path, CfgBrokenFile broken = CfgBrokenFile::kHalt) {
+    std::string        text;
+    const HostFileRead read = CfgReadTextFile(path, text);
+    if (read == HostFileRead::kAbsent) return JsonT();
+    std::string error = "cannot be read";
+    if (read == HostFileRead::kRead) {
+        std::optional<JsonT> j = CfgParseJsonObject<JsonT>(text, error);
+        if (j) return std::move(*j);
+    }
+    if (broken == CfgBrokenFile::kHalt) CfgFatal(path, error);
+    LOG(Cfg, "%s %s; not read\n", path.c_str(), error.c_str());
+    return JsonT::object();
+}
+
+template <class JsonT = nlohmann::json>
+JsonT CfgReadLoggedJsonFile(const std::string& path, CfgBrokenFile broken = CfgBrokenFile::kHalt) {
+    JsonT j = CfgReadJsonFile<JsonT>(path, broken);
     if (j.is_null()) {
         LOG(Cfg, "%s: absent\n", path.c_str());
         return j;
@@ -44,58 +87,14 @@ inline nlohmann::json CfgReadLoggedJsonFile(const std::string& path) {
     return j;
 }
 
-inline nlohmann::json CfgReadInstalledJsonFile(const std::string& path) {
-    nlohmann::json j = CfgReadJsonFile(path);
-    if (j.is_null()) CfgFatal(path, "is missing: the installation is damaged");
-    return j;
-}
-
-inline const nlohmann::json& CfgRequireArray(const nlohmann::json& root,
-                                             const char* key,
-                                             const std::string& path) {
-    if (!root.contains(key) || !root[key].is_array())
-        CfgFatal(path, std::string("'") + key + "' must be an array");
-    return root[key];
-}
-
-inline std::string CfgRequireString(const nlohmann::json& obj, const char* key,
-                                    const std::string& path,
-                                    const std::string& ctx) {
-    if (!obj.contains(key) || !obj[key].is_string() ||
-        obj[key].get<std::string>().empty())
-        CfgFatal(path, ctx + "." + key + " must be a non-empty string");
-    return obj[key].get<std::string>();
-}
-
-inline std::string CfgReadOptString(const nlohmann::json& obj, const char* key,
-                                    const std::string& path,
-                                    const std::string& ctx) {
-    if (!obj.contains(key)) return {};
-    const auto& v = obj[key];
-    if (v.is_null()) return {};
-    if (!v.is_string())
-        CfgFatal(path, ctx + "." + key + " must be a string (or null)");
-    return v.get<std::string>();
-}
-
-inline int CfgReadOptInt(const nlohmann::json& obj, const char* key,
-                         const std::string& path, const std::string& ctx) {
-    if (!obj.contains(key)) return 0;
-    const auto& v = obj[key];
-    if (v.is_null()) return 0;
-    if (!v.is_number_integer())
-        CfgFatal(path, ctx + "." + key + " must be an integer");
-    return v.get<int>();
-}
-
-inline bool CfgReadOptBool(const nlohmann::json& obj, const char* key,
-                           const std::string& path, const std::string& ctx) {
-    if (!obj.contains(key)) return false;
-    const auto& v = obj[key];
-    if (v.is_null()) return false;
-    if (!v.is_boolean())
-        CfgFatal(path, ctx + "." + key + " must be a boolean");
-    return v.get<bool>();
-}
+nlohmann::json CfgReadInstalledJsonFile(const std::string& path);
+std::string    CfgReadOptString(const nlohmann::json& obj, const char* key, const std::string& path,
+                                const std::string& ctx);
+int            CfgReadOptInt(const nlohmann::json& obj, const char* key, const std::string& path,
+                             const std::string& ctx);
+bool           CfgLoadOptBool(const nlohmann::json& obj, const char* key, bool& target, const std::string& path,
+                              const std::string& ctx);
+bool           CfgReadOptBool(const nlohmann::json& obj, const char* key, const std::string& path,
+                              const std::string& ctx);
 
 }

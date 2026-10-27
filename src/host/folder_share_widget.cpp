@@ -6,6 +6,7 @@
 #include <cerfcore/core/folder_share_config.h>
 #include <cerfcore/host/customizations_editor.h>
 #include <cerfcore/host/host_widget_registry.h>
+#include <cerfcore/platform/host_path_name.h>
 
 #include <string>
 #include <vector>
@@ -27,9 +28,8 @@ public:
 
     std::string Tooltip() const override {
         auto& cfg = emu_.Get<FolderShareConfig>();
-        if (!cfg.Enabled())
-            return "Shared folder: off - click to configure";
-        return "Shared folder: " + cfg.HostRoot();
+        if (!cfg.Enabled()) return WidgetName() + ": off - click to configure";
+        return WidgetName() + ": " + host_platform::HostLocationName(cfg.HostRoot());
     }
 
     bool ControlsAreOneAction() const override { return true; }
@@ -39,7 +39,7 @@ public:
         ActionControl configure;
         configure.id    = "configure";
         configure.label = "Configure shared folder…";
-        configure.press = [this] { emu_.Get<CustomizationsEditor>().Open(); };
+        configure.press = [this] { emu_.Get<CustomizationsEditor>().Open(false); };
         return {WidgetControl{std::move(configure)}};
     }
 

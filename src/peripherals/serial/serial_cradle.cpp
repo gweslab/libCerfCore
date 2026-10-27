@@ -9,6 +9,7 @@
 #include "serial_modem_insert_entry.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/product_name.h>
 #include <cerfcore/core/utf16.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -169,8 +170,7 @@ std::string SerialCradle::Tooltip() const {
         case Kind::Modem:
             return label_ + " - " + serial_endpoint_kind::kModemName;
         case Kind::Forward:
-            return label_ + " - " + serial_endpoint_kind::kForwardName +
-                   " -> host " + host_port_;
+            return label_ + " - " + serial_endpoint_kind::kForwardName + " -> host " + host_port_;
         case Kind::None:
             return label_ + " - empty";
     }

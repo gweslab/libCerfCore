@@ -6,6 +6,10 @@
 | --- | --- |
 | [nlohmann-json](https://github.com/nlohmann/json) | MIT |
 | [libslirp](https://gitlab.freedesktop.org/slirp/libslirp) | BSD-3-Clause |
+| [GLib](https://gitlab.gnome.org/GNOME/glib) | LGPL-2.1-or-later |
+| [PCRE2](https://github.com/PCRE2Project/pcre2) | BSD-3-Clause |
+| [GNU libiconv](https://www.gnu.org/software/libiconv/) | LGPL-2.1-or-later |
+| [GNU gettext (libintl)](https://www.gnu.org/software/gettext/) | LGPL-2.1-or-later |
 | [alsa-lib](https://www.alsa-project.org/) | LGPL-2.1-or-later |
 
 ## Studied references
@@ -29,3 +33,4 @@
 - **[pySerial](https://github.com/pyserial/pyserial)**
 - **[Wine](https://www.winehq.org/)**
 - **[XNU](https://github.com/apple-oss-distributions/xnu)**
+- **[Android Open Source Project](https://source.android.com/)**

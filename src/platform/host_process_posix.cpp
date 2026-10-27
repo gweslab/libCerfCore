@@ -8,7 +8,6 @@
 #include <mach-o/dyld.h>
 #endif
 
-#include "host_app_bundle.h"
 #include "host_unimplemented.h"
 
 namespace cerfcore {
@@ -61,15 +60,6 @@ std::string ExecutablePath() {
 #else
     NoHostImplementation("ExecutablePath");
 #endif
-}
-
-std::string ApplicationPath() {
-    const std::string exe = ExecutablePath();
-#if defined(__APPLE__)
-    const size_t bundle = AppBundleLength(exe.data(), exe.size());
-    if (bundle != 0) return exe.substr(0, bundle);
-#endif
-    return exe;
 }
 
 uint32_t CurrentProcessId() { return static_cast<uint32_t>(::getpid()); }

@@ -28,6 +28,8 @@ public:
     const std::vector<KeyBinding>& Bindings() const override {
         return kBindings;
     }
+
+    std::vector<uint8_t> SpecialKeyOrder() const override { return { 0x75, 0x76, 0x77, 0x78 }; }
 };
 
 }

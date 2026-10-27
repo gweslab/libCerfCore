@@ -7,12 +7,6 @@
 
 namespace cerfcore {
 
-namespace {
-
-/* True when os_name already contains the {major}.{minor} version as a
-   standalone token (launcher device_tree.py _os_name_has_version). std::regex
-   (ECMAScript) has no lookbehind, so the leading "not a digit/dot" boundary is
-   checked by hand on each match position; the trailing guard stays in-regex. */
 bool OsNameHasVersion(const std::string& name, int major, int minor) {
     if (name.empty() || !(major || minor)) return false;
 
@@ -40,8 +34,6 @@ bool OsNameHasVersion(const std::string& name, int major, int minor) {
     }
     return false;
 }
-
-}  /* namespace */
 
 std::string OsDisplayLabel(const DeviceMeta& meta) {
     std::string name = meta.os_name;

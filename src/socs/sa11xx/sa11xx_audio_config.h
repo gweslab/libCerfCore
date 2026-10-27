@@ -10,7 +10,6 @@ struct Sa11xxAudioConfig {
     uint16_t    channels;
     uint16_t    bits_per_sample;
     uint32_t    max_page_bytes;
-    bool        allow_resampler;
     const char* log_tag;
 };
 

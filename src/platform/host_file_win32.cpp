@@ -5,7 +5,11 @@
 #include <windows.h>
 #include <winioctl.h>
 
+#include <cerfcore/core/host_fs_path.h>
 #include <cerfcore/platform/wide_text_win32.h>
+
+#include <filesystem>
+#include <system_error>
 
 namespace cerfcore {
 
@@ -117,6 +121,14 @@ bool ReplaceHostFile(const std::string& from, const std::string& to, bool write_
     const DWORD flags = MOVEFILE_REPLACE_EXISTING | (write_through ? MOVEFILE_WRITE_THROUGH : 0u);
     return MoveFileExW(Utf8ToWide(from.c_str()).c_str(), Utf8ToWide(to.c_str()).c_str(),
                        flags) != 0;
+}
+
+bool HostRegularFileSize(const std::string& path, uint64_t& size) {
+    std::error_code             ec;
+    const std::filesystem::path p = HostFsPath(path);
+    if (!std::filesystem::is_regular_file(p, ec) || ec) return false;
+    size = std::filesystem::file_size(p, ec);
+    return !ec;
 }
 
 bool HostFileExists(const std::string& path) {

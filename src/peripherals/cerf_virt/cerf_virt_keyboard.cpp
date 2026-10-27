@@ -3,6 +3,7 @@
 #include "cerf_guest_liveness.h"
 
 #include "../peripheral_dispatcher.h"
+#include "../../host/pc_special_key_order.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
@@ -88,6 +89,12 @@ public:
     }
 
     bool CanDeliverVk(uint8_t /*vk*/) const override { return true; }
+
+    std::vector<SpecialKey> SpecialKeys() const override {
+        std::vector<SpecialKey> keys;
+        for (const uint8_t vk : PcSpecialKeyOrder()) keys.push_back({vk, nullptr});
+        return keys;
+    }
 };
 
 REGISTER_SERVICE(CerfVirtKeyboardInput);

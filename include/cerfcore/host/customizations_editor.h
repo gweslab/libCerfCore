@@ -8,7 +8,7 @@ class CustomizationsEditor : public Service {
 public:
     using Service::Service;
 
-    virtual void Open() = 0;
+    virtual bool Open(bool force_reboot) = 0;
 };
 
 }

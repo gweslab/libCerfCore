@@ -1,8 +1,10 @@
 #pragma once
+#include "device_config_keys.h"
 #include "service.h"
 #include "sd_card_cid.h"
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -49,6 +51,14 @@ enum class CanvasTab {
 constexpr uint32_t kDefaultConfigurableScreenWidth  = 800;
 constexpr uint32_t kDefaultConfigurableScreenHeight = 600;
 
+constexpr bool kDefaultNetworkEnabled     = true;
+constexpr bool kDefaultGuestAdditions     = false;
+constexpr bool kDefaultStartFullscreen    = false;
+constexpr bool kDefaultDoubleTapHelper    = true;
+constexpr bool kDefaultAllowUntrustedApps = false;
+
+std::string DefaultStorageFileName(std::string_view storage_id);
+
 struct DeviceConfig : public Service {
     using Service::Service;
 
@@ -80,7 +90,7 @@ struct DeviceConfig : public Service {
        over a board's fixed-LCD preferred window size. */
     bool board_configurable_screen_explicit = false;
 
-    bool        network_enabled = true;
+    bool        network_enabled = kDefaultNetworkEnabled;
     std::string network_mac     = "02:CE:5F:00:00:01";
     uint32_t    network_mtu     = 1500;
     std::string network_forward_tcp;
@@ -102,9 +112,9 @@ struct DeviceConfig : public Service {
 
     std::string              rom_lumia800_user_area_erase;
 
-    std::string storage_nand = "nand.img";
-    std::string storage_hdd  = "hdd.img";
-    std::string storage_emmc = "emmc.img";
+    std::string storage_nand = DefaultStorageFileName(config_key::kStorageNand);
+    std::string storage_hdd  = DefaultStorageFileName(config_key::kStorageHdd);
+    std::string storage_emmc = DefaultStorageFileName(config_key::kStorageEmmc);
 
     /* Optional CF images bundled with the ROM (cerf.json
        "additional_packages.compact_flash_cards"); the CF insert menu offers
@@ -112,7 +122,7 @@ struct DeviceConfig : public Service {
     std::vector<BundledCompactFlashCard> bundled_compact_flash_cards;
 
     bool boot_in_recovery = false;
-    bool guest_additions = false;
+    bool guest_additions = kDefaultGuestAdditions;
     std::string guest_additions_color_scheme;
     std::vector<std::string> guest_additions_autorun;
 
@@ -122,7 +132,7 @@ struct DeviceConfig : public Service {
     bool guest_additions_cleartype     = false;
     bool guest_additions_cleartype_set = false;
 
-    bool guest_additions_allow_untrusted_apps = false;
+    bool guest_additions_allow_untrusted_apps = kDefaultAllowUntrustedApps;
 
     /* Startup tab. Dev builds default to the hardware console so debug output
        shows instantly; production defaults to the boot screen. --tab overrides. */
@@ -145,7 +155,9 @@ struct DeviceConfig : public Service {
     std::string share_folder;
     std::string share_folder_mount_point;
 
-    bool start_fullscreen = false;
+    bool start_fullscreen = kDefaultStartFullscreen;
+
+    bool double_tap_helper = kDefaultDoubleTapHelper;
 
     bool no_focus = false;
 

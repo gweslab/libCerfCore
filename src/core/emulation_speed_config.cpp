@@ -4,6 +4,7 @@
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/device_config_keys.h>
 #include <cerfcore/core/log.h>
 
 #include <nlohmann/json.hpp>
@@ -17,8 +18,6 @@ REGISTER_SERVICE(EmulationSpeedConfig);
 
 namespace {
 
-constexpr const char* kThrottleKey = "throttle_multiplier";
-constexpr const char* kCpuRateKey  = "cpu_rate_multiplier";
 constexpr uint64_t    kThousandths = 1000u;
 constexpr double      kMaxThousandths = 9.0e18;
 
@@ -42,8 +41,8 @@ EmulationSpeedConfig::Multiplier ReadMultiplier(const nlohmann::json& root, cons
 
 void EmulationSpeedConfig::OnReady() {
     const std::string& device = emu_.Get<DeviceConfig>().device_name;
-    Load(GetDeviceDir(device) + "cerf.json");
-    Load(UserConfigPath(device));
+    Load(GetDeviceDir(device) + kDeviceConfigFileName, CfgBrokenFile::kHalt);
+    Load(UserConfigPath(device), CfgBrokenFile::kSkip);
     LOG(Cfg, "throttle multiplier %llu/%llu, CPU rate multiplier %llu/%llu\n",
         static_cast<unsigned long long>(throttle_.num),
         static_cast<unsigned long long>(throttle_.den),
@@ -51,11 +50,11 @@ void EmulationSpeedConfig::OnReady() {
         static_cast<unsigned long long>(cpu_rate_.den));
 }
 
-void EmulationSpeedConfig::Load(const std::string& path) {
-    const nlohmann::json root = CfgReadJsonFile(path);
+void EmulationSpeedConfig::Load(const std::string& path, CfgBrokenFile broken) {
+    const nlohmann::json root = CfgReadJsonFile(path, broken);
     if (root.is_null()) return;
-    throttle_ = ReadMultiplier(root, kThrottleKey, true, path, throttle_);
-    cpu_rate_ = ReadMultiplier(root, kCpuRateKey, false, path, cpu_rate_);
+    throttle_ = ReadMultiplier(root, config_key::kThrottleMultiplier, true, path, throttle_);
+    cpu_rate_ = ReadMultiplier(root, config_key::kCpuRateMultiplier, false, path, cpu_rate_);
 }
 
 }

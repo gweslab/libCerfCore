@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -55,52 +56,49 @@ struct SharedFsInfo {
 
 enum class SharedPathResult { kResolved, kRootUnavailable, kInvalidName };
 
-SharedPathResult ResolveSharedPath(const std::string& root, std::u16string_view guest_name,
-                                   std::u16string& out);
-
-SharedFsStatus CreateSharedDirectory(const std::u16string& path);
-SharedFsStatus RemoveSharedDirectory(const std::u16string& path);
-SharedFsStatus DeleteSharedFile(const std::u16string& path);
-SharedFsStatus MoveSharedFile(const std::u16string& from, const std::u16string& to);
-SharedFsStatus SetSharedWriteTime(const std::u16string& path, uint32_t dos_time);
-SharedFsStatus SetSharedAttributes(const std::u16string& path, uint8_t attributes);
-SharedFsStatus QuerySharedInfo(const std::u16string& path, SharedFsInfo& info);
-SharedFsStatus QuerySharedSpace(const std::string& root, uint64_t& total, uint64_t& available);
-SharedFsStatus CreateNewSharedFile(const std::u16string& path);
-
-class SharedFsFind {
-public:
-    SharedFsFind() = default;
-    ~SharedFsFind();
-    SharedFsFind(const SharedFsFind&)            = delete;
-    SharedFsFind& operator=(const SharedFsFind&) = delete;
-
-    SharedFsStatus First(const std::u16string& pattern, SharedFsInfo& info, std::u16string& name);
-    SharedFsStatus Next(SharedFsInfo& info, std::u16string& name);
-
-private:
-    void* handle_ = nullptr;
-};
-
 enum class SharedFileAccess { kRead, kWrite, kReadWrite };
 enum class SharedFileShare { kDenyReadWrite, kDenyWrite, kDenyRead, kDenyNone };
 
+class SharedFsFind {
+public:
+    virtual ~SharedFsFind() = default;
+
+    virtual SharedFsStatus Next(SharedFsInfo& info, std::u16string& name) = 0;
+};
+
 class SharedFsFile {
 public:
-    SharedFsFile() = default;
-    ~SharedFsFile();
-    SharedFsFile(const SharedFsFile&)            = delete;
-    SharedFsFile& operator=(const SharedFsFile&) = delete;
+    virtual ~SharedFsFile() = default;
 
-    SharedFsStatus Open(const std::u16string& path, SharedFileAccess access, SharedFileShare share);
-    SharedFsStatus ReadAt(uint64_t position, void* buf, uint32_t size, uint32_t& done);
-    SharedFsStatus WriteAt(uint64_t position, const void* buf, uint32_t size, uint32_t& done);
-    SharedFsStatus TruncateAt(uint64_t position);
-    SharedFsStatus Info(SharedFsInfo& info);
-
-private:
-    void* handle_ = nullptr;
+    virtual SharedFsStatus ReadAt(uint64_t position, void* buf, uint32_t size, uint32_t& done)        = 0;
+    virtual SharedFsStatus WriteAt(uint64_t position, const void* buf, uint32_t size, uint32_t& done) = 0;
+    virtual SharedFsStatus TruncateAt(uint64_t position)                                              = 0;
+    virtual SharedFsStatus Info(SharedFsInfo& info)                                                   = 0;
 };
+
+class HostSharedFolder {
+public:
+    virtual ~HostSharedFolder() = default;
+
+    virtual SharedPathResult Resolve(std::u16string_view guest_name, std::u16string& out) = 0;
+
+    virtual SharedFsStatus MakeDirectory(const std::u16string& path)                       = 0;
+    virtual SharedFsStatus RemoveEmptyDirectory(const std::u16string& path)                = 0;
+    virtual SharedFsStatus RemoveFile(const std::u16string& path)                          = 0;
+    virtual SharedFsStatus Move(const std::u16string& from, const std::u16string& to)     = 0;
+    virtual SharedFsStatus SetWriteTime(const std::u16string& path, uint32_t dos_time)     = 0;
+    virtual SharedFsStatus SetAttributes(const std::u16string& path, uint8_t attributes)  = 0;
+    virtual SharedFsStatus QueryInfo(const std::u16string& path, SharedFsInfo& info)       = 0;
+    virtual SharedFsStatus QuerySpace(uint64_t& total, uint64_t& available)                = 0;
+    virtual SharedFsStatus CreateNewFile(const std::u16string& path)                       = 0;
+
+    virtual SharedFsStatus FindFirst(const std::u16string& pattern, std::unique_ptr<SharedFsFind>& find,
+                                     SharedFsInfo& info, std::u16string& name) = 0;
+    virtual SharedFsStatus Open(const std::u16string& path, SharedFileAccess access, SharedFileShare share,
+                                std::unique_ptr<SharedFsFile>& file)           = 0;
+};
+
+std::unique_ptr<HostSharedFolder> OpenHostSharedFolder(const std::string& root);
 
 }
 

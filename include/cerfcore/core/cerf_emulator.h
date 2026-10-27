@@ -32,6 +32,7 @@ public:
     }
 
     void Boot();
+    void StartGuest();
     void WaitForExit();
 
     [[noreturn]] static void OnLocatorError(const char* message);

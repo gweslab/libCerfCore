@@ -1,9 +1,11 @@
 #pragma once
 
 #include "../core/service.h"
+#include "keyboard_map.h"
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace cerfcore {
 
@@ -18,6 +20,8 @@ public:
     virtual void OnHostKey(uint8_t vk, bool key_up) = 0;
 
     virtual bool CanDeliverVk(uint8_t vk) const;
+    virtual std::vector<SpecialKey> SpecialKeys() const;
+    bool HasLetterKeys() const;
 
     virtual std::string SourceName() const { return "Stock keyboard"; }
     virtual int SourcePriority() const { return 0; }

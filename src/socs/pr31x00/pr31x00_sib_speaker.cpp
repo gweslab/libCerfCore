@@ -19,7 +19,7 @@ bool Pr31x00SibSpeaker::ShouldRegister() {
 
 void Pr31x00SibSpeaker::OnReady() {
     codec_ = &emu_.Get<Pr31x00SibCodec>();
-    paced_.Start("SibAudio", 0, 1, 16, true);
+    paced_.Start("SibAudio", 0, 1, 16);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }
 

@@ -1,0 +1,6 @@
+#ifndef CERFCORE_PRODUCT_NAME_TEXT_H
+#define CERFCORE_PRODUCT_NAME_TEXT_H
+
+#define CERF_PRODUCT_NAME "CE Runtime Foundation"
+
+#endif

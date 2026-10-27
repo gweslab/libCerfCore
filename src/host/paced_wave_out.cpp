@@ -1,5 +1,7 @@
 #include "paced_wave_out.h"
 
+#include "../platform/wave_pcm_format.h"
+
 #include <cerfcore/core/log.h>
 
 #include <algorithm>
@@ -8,10 +10,8 @@
 
 namespace cerfcore {
 
-void PacedWaveOut::Start(const char* log_tag, uint32_t rate_hz, uint16_t channels,
-                         uint16_t bits, bool allow_resampler) {
-    log_tag_         = log_tag;
-    allow_resampler_ = allow_resampler;
+void PacedWaveOut::Start(const char* log_tag, uint32_t rate_hz, uint16_t channels, uint16_t bits) {
+    log_tag_ = log_tag;
     fmt_rate_.store(rate_hz, std::memory_order_release);
     fmt_channels_.store(channels, std::memory_order_release);
     fmt_bits_.store(bits, std::memory_order_release);
@@ -47,7 +47,7 @@ void PacedWaveOut::SwitchDeviceLocked(uint64_t format) {
     const uint32_t rate     = static_cast<uint32_t>(format);
     const uint16_t channels = static_cast<uint16_t>(format >> 32);
     const uint16_t bits     = static_cast<uint16_t>(format >> 48);
-    sink_.EnsureFormat(rate, channels, bits, allow_resampler_, false);
+    sink_.EnsureFormat(rate, channels, bits, false);
     device_format_ = format;
     ++device_epoch_;
     position_valid_ = false;
@@ -276,8 +276,8 @@ void PacedWaveOut::RefreshPositionLocked() {
 
 void PacedWaveOut::QueueOutputInHostBlocks(const void* host_bytes, uint32_t length) {
     const uint32_t rate  = fmt_rate_.load(std::memory_order_acquire);
-    const uint32_t frame = static_cast<uint32_t>(fmt_channels_.load(std::memory_order_acquire)) *
-                           (fmt_bits_.load(std::memory_order_acquire) / 8u);
+    const uint32_t frame = PcmFrameBytes(fmt_channels_.load(std::memory_order_acquire),
+                                         fmt_bits_.load(std::memory_order_acquire));
     if (rate == 0u || frame == 0u || length % frame != 0u) {
         LOG(Caution, "[%s] %u bytes queued in host blocks of a %u Hz, %u-byte-frame format\n",
             log_tag_, length, rate, frame);

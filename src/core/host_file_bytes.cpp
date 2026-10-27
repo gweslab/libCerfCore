@@ -1,23 +1,15 @@
-#include "host_file_bytes.h"
+#include <cerfcore/core/host_file_bytes.h>
 
-#include <cerfcore/core/host_fs_path.h>
+#include "../platform/host_whole_file.h"
+
 #include <cerfcore/platform/host_file.h>
 
 #include <algorithm>
-#include <filesystem>
-#include <fstream>
-#include <system_error>
 
 namespace cerfcore {
 
 bool TryReadHostFileBytes(const std::string& path, std::vector<uint8_t>& out) {
-    std::ifstream f(HostFsPath(path), std::ios::binary | std::ios::ate);
-    if (!f.is_open()) return false;
-    const auto sz = f.tellg();
-    out.resize(static_cast<size_t>(sz));
-    f.seekg(0);
-    f.read(reinterpret_cast<char*>(out.data()), sz);
-    return true;
+    return host_platform::ReadWholeHostFile(path, out);
 }
 
 std::vector<uint8_t> ReadHostFileBytes(const std::string& path) {
@@ -41,11 +33,8 @@ HostWriteResult WriteHostFileBytes(const std::string& path, const uint8_t* data,
 }
 
 bool HostFileNonEmpty(const std::string& path) {
-    std::error_code ec;
-    const std::filesystem::path p = HostFsPath(path);
-    if (!std::filesystem::is_regular_file(p, ec) || ec) return false;
-    const auto size = std::filesystem::file_size(p, ec);
-    return !ec && size != 0;
+    uint64_t size = 0;
+    return host_platform::HostRegularFileSize(path, size) && size != 0;
 }
 
 }

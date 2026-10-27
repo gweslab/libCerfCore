@@ -87,17 +87,6 @@ void CrashContextRegisters(const void* uc, uintptr_t& pc, uintptr_t& sp, uintptr
 #endif
 }
 
-void CrashLogDirectory(char* out, size_t cap) {
-    const ssize_t n = ::readlink("/proc/self/exe", out, cap - 1);
-    size_t        cut = 0;
-    if (n > 0) {
-        for (ssize_t i = 0; i < n; ++i) {
-            if (out[i] == '/') cut = static_cast<size_t>(i) + 1;
-        }
-    }
-    out[cut] = '\0';
-}
-
 int CrashCaptureOtherThreads(CrashThreadState* out, int capacity) {
     g_capture_out      = out;
     g_capture_capacity = capacity;

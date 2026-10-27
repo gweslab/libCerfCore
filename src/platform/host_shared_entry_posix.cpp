@@ -5,6 +5,7 @@
 #include "host_win32_name_rules.h"
 #include "host_xattr.h"
 
+#include <cerfcore/core/path_split.h>
 #include <cerfcore/core/utf16.h>
 
 #include <cerrno>
@@ -132,15 +133,9 @@ SharedFsStatus SharedErrno(int err, const std::string& host_path) {
 
 void SplitSharedPath(const std::string& host_path, std::string& dir, std::string& name) {
     std::string path = host_path;
-    while (path.size() > 1u && path.back() == '/') path.pop_back();
-    const size_t slash = path.rfind('/');
-    if (slash == std::string::npos) {
-        dir  = ".";
-        name = path;
-        return;
-    }
-    dir  = slash == 0u ? "/" : path.substr(0, slash);
-    name = path.substr(slash + 1u);
+    TrimTrailingSeparators(path, kPosixPathSeparators<char>, 1);
+    dir  = ParentPath(path, kPosixPathSeparators<char>);
+    name = path.substr(PathNameOffset(path.data(), path.size(), kPosixPathSeparators<char>));
 }
 
 bool FindSharedEntry(const std::string& dir, std::u16string_view name, std::string& found) {
@@ -215,6 +210,8 @@ SharedFsStatus DescribeSharedFd(int fd, SharedFsInfo& info) {
     return {};
 }
 
+void DescribeUnattributedEntry(const EntryStat& st, SharedFsInfo& info) { FillInfo(st, false, 0u, info); }
+
 SharedFsStatus StoreSharedAttributes(const std::string& path, uint8_t attributes) {
     struct stat st {};
     if (stat(path.c_str(), &st) != 0) return SharedErrno(errno, path);
@@ -265,6 +262,8 @@ uint32_t DosDateTimeOf(int64_t utc_seconds) {
     return (date << 16) | time;
 }
 
+namespace {
+
 bool UtcOfDosDateTime(uint32_t dos, int64_t& utc_seconds) {
     using namespace std::chrono;
     const uint32_t       date = dos >> 16;
@@ -279,6 +278,21 @@ bool UtcOfDosDateTime(uint32_t dos, int64_t& utc_seconds) {
                           static_cast<int64_t>(hour * 3600u + minute * 60u + second);
     utc_seconds = local - CurrentUtcOffset();
     return true;
+}
+
+}
+
+void SharedSpace(const struct statvfs& sv, uint64_t& total, uint64_t& available) {
+    total     = static_cast<uint64_t>(sv.f_blocks) * sv.f_frsize;
+    available = static_cast<uint64_t>(sv.f_bavail) * sv.f_frsize;
+}
+
+SharedFsStatus SharedWriteTimes(uint32_t dos, struct timespec (&times)[2]) {
+    int64_t utc = 0;
+    if (!UtcOfDosDateTime(dos, utc)) return SharedStatus(SharedFsError::kUnrepresentableTime, EINVAL);
+    times[0] = {0, UTIME_OMIT};
+    times[1] = {static_cast<time_t>(utc), 0};
+    return {};
 }
 
 }

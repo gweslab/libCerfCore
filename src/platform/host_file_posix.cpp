@@ -1,5 +1,7 @@
 #include <cerfcore/platform/host_file.h>
 
+#include <cerfcore/core/path_split.h>
+
 #include <cerrno>
 #include <cstdint>
 #include <fcntl.h>
@@ -12,6 +14,7 @@
 #endif
 
 #include "host_fd_handle.h"
+#include "host_path_open.h"
 #include "host_unimplemented.h"
 
 namespace cerfcore {
@@ -29,12 +32,6 @@ int OpenFlags(FileMode mode) {
         case FileMode::kReadWriteExisting: return O_RDWR;
     }
     NoHostImplementation("HostFile::Open mode");
-}
-
-std::string ParentDirectory(const std::string& path) {
-    const size_t slash = path.find_last_of('/');
-    if (slash == std::string::npos) return ".";
-    return slash == 0 ? std::string("/") : path.substr(0, slash);
 }
 
 [[maybe_unused]] bool WriteZeros(int fd, uint64_t begin, uint64_t end) {
@@ -59,7 +56,7 @@ std::string ParentDirectory(const std::string& path) {
 HostFile::~HostFile() { Close(); }
 
 bool HostFile::Open(const std::string& path, FileMode mode) {
-    const int fd = ::open(path.c_str(), OpenFlags(mode) | O_CLOEXEC, 0666);
+    const int fd = OpenHostPath(path, OpenFlags(mode) | O_CLOEXEC, 0666);
     if (fd < 0) return false;
     handle_ = HandleOf(fd);
     return true;
@@ -171,21 +168,28 @@ DeleteResult DeleteHostFile(const std::string& path, uint32_t& error) {
 bool ReplaceHostFile(const std::string& from, const std::string& to, bool write_through) {
     if (::rename(from.c_str(), to.c_str()) != 0) return false;
     if (!write_through) return true;
-    const int dir = ::open(ParentDirectory(to).c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    const int dir = ::open(ParentPath(to, kPosixPathSeparators<char>).c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (dir < 0) return false;
     const bool synced = ::fsync(dir) == 0;
     ::close(dir);
     return synced;
 }
 
+bool HostRegularFileSize(const std::string& path, uint64_t& size) {
+    struct stat st {};
+    if (!StatHostPath(path, st) || !S_ISREG(st.st_mode)) return false;
+    size = static_cast<uint64_t>(st.st_size);
+    return true;
+}
+
 bool HostFileExists(const std::string& path) {
     struct stat st {};
-    return ::stat(path.c_str(), &st) == 0 && !S_ISDIR(st.st_mode);
+    return StatHostPath(path, st) && !S_ISDIR(st.st_mode);
 }
 
 bool HostPathExists(const std::string& path) {
     struct stat st {};
-    return ::stat(path.c_str(), &st) == 0;
+    return StatHostPath(path, st);
 }
 
 }

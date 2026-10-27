@@ -7,7 +7,7 @@
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/fatal.h>
-#include "../../core/host_file_bytes.h"
+#include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/platform/host_file.h>
 #include "../../storage/disk_image.h"
@@ -185,8 +185,7 @@ private:
     void OpenCardImage(DiskImage& image, const std::string& path) {
         if (!image.Open(path, uint64_t(SectorCount()) * cerf_mmc::kBlockBytes)) {
             emu_.Get<Fatal>().Die(
-                "eMMC card in slot %u: storage.emmc %s cannot be opened",
-                kEmmcSlotIndex, path.c_str());
+                "eMMC card in slot %u: storage.emmc %s cannot be opened", kEmmcSlotIndex, path.c_str());
         }
         if (image.SectorCount() != SectorCount()) {
             emu_.Get<Fatal>().Die(
@@ -235,12 +234,10 @@ private:
                 "eMMC card in slot %u: rom.lumia800_user_area_erase is not set, "
                 "so the content of the user area is not modeled", kEmmcSlotIndex);
         }
-        const std::vector<uint8_t> bytes =
-            ReadHostFileBytes(ResolveDeviceFile(cfg.device_name, name));
-        if (bytes.empty()) {
-            emu_.Get<Fatal>().Die(
-                "eMMC card in slot %u: rom.lumia800_user_area_erase %s cannot be "
-                "read", kEmmcSlotIndex, name.c_str());
+        std::vector<uint8_t> bytes;
+        if (!TryReadHostFileBytes(ResolveDeviceFile(cfg.device_name, name), bytes)) {
+            emu_.Get<Fatal>().Die("eMMC card in slot %u: rom.lumia800_user_area_erase %s cannot be read",
+                                  kEmmcSlotIndex, name.c_str());
         }
         ri::EscoRange erase;
         if (!ri::EscoEraseRange(bytes, erase)) {

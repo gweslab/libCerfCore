@@ -1,6 +1,6 @@
 #include "cerf_virt_pointer.h"
-#include "cerf_virt_pointer_regs.h"
 #include <cerfcore/peripherals/cerf_virt/cerf_virt_addr_map.h>
+#include <cerfcore/peripherals/cerf_virt/cerf_virt_pointer_regs.h>
 #include "cerf_guest_liveness.h"
 
 #include "../peripheral_dispatcher.h"
@@ -32,9 +32,28 @@ uint32_t CerfVirtPointer::ReadWord(uint32_t addr) {
     switch (addr - MmioBase()) {
         case CerfVirt::kPtrX:           return x_.load();
         case CerfVirt::kPtrY:           return y_.load();
-        case CerfVirt::kPtrButtons:     return buttons_.load();
+        case CerfVirt::kPtrButtons: {
+            std::lock_guard<std::mutex> lock(mutex_);
+            const uint32_t              b = buttons_.load();
+            change_unseen_              = false;
+            if (!held_.empty()) {
+                const PointerState next = held_.front();
+                held_.pop_front();
+                Publish(next);
+            }
+            return b;
+        }
         case CerfVirt::kPtrWheelAccum:  return wheel_.load();
         case CerfVirt::kPtrSeq:         return seq_.load();
+        case CerfVirt::kPtrAttach: {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (!held_.empty()) {
+                Publish(held_.back());
+                held_.clear();
+            }
+            change_unseen_ = false;
+            return seq_.load();
+        }
         default:                        return 0u;
     }
 }
@@ -56,15 +75,38 @@ void CerfVirtPointer::RestoreState(StateReader& r) {
     r.Read("buttons", v); buttons_.store(v);
     r.Read("wheel", v); wheel_.store(v);
     r.Read("seq", v); seq_.store(v);
+    std::lock_guard<std::mutex> lock(mutex_);
+    held_.clear();
+    change_unseen_ = false;
+    if (buttons_.load() != 0u) Publish({x_.load(), y_.load(), 0u});
 }
 
 void CerfVirtPointer::Bump() { seq_.fetch_add(1u); }
 
-void CerfVirtPointer::SetPointer(uint32_t nx, uint32_t ny, uint32_t buttons) {
-    x_.store(nx);
-    y_.store(ny);
-    buttons_.store(buttons);
+void CerfVirtPointer::Publish(const PointerState& state) {
+    if (buttons_.load() != state.buttons) change_unseen_ = true;
+    x_.store(state.x);
+    y_.store(state.y);
+    buttons_.store(state.buttons);
     Bump();
+}
+
+void CerfVirtPointer::SetPointer(uint32_t nx, uint32_t ny, uint32_t buttons) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    Hold({nx, ny, buttons});
+}
+
+void CerfVirtPointer::Hold(const PointerState& next) {
+    if (held_.empty() && !change_unseen_) {
+        Publish(next);
+        return;
+    }
+    if (!held_.empty() && held_.back().buttons == next.buttons) {
+        held_.back() = next;
+        return;
+    }
+    if (held_.size() == kHeldLimit) held_.pop_front();
+    held_.push_back(next);
 }
 
 void CerfVirtPointer::AddWheel(int delta) {
@@ -73,8 +115,9 @@ void CerfVirtPointer::AddWheel(int delta) {
 }
 
 void CerfVirtPointer::ClearButtons() {
-    buttons_.store(0u);
-    Bump();
+    std::lock_guard<std::mutex> lock(mutex_);
+    const PointerState last = held_.empty() ? PointerState{x_.load(), y_.load(), buttons_.load()} : held_.back();
+    Hold({last.x, last.y, 0u});
 }
 
 namespace {

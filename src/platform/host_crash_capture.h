@@ -16,7 +16,6 @@ struct CrashThreadState {
 
 long CrashThreadId();
 void CrashContextRegisters(const void* ucontext, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
-void CrashLogDirectory(char* out, size_t cap);
 int  CrashCaptureOtherThreads(CrashThreadState* out, int capacity);
 
 }

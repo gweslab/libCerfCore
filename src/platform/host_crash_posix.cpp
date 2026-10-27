@@ -1,6 +1,8 @@
 #include "host_crash.h"
 
+#include "host_backtrace.h"
 #include "host_crash_capture.h"
+#include "host_install_directory.h"
 
 #include <atomic>
 #include <cerrno>
@@ -11,11 +13,11 @@
 #include <ctime>
 #include <cxxabi.h>
 #include <dlfcn.h>
-#include <execinfo.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <unistd.h>
 
+#include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/log.h>
 
 namespace cerfcore {
@@ -30,6 +32,9 @@ constexpr int kStackSlots       = 16;
 CrashThreadState g_frozen[kMaxFrozenThreads];
 std::atomic<int> g_frozen_count{0};
 int              g_crash_fd = -1;
+char             g_crash_dir[4096 - 16];
+
+void CaptureLogDirectory() { std::snprintf(g_crash_dir, sizeof(g_crash_dir), "%s", InstallDirectory().c_str()); }
 
 void UnhandledSignal(int sig, siginfo_t* info, void* uc) {
     LOG(Cerf, "this run ends here; the crash tail is in cerf.crash.log\n");
@@ -82,10 +87,12 @@ int CrashFormat(char* buf, size_t cap, const char* fmt, va_list ap) {
 }
 
 void CrashOpenLog() {
-    char path[4096];
-    CrashLogDirectory(path, sizeof(path) - 16);
-    std::strcat(path, "cerf.crash.log");
-    g_crash_fd = ::open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    if (g_crash_dir[0] != '\0') {
+        char path[4096];
+        std::snprintf(path, sizeof(path) - 16, "%s", g_crash_dir);
+        std::strcat(path, kCrashLogFileName);
+        g_crash_fd = ::open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    }
 
     timespec now{};
     ::clock_gettime(CLOCK_REALTIME, &now);
@@ -128,7 +135,7 @@ void CrashDumpOtherThreads() {
 
 void CrashPrintNativeStack(const char* tag) {
     void*     frames[32];
-    const int n = ::backtrace(frames, 32);
+    const int n = CaptureBacktrace(frames, 32);
     char      line[640];
     char      sym[512];
     for (int i = 0; i < n; ++i) {
@@ -164,8 +171,9 @@ bool CrashSymbolize(const void* addr, char* out, size_t out_size) {
 }
 
 void CrashInstallUnhandledFilter() {
+    CaptureLogDirectory();
     void* warm[1];
-    ::backtrace(warm, 1);
+    CaptureBacktrace(warm, 1);
     struct sigaction sa {};
     sa.sa_sigaction = UnhandledSignal;
     sa.sa_flags     = SA_SIGINFO | SA_RESETHAND;

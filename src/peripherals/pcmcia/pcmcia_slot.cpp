@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/product_name.h>
 #include <cerfcore/core/utf16.h>
 #include <cerfcore/state/state_stream.h>
 

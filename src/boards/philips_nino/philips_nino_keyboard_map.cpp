@@ -35,6 +35,10 @@ public:
     }
 
     const std::vector<KeyBinding>& Bindings() const override { return kBindings; }
+
+    std::vector<uint8_t> SpecialKeyOrder() const override {
+        return { 0x0D, 0x1B, 0x26, 0x28, 0x70, 0x71, 0x72, 0x73 };
+    }
 };
 
 }  /* namespace */

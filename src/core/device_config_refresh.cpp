@@ -21,10 +21,11 @@ void DeviceConfigRefresh::Refresh() {
     CfgResetMutableFields(config);
 
     const std::string dir = GetDeviceDir(config.device_name);
-    static const char* const kFiles[] = { "cerf.json", "cerf-user.json" };
-    for (const char* name : kFiles) {
+    static const std::pair<const char*, CfgBrokenFile> kFiles[] = {
+        {kDeviceConfigFileName, CfgBrokenFile::kHalt}, {kUserConfigFileName, CfgBrokenFile::kSkip}};
+    for (const auto& [name, broken] : kFiles) {
         const std::string path = dir + name;
-        nlohmann::json j = CfgReadLoggedJsonFile(path);
+        nlohmann::json j = CfgReadLoggedJsonFile(path, broken);
         if (j.is_null()) continue;
         CfgLoadMutableFields(j, config, path);
     }

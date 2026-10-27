@@ -3,9 +3,14 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
-#include "share_folder_mount_name.h"
+#include <cerfcore/core/cpu_arch_name.h>
+#include <cerfcore/core/support_level_text.h>
+
+#include "name_table.h"
 
 #include <nlohmann/json.hpp>
+
+#include <algorithm>
 
 namespace cerfcore {
 
@@ -15,135 +20,145 @@ namespace {
 
 using nlohmann::json;
 
-constexpr uint32_t kDefaultGaColorDepth = 24u;
+constexpr char kGaSharedFolderMountPoint[] = "ga_shared_folder_mount_point";
+constexpr char kGaVideoDriverNames[]       = "ga_video_driver_names";
+constexpr char kSocFamilies[]              = "soc_families";
+constexpr char kSocs[]                     = "socs";
+constexpr char kDeviceFeatures[]           = "device_features";
+constexpr char kBoardFamilies[]            = "board_families";
+constexpr char kBoards[]                   = "boards";
+constexpr char kId[]                       = "id";
+constexpr char kName[]                     = "name";
+constexpr char kArch[]                     = "arch";
+constexpr char kFamilyId[]                 = "family_id";
+constexpr char kIcon[]                     = "icon";
+constexpr char kShortName[]                = "short_name";
+constexpr char kBoardFamilyId[]            = "board_family_id";
+constexpr char kSupportLevel[]             = "support_level";
+constexpr char kSocId[]                    = "soc_id";
+constexpr char kLcdPanelSize[]             = "lcd_panel_size";
+constexpr char kWidth[]                    = "width";
+constexpr char kHeight[]                   = "height";
+constexpr char kGaColorDepth[]             = "ga_color_depth";
+constexpr char kHasHighDpi[]               = "has_high_dpi";
+constexpr char kRomPlacingMode[]           = "rom_placing_mode";
+constexpr char kConfigurableScreen[]       = "configurable_screen";
+constexpr char kDeviceYear[]               = "device_year";
+constexpr char kNotes[]                    = "notes";
+constexpr char kFeatureId[]                = "feature_id";
+constexpr char kSupported[]                = "supported";
 
-uint32_t RequirePositiveInt(const json& obj, const char* key, const std::string& path,
-                            const std::string& ctx) {
-    if (!obj.contains(key) || !obj[key].is_number_integer() || obj[key].get<int>() < 1)
-        CfgFatal(path, ctx + "." + key + " must be a positive integer");
-    return (uint32_t)obj[key].get<int>();
+constexpr std::pair<std::string_view, SupportLevel> kSupportLevels[] = {
+    {CERF_SUPPORT_BOOTABLE_FULL, SupportLevel::BootableFull},
+    {CERF_SUPPORT_BOOTABLE_PARTIAL, SupportLevel::BootablePartial},
+    {CERF_SUPPORT_UNKNOWN_PARTIAL, SupportLevel::UnknownPartial},
+    {CERF_SUPPORT_NO_SUPPORT, SupportLevel::NoSupport},
+};
+
+constexpr std::pair<std::string_view, RomPlacingMode> kRomPlacingModes[] = {
+    {"flat_container", RomPlacingMode::FlatContainer},
+    {"imx51_nand", RomPlacingMode::Imx51Nand},
+};
+
+bool InWordList(std::string_view list, std::string_view word) {
+    while (!list.empty()) {
+        const size_t end = list.find(' ');
+        if (list.substr(0, end) == word) return true;
+        if (end == std::string_view::npos) return false;
+        list.remove_prefix(end + 1);
+    }
+    return false;
 }
 
-RomPlacingMode ParseRomPlacingMode(const std::string& v, const std::string& path,
-                                   const std::string& ctx) {
-    if (v == "flat_container") return RomPlacingMode::FlatContainer;
-    if (v == "imx51_nand")     return RomPlacingMode::Imx51Nand;
-    CfgFatal(path, ctx + ".rom_placing_mode '" + v + "' is unknown");
-}
-
-SupportLevel ParseSupportLevel(const std::string& v, const std::string& path,
-                               const std::string& ctx) {
-    if (v == "bootable_full")    return SupportLevel::BootableFull;
-    if (v == "bootable_partial") return SupportLevel::BootablePartial;
-    if (v == "unknown_partial")  return SupportLevel::UnknownPartial;
-    if (v == "no_support")       return SupportLevel::NoSupport;
-    CfgFatal(path, ctx + ".support_level '" + v + "' is unknown");
-}
-
-const json& FindBoardFamily(const json& families, const std::string& id,
-                            const std::string& path, const std::string& ctx) {
-    for (const auto& f : families)
-        if (f.is_object() && f.contains("id") && f["id"] == id) return f;
-    CfgFatal(path, ctx + ".board_family_id '" + id + "' is not in board_families[]");
+template <class Row>
+const Row& RowById(const std::vector<Row>& rows, std::string_view id) {
+    return *std::find_if(rows.begin(), rows.end(), [id](const Row& row) { return row.id == id; });
 }
 
 struct BoardValues {
-    const json&        board;
-    const json&        family;
-    const std::string& board_ctx;
-    const std::string& family_ctx;
+    const json& board;
+    const json& family;
 
-    const json& Owner(const char* key) const {
-        return board.contains(key) ? board : family;
+    const json& Owner(const char* key) const { return board.contains(key) ? board : family; }
+
+    template <class T>
+    T Value(const char* key) const {
+        return Owner(key).at(key).template get<T>();
     }
-    const std::string& OwnerCtx(const char* key) const {
-        return board.contains(key) ? board_ctx : family_ctx;
+
+    template <class T>
+    T ValueOr(const char* key, const T& absent) const {
+        return Owner(key).value(key, absent);
     }
 };
 
+void MergeFeatures(const json& row, std::vector<DbFeatureSupport>& out) {
+    const json list = row.value(kDeviceFeatures, json::array());
+    for (const auto& f : list) {
+        std::string id        = f.at(kFeatureId).get<std::string>();
+        const bool  supported = f.at(kSupported).get<bool>();
+        const auto  existing  = std::find_if(out.begin(), out.end(),
+                                             [&id](const DbFeatureSupport& s) { return s.feature_id == id; });
+        if (existing != out.end()) existing->supported = supported;
+        else                       out.push_back(DbFeatureSupport{std::move(id), supported});
+    }
 }
 
-CpuArch ParseCpuArch(const std::string& value, const std::string& path,
-                     const std::string& ctx) {
-    if (value == "ARM")  return CpuArch::kArm;
-    if (value == "MIPS") return CpuArch::kMips;
-    CfgFatal(path, ctx + ".arch '" + value + "' is unknown");
 }
 
 void BoardDatabase::OnReady() {
-    const std::string path = DbJsonPath();
-    json root = CfgReadInstalledJsonFile(path);
+    const json root = CfgReadInstalledJsonFile(DbJsonPath());
 
-    const char* kMountPointKey = "ga_shared_folder_mount_point";
-    if (!root.contains(kMountPointKey) || !root[kMountPointKey].is_string() ||
-        !IsValidShareFolderMountName(root[kMountPointKey].get<std::string>()))
-        CfgFatal(path, std::string("'") + kMountPointKey +
-                       "' must be a valid mount point name");
-    ga_shared_folder_mount_point_ = root[kMountPointKey].get<std::string>();
+    ga_shared_folder_mount_point_ = root.at(kGaSharedFolderMountPoint).get<std::string>();
+    ga_video_driver_names_        = root.at(kGaVideoDriverNames).get<std::vector<std::string>>();
 
-    for (const auto& n : CfgRequireArray(root, "ga_video_driver_names", path)) {
-        if (!n.is_string() || n.get<std::string>().empty())
-            CfgFatal(path, "ga_video_driver_names[] entries must be non-empty strings");
-        ga_video_driver_names_.push_back(n.get<std::string>());
+    for (const auto& f : root.at(kSocFamilies))
+        soc_families_.push_back(DbSocFamily{f.at(kId).get<std::string>(), f.at(kName).get<std::string>(),
+                                            CpuArchFromName(f.at(kArch).get<std::string>())});
+
+    for (const auto& s : root.at(kSocs))
+        socs_.push_back(DbSoc{s.at(kId).get<std::string>(), s.at(kName).get<std::string>(),
+                              s.at(kFamilyId).get<std::string>()});
+
+    for (const auto& f : root.at(kDeviceFeatures)) {
+        DbDeviceFeature row;
+        row.id   = f.at(kId).get<std::string>();
+        row.name = f.at(kName).get<std::string>();
+        row.icon = f.value(kIcon, row.id);
+        device_features_.push_back(std::move(row));
     }
 
-    for (const auto& f : CfgRequireArray(root, "soc_families", path)) {
-        if (!f.is_object()) CfgFatal(path, "soc_families[] entries must be objects");
-        DbSocFamily row;
-        row.id   = CfgRequireString(f, "id", path, "soc_families[]");
-        row.name = CfgRequireString(f, "name", path, "soc_families[]");
-        row.arch = ParseCpuArch(CfgRequireString(f, "arch", path, "soc_families[]"),
-                                path, "soc_families[" + row.id + "]");
-        soc_families_.push_back(std::move(row));
-    }
+    const json& families = root.at(kBoardFamilies);
+    for (const auto& f : families)
+        board_families_.push_back(DbBoardFamily{f.at(kId).get<std::string>(), f.at(kName).get<std::string>()});
 
-    for (const auto& s : CfgRequireArray(root, "socs", path)) {
-        if (!s.is_object()) CfgFatal(path, "socs[] entries must be objects");
-        DbSoc row;
-        row.id        = CfgRequireString(s, "id", path, "socs[]");
-        row.name      = CfgRequireString(s, "name", path, "socs[]");
-        row.family_id = CfgRequireString(s, "family_id", path, "socs[" + row.id + "]");
-        SocFamily(row.family_id);
-        socs_.push_back(std::move(row));
-    }
-
-    const json& families = CfgRequireArray(root, "board_families", path);
-    for (const auto& b : CfgRequireArray(root, "boards", path)) {
-        if (!b.is_object()) CfgFatal(path, "boards[] entries must be objects");
+    for (const auto& b : root.at(kBoards)) {
         DbBoard row;
-        row.id = CfgRequireString(b, "id", path, "boards[]");
-        const std::string ctx = "boards[" + row.id + "]";
-        row.name       = CfgRequireString(b, "name", path, ctx);
-        row.short_name = b.contains("short_name")
-                             ? CfgRequireString(b, "short_name", path, ctx)
-                             : row.name;
-        row.family_id  = CfgRequireString(b, "board_family_id", path, ctx);
-        const std::string family_ctx = "board_families[" + row.family_id + "]";
-        const BoardValues v{ b, FindBoardFamily(families, row.family_id, path, ctx),
-                             ctx, family_ctx };
-        row.support_level = ParseSupportLevel(
-            CfgRequireString(b, "support_level", path, ctx), path, ctx);
-        row.soc_id = CfgRequireString(v.Owner("soc_id"), "soc_id", path,
-                                      v.OwnerCtx("soc_id"));
-        Soc(row.soc_id);
-        if (v.Owner("lcd_panel_size").contains("lcd_panel_size")) {
-            const auto& p = v.Owner("lcd_panel_size")["lcd_panel_size"];
-            const std::string pctx = v.OwnerCtx("lcd_panel_size") + ".lcd_panel_size";
-            if (!p.is_object()) CfgFatal(path, pctx + " must be an object");
-            row.lcd_panel_size = DbLcdPanelSize{
-                RequirePositiveInt(p, "width", path, pctx),
-                RequirePositiveInt(p, "height", path, pctx) };
+        row.id         = b.at(kId).get<std::string>();
+        row.name       = b.at(kName).get<std::string>();
+        row.short_name = b.value(kShortName, row.name);
+        row.family_id  = b.at(kBoardFamilyId).get<std::string>();
+        const json& family = *std::find_if(families.begin(), families.end(),
+                                           [&row](const json& f) { return f.at(kId) == row.family_id; });
+        const BoardValues v{b, family};
+        const std::string support = b.at(kSupportLevel).get<std::string>();
+        row.support_level = ValueByName(kSupportLevels, support);
+        row.runs          = InWordList(CERF_RUNNING_SUPPORT_LEVELS, support);
+        row.soc_id        = v.Value<std::string>(kSocId);
+        const json& panel_owner = v.Owner(kLcdPanelSize);
+        if (panel_owner.contains(kLcdPanelSize)) {
+            const json& p = panel_owner.at(kLcdPanelSize);
+            row.lcd_panel_size = DbLcdPanelSize{p.at(kWidth).get<uint32_t>(), p.at(kHeight).get<uint32_t>()};
         }
-        row.ga_color_depth = v.Owner("ga_color_depth").contains("ga_color_depth")
-            ? RequirePositiveInt(v.Owner("ga_color_depth"), "ga_color_depth", path,
-                                 v.OwnerCtx("ga_color_depth"))
-            : kDefaultGaColorDepth;
-        row.has_high_dpi = CfgReadOptBool(v.Owner("has_high_dpi"), "has_high_dpi", path,
-                                          v.OwnerCtx("has_high_dpi"));
-        row.rom_placing_mode = ParseRomPlacingMode(
-            CfgRequireString(v.Owner("rom_placing_mode"), "rom_placing_mode", path,
-                             v.OwnerCtx("rom_placing_mode")),
-            path, v.OwnerCtx("rom_placing_mode"));
+        row.ga_color_depth      = v.ValueOr(kGaColorDepth, kDefaultGaColorDepth);
+        row.has_high_dpi        = v.ValueOr(kHasHighDpi, false);
+        row.rom_placing_mode    = ValueByName(kRomPlacingModes, v.Value<std::string>(kRomPlacingMode));
+        row.configurable_screen = v.ValueOr(kConfigurableScreen, false);
+        row.device_year         = v.ValueOr(kDeviceYear, 0u);
+        row.notes = family.value(kNotes, std::vector<std::string>());
+        for (std::string& note : b.value(kNotes, std::vector<std::string>())) row.notes.push_back(std::move(note));
+        MergeFeatures(family, row.features);
+        MergeFeatures(b, row.features);
         boards_.push_back(std::move(row));
     }
 }
@@ -154,17 +169,12 @@ const DbBoard* BoardDatabase::FindBoard(std::string_view id) const {
     return nullptr;
 }
 
-const DbSoc& BoardDatabase::Soc(std::string_view id) const {
-    for (const auto& s : socs_)
-        if (s.id == id) return s;
-    CfgFatal(DbJsonPath(), "soc '" + std::string(id) + "' is not in socs[]");
-}
+const DbSoc& BoardDatabase::Soc(std::string_view id) const { return RowById(socs_, id); }
 
-const DbSocFamily& BoardDatabase::SocFamily(std::string_view id) const {
-    for (const auto& f : soc_families_)
-        if (f.id == id) return f;
-    CfgFatal(DbJsonPath(),
-             "soc family '" + std::string(id) + "' is not in soc_families[]");
-}
+const DbBoardFamily& BoardDatabase::BoardFamily(std::string_view id) const { return RowById(board_families_, id); }
+
+const DbSocFamily& BoardDatabase::SocFamily(std::string_view id) const { return RowById(soc_families_, id); }
+
+CpuArch BoardDatabase::SocArch(std::string_view soc_id) const { return SocFamily(Soc(soc_id).family_id).arch; }
 
 }

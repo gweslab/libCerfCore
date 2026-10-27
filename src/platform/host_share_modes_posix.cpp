@@ -134,6 +134,15 @@ SharedFsStatus CheckTreeFree(const std::string& dir) {
 
 }
 
+ShareClaim ShareClaimFor(SharedFileAccess access, SharedFileShare share) {
+    ShareClaim claim;
+    claim.read        = access != SharedFileAccess::kWrite;
+    claim.write       = access != SharedFileAccess::kRead;
+    claim.share_read  = share == SharedFileShare::kDenyWrite || share == SharedFileShare::kDenyNone;
+    claim.share_write = share == SharedFileShare::kDenyRead || share == SharedFileShare::kDenyNone;
+    return claim;
+}
+
 SharedFsStatus ClaimShareMode(int lock_fd, const std::string& path, const ShareClaim& claim) {
     const MarkerUse takes[] = {{true, kOpenMarker},
                                {claim.read, kReadMarker},

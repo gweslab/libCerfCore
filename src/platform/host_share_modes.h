@@ -15,6 +15,7 @@ struct ShareClaim {
     bool share_write = false;
 };
 
+ShareClaim     ShareClaimFor(SharedFileAccess access, SharedFileShare share);
 SharedFsStatus ClaimShareMode(int lock_fd, const std::string& path, const ShareClaim& claim);
 SharedFsStatus HoldSharedDirectory(const std::string& dir, int& fd);
 SharedFsStatus CheckSharedEntryFree(const std::string& path);

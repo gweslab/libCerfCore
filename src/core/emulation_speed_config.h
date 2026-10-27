@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cerfcore/core/emulation_multiplier.h>
 #include <cerfcore/core/service.h>
 
 #include <cstdint>
@@ -7,14 +8,11 @@
 
 namespace cerfcore {
 
+enum class CfgBrokenFile : uint8_t;
+
 class EmulationSpeedConfig : public Service {
 public:
-    struct Multiplier {
-        uint64_t num = 1u;
-        uint64_t den = 1u;
-
-        bool IsOne() const { return num == den; }
-    };
+    using Multiplier = EmulationMultiplier;
 
     using Service::Service;
 
@@ -24,7 +22,7 @@ public:
     Multiplier CpuRate() const { return cpu_rate_; }
 
 private:
-    void Load(const std::string& path);
+    void Load(const std::string& path, CfgBrokenFile broken);
 
     Multiplier throttle_;
     Multiplier cpu_rate_;

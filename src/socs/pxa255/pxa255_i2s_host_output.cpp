@@ -24,7 +24,7 @@ bool Pxa255I2sHostOutput::ShouldRegister() {
 }
 
 void Pxa255I2sHostOutput::OnReady() {
-    host_.Start("Pxa255I2s", 0u, kChannels, kBits, true);
+    host_.Start("Pxa255I2s", 0u, kChannels, kBits);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }
 

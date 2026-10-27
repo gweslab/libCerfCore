@@ -44,10 +44,6 @@ public:
     void RestoreState(StateReader& r) override;
     void PostRestore() override;
 
-    /* A failed-open card still inserts and reports ATA not-ready (status
-       without READY), so the OS sees a failed disk, not an empty socket. */
-    bool ImageOk() const { return file_.IsOpen(); }
-
 private:
     /* ATAPI.H register offsets within the I/O window. kRegDevCtl is the
        device-control / alternate-status register. */
@@ -88,6 +84,7 @@ private:
     bool WriteSectorLocked(uint64_t lba, const uint8_t* in);
 
     const std::string       image_path_;
+    const std::string       image_name_;
     host_platform::HostFile file_;
     uint64_t                total_sectors_ = 0;
 

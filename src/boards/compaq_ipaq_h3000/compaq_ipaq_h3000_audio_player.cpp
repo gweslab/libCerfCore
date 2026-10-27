@@ -28,8 +28,7 @@ public:
 protected:
     Sa11xxAudioConfig AudioConfig() const override {
         return { kDdarSspTxMask, kDdarSspTxValue,
-                 /*channels=*/2, /*bits=*/16, /*max_page=*/16384u,
-                 /*allow_resampler=*/false, "CompaqIpaqH3000Audio" };
+                 2, 16, 16384u, "CompaqIpaqH3000Audio" };
     }
 
     bool OutputMuted() const override {

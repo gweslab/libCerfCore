@@ -1,10 +1,12 @@
 #pragma once
 
+#include "host_entry_stat.h"
 #include "host_shared_folder.h"
 
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <sys/statvfs.h>
 
 namespace cerfcore {
 
@@ -22,11 +24,13 @@ bool           SharedDirectoryExists(const std::string& dir);
 
 SharedFsStatus DescribeSharedEntry(const std::string& path, SharedFsInfo& info);
 SharedFsStatus DescribeSharedFd(int fd, SharedFsInfo& info);
+void           DescribeUnattributedEntry(const EntryStat& st, SharedFsInfo& info);
 SharedFsStatus StoreSharedAttributes(const std::string& path, uint8_t attributes);
 bool           CopySharedAttributes(int from_fd, int to_fd);
+void           SharedSpace(const struct statvfs& sv, uint64_t& total, uint64_t& available);
 
-uint32_t DosDateTimeOf(int64_t utc_seconds);
-bool     UtcOfDosDateTime(uint32_t dos, int64_t& utc_seconds);
+uint32_t       DosDateTimeOf(int64_t utc_seconds);
+SharedFsStatus SharedWriteTimes(uint32_t dos, struct timespec (&times)[2]);
 
 }
 

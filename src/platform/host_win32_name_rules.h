@@ -30,6 +30,15 @@ bool           HasWin32Wildcard(std::u16string_view mask);
 std::u16string FixWin32Mask(std::u16string_view mask);
 bool           MatchWin32Mask(std::u16string_view name, std::u16string_view fixed_mask);
 
+bool UsableWin32Name(const std::string& host_name, std::u16string& name16);
+
+struct Win32NameMatch {
+    std::size_t    index = 0;
+    std::u16string name;
+};
+
+std::vector<Win32NameMatch> MatchWin32Names(const std::vector<std::string>& host_names, std::u16string_view mask);
+
 }
 
 }

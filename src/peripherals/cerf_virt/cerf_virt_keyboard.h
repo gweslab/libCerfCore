@@ -1,7 +1,7 @@
 #pragma once
 
+#include <cerfcore/peripherals/cerf_virt/cerf_virt_keyboard_regs.h>
 #include <cerfcore/peripherals/peripheral_base.h>
-#include "cerf_virt_keyboard_regs.h"
 
 #include <atomic>
 #include <cstdint>

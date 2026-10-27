@@ -47,11 +47,6 @@ public:
         if (!view.Located()) return;  /* the view logged the reason */
 
         const auto victims = emu_.Get<BoardDatabase>().GaVideoDriverNames();
-        if (victims.empty()) {
-            LOG(Caution, "[NandGA] guest_additions on but db.json "
-                "ga_video_driver_names is empty\n");
-            return;
-        }
         base_page_ = view.VolumeBasePage();
         const std::string stub_path = emu_.Get<GuestAdditionsBinaries>().StubPath();
 

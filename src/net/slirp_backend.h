@@ -1,6 +1,8 @@
 #pragma once
 
 #include "network_backend.h"
+#include "slirp_reply_workers.h"
+#include "../platform/host_dns_proxy.h"
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -28,9 +30,6 @@ public:
 
     void SendFrame(const uint8_t* frame, std::size_t len) override;
 
-    /* libslirp's built-in ICMP path relies on SOCK_RAW, which a non-admin process
-       cannot open on Windows (WSAEACCES -> silent ping failure), so echo requests are
-       intercepted before slirp_input and serviced with the unprivileged IcmpSendEcho. */
     bool TryInterceptIcmpEcho(const uint8_t* frame, std::size_t len);
 
     bool TryInterceptAaaaQuery(const uint8_t* frame, std::size_t len);
@@ -49,12 +48,13 @@ public:
 private:
     void PollLoop();
     void StopPollThread();
-    void JoinIcmpThreads();
     int64_t NowMs() const;
 
     cerf::inet::MacAddress guest_mac_{};
     uint32_t mtu_ = 1500;
-    bool host_has_v6_ = false;        /* set by IPv6 reachability probe in OnInit */
+    bool host_has_v6_ = false;
+    uint32_t vhost_n_ = 0;
+    uint32_t vnameserver_n_ = 0;
 
     Slirp* slirp_ = nullptr;
     SlirpCb* cbs_ = nullptr;
@@ -62,13 +62,8 @@ private:
 
     std::thread poll_thread_;
 
-    struct IcmpEcho {
-        std::thread                            thread;
-        std::shared_ptr<std::atomic<bool>>     done;
-    };
-    std::mutex             icmp_mutex_;
-    std::vector<IcmpEcho>  icmp_threads_;
-    bool                   icmp_stopping_ = false;
+    SlirpReplyWorkers                            icmp_replies_;
+    std::unique_ptr<host_platform::HostDnsProxy> dns_proxy_;
 
     std::atomic<bool> stop_{false};
     std::mutex notify_mutex_;

@@ -37,27 +37,9 @@ inline constexpr LayerKey kNumLayer[] = {
     { 0x4D, "0" }, { 0xBC, "," }, { 0xBE, "." }, { 0xBF, "+" },
 };
 
-/* Build the full binding set for a Jornada board: base layer from its scancode
-   table (with Fn/Alt marked as modifiers) + all three preview layers. */
-inline void BuildBindings(const uint8_t scancodes[256],
-                          std::vector<KeyBinding>& out) {
-    for (int vk = 0; vk < 256; ++vk) {
-        const uint8_t sc = scancodes[vk];
-        if (!sc) continue;
-        KeyBinding b{ static_cast<uint8_t>(vk), sc, nullptr, 0, 0 };
-        if (vk == kVkFn)  { b.guest_label = "Fn";  b.holds_layer = 1; }
-        if (vk == kVkAlt) { b.guest_label = "Alt"; b.holds_layer = 2; }
-        out.push_back(b);
-    }
-    for (const LayerKey& k : kFnLayer)  out.push_back({ k.vk, 0, k.label, 1, 0 });
-    for (const LayerKey& k : kAltLayer) out.push_back({ k.vk, 0, k.label, 2, 0 });
-    for (const LayerKey& k : kNumLayer)
-        out.push_back({ k.vk, 0, k.label, kNumLockLayer, 0 });
-}
-
-inline std::vector<KeyboardToggleLayer> ToggleLayers() {
-    return { { kNumLockLayer, "Num Lock" } };
-}
+void                             BuildBindings(const uint8_t scancodes[256], std::vector<KeyBinding>& out);
+std::vector<KeyboardToggleLayer> ToggleLayers();
+std::vector<uint8_t>             SpecialKeyOrder();
 
 }  /* namespace jornada_kbd */
 

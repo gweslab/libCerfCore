@@ -1,5 +1,6 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/keyboard_map.h>
+#include "../../host/pc_special_key_order.h"
 #include <cerfcore/boards/board_context.h>
 #include "samsung_smdk2410_family_id.h"
 
@@ -100,6 +101,8 @@ public:
     }
 
     const std::vector<KeyBinding>& Bindings() const override { return kBindings; }
+
+    std::vector<uint8_t> SpecialKeyOrder() const override { return PcSpecialKeyOrder(); }
 };
 
 }  /* namespace */

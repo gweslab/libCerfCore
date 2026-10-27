@@ -4,7 +4,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/device_config.h>
-#include "../../core/host_file_bytes.h"
+#include <cerfcore/core/host_file_bytes.h>
 
 namespace cerfcore {
 

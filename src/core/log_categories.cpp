@@ -12,8 +12,8 @@ uint64_t Log::ParseCategories(const char* str) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
-    if (s == "ALL")  return MASK_ALL;
-    if (s == "NONE") return MASK_NONE;
+    if (s == kAllCategories) return MASK_ALL;
+    if (s == kNoCategories)  return MASK_NONE;
 
     uint64_t mask = 0;
     size_t start = 0;

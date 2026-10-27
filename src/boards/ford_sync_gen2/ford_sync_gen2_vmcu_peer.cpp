@@ -5,6 +5,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/product_name.h>
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/host/user_alert.h>
 #include "ford_sync_gen2_family_id.h"
@@ -182,7 +183,7 @@ void FordSyncGen2VmcuPeer::HandlePmInbound(const uint8_t* pm, std::size_t n) {
 #if !CERF_DEV_MODE
             emu_.Get<UserAlert>().Show(
                 AlertLevel::kWarning, AlertPlacement::kTopmost,
-                "Sync 2 panic reboot - CE Runtime Foundation",
+                "Sync 2 panic reboot - " CERF_PRODUCT_NAME,
                 "Sync 2 has panicked and requested a reboot over VMCU.\n\n"
                 "One possibility is a dirty/corrupted NAND image: delete " + nand +
                     " and try flashing again.\n\n"

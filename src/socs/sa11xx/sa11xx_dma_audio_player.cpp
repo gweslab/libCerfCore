@@ -13,7 +13,7 @@ namespace cerfcore {
 
 void Sa11xxDmaAudioPlayer::OnReady() {
     cfg_ = AudioConfig();
-    out_.Start(cfg_.log_tag, 0u, cfg_.channels, cfg_.bits_per_sample, cfg_.allow_resampler);
+    out_.Start(cfg_.log_tag, 0u, cfg_.channels, cfg_.bits_per_sample);
     emu_.Get<Sa11xxDma>().RegisterTransmitObserver(this);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }

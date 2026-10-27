@@ -1,7 +1,7 @@
 #include <cerfcore/state/state_stream.h>
 
 #include <cerfcore/core/log.h>
-#include "../platform/host_error.h"
+#include <cerfcore/platform/host_error.h>
 
 #include <cstdarg>
 #include <cstddef>
@@ -140,13 +140,11 @@ bool StateWriter::Commit() {
 
 StateReader::StateReader(const std::string& path) {
     if (!file_.Open(path, host_platform::FileMode::kReadExisting)) {
-        error_ = "the state file cannot be opened: " +
-                 host_platform::ErrorText(host_platform::LastErrorCode());
+        error_ = "the state file cannot be opened: " + host_platform::ErrorText(host_platform::LastErrorCode());
         return;
     }
     if (!file_.Size(file_size_)) {
-        error_ = "the state file cannot be read: " +
-                 host_platform::ErrorText(host_platform::LastErrorCode());
+        error_ = "the state file cannot be read: " + host_platform::ErrorText(host_platform::LastErrorCode());
         return;
     }
     ok_ = true;

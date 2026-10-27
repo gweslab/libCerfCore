@@ -2,8 +2,11 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
+#include <cerfcore/core/config_json.h>
 #include <cerfcore/core/device_config.h>
-#include "../../core/host_file_bytes.h"
+#include <cerfcore/core/device_config_keys.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/host_file_read.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/boards/board_context.h>
@@ -28,10 +31,14 @@ public:
     void OnReady() override {
         const auto& cfg = emu_.Get<DeviceConfig>();
         if (cfg.rom_eeprom.empty()) return;
-        const std::string path = ResolveDeviceFile(cfg.device_name, cfg.rom_eeprom);
-        if (!TryReadHostFileBytes(path, eeprom_)) {
-            LOG(Caution, "HpJornada700ConfigEeprom: rom.eeprom '%s' not found at %s - EEPROM reads "
-                "float 0xFF (OAL uses default config)\n", cfg.rom_eeprom.c_str(), path.c_str());
+        const std::string  path = ResolveDeviceFile(cfg.device_name, cfg.rom_eeprom);
+        const std::string  key  = CfgKeyPath({config_key::kRom, config_key::kEeprom});
+        const HostFileRead read = ReadHostFileIfPresent(path, eeprom_);
+        if (read == HostFileRead::kUnreadable)
+            emu_.Get<Fatal>().Die("HpJornada700ConfigEeprom: %s %s cannot be read", key.c_str(), path.c_str());
+        if (read == HostFileRead::kAbsent) {
+            LOG(Caution, "HpJornada700ConfigEeprom: %s '%s' not found at %s - EEPROM reads "
+                "float 0xFF (OAL uses default config)\n", key.c_str(), cfg.rom_eeprom.c_str(), path.c_str());
             return;
         }
         LOG(Boot, "HpJornada700ConfigEeprom: loaded config EEPROM %s (%lld bytes)\n",

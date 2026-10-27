@@ -28,6 +28,13 @@ inline constexpr char kArgRecovery[]       = "--recovery";
 inline constexpr char kArgGaShareFolder[]  = "--ga-share-folder=";
 inline constexpr char kArgBoot[]           = "--boot=";
 inline constexpr char kArgTab[]            = "--tab=";
+
+inline constexpr char kBootResume[]     = "resume";
+inline constexpr char kBootWarm[]       = "warm";
+inline constexpr char kBootCold[]       = "cold";
+inline constexpr char kTabBoot[]        = "boot";
+inline constexpr char kTabHw[]          = "hw";
+inline constexpr char kTabFramebuffer[] = "fb";
 inline constexpr char kArgFullScreen[]     = "--full-screen";
 inline constexpr char kArgNoFocus[]        = "--no-focus";
 

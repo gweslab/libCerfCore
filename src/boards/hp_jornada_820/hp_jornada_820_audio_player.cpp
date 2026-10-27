@@ -29,8 +29,7 @@ public:
 protected:
     Sa11xxAudioConfig AudioConfig() const override {
         return { kMcpAudioTxDdarMask, kMcpAudioTxDdarValue,
-                 /*channels=*/1, /*bits=*/16, /*max_page=*/0x2000u,
-                 /*allow_resampler=*/false, "J820Audio" };
+                 1, 16, 0x2000u, "J820Audio" };
     }
 };
 

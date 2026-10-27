@@ -7,10 +7,6 @@
 
 namespace cerfcore {
 
-/* Single source of truth for one board's host-key -> guest mapping, read by both
-   the board's KeyboardInput (input path) and KeyboardMappingDialog (the replica).
-   device_code is opaque: each KeyboardMap concrete and its matching KeyboardInput
-   privately agree on the encoding, documented next to that board's bindings. */
 struct KeyBinding {
     uint8_t        vk;
     uint32_t       device_code;  /* Opaque, board-interpreted output. */
@@ -29,6 +25,11 @@ struct KeyboardToggleLayer {
     const char* name;
 };
 
+struct SpecialKey {
+    uint8_t     vk;
+    const char* guest_label;
+};
+
 class KeyboardMap : public Service {
 public:
     using Service::Service;
@@ -40,12 +41,15 @@ public:
     /* Lock layers shown as dialog checkboxes; empty if the board has none. */
     virtual std::vector<KeyboardToggleLayer> ToggleLayers() const { return {}; }
 
+    virtual std::vector<uint8_t> SpecialKeyOrder() const = 0;
+
+    std::vector<SpecialKey> SpecialKeys() const;
+
     /* Base-layer (input-path) device_code for a host VK; false if unmapped. */
-    bool BaseDeviceCode(uint8_t vk, uint32_t& out) const {
-        for (const KeyBinding& b : Bindings())
-            if (b.vk == vk && b.layer == 0) { out = b.device_code; return true; }
-        return false;
-    }
+    bool BaseDeviceCode(uint8_t vk, uint32_t& out) const;
+
+private:
+    const KeyBinding* BaseBinding(uint8_t vk) const;
 };
 
 }

@@ -191,7 +191,7 @@ bool Hibernation::Save(const std::string& path_in) {
     }
 
     if (ok) {
-        emu_.Get<HostPresentation>().SaveScreenshot(DeviceDirFile("saved_state.png"));
+        emu_.Get<HostPresentation>().SaveScreenshot(DeviceDirFile(kSavedStateScreenshotFile));
     }
     return ok;
 }

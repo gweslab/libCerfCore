@@ -21,7 +21,7 @@ bool Sa1111SacHostOutput::ShouldRegister() {
 }
 
 void Sa1111SacHostOutput::OnReady() {
-    out_.Start("Sa1111Sac", kHostIdleRateHz, kChannels, kBitsPerSample, true);
+    out_.Start("Sa1111Sac", kHostIdleRateHz, kChannels, kBitsPerSample);
     rate_ = kHostIdleRateHz;
 }
 

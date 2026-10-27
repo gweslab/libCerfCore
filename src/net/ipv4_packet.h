@@ -23,6 +23,10 @@ constexpr uint16_t kEthTypeIpv6     = 0x86DD;
 
 constexpr size_t   kIpv4AddrSize    = 4;
 constexpr size_t   kIpv4HeaderSize  = 20;
+constexpr size_t   kIpOffTotalLen   = 2;
+constexpr size_t   kIpOffFragment   = 6;
+constexpr uint16_t kIpFlagMoreFrags = 0x2000;
+constexpr uint16_t kIpFragOffsetMask = 0x1FFF;
 constexpr size_t   kIpOffProto      = 9;
 constexpr size_t   kIpOffChecksum   = 10;
 constexpr size_t   kIpOffSrc        = 12;

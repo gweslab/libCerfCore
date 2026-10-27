@@ -45,7 +45,8 @@ namespace Log {
         X(Perf,        "PERF",        "RateProbe - per-second event counters")    \
         X(GuestDriver, "GUEST",       "CERF guest driver runtime output via cerf_debug_tx") \
         X(GuestAdditions, "GUEST_HOST", "CERF guest additions")                          \
-        X(Discord,     "DISCORD",     "Discord Rich Presence")
+        X(Discord,     "DISCORD",     "Discord Rich Presence")                      \
+        X(Manager,     "MANAGER",     "virtual machine manager")
 
     enum class Cat : uint8_t {
     #define X(name, slug, desc) name,
@@ -74,6 +75,9 @@ namespace Log {
         ((int)Cat::COUNT >= 64) ? ~0ULL : ((1ULL << (int)Cat::COUNT) - 1);
     inline constexpr uint64_t MASK_NONE = 0;
 
+    inline constexpr char kAllCategories[]  = "ALL";
+    inline constexpr char kNoCategories[]   = "NONE";
+
     inline constexpr uint64_t CatBit(Cat c) { return 1ULL << (int)c; }
 
     inline constexpr uint64_t MASK_PRODUCTION_DEFAULT =
@@ -87,10 +91,11 @@ namespace Log {
         | CatBit(Cat::Jit)
         | CatBit(Cat::SocReset)
         | CatBit(Cat::Discord)
+        | CatBit(Cat::Manager)
         | CatBit(Cat::GuestAdditions)
         | CatBit(Cat::Nkdbg);
 
-    void InitDefaultLogFile();
+    void InitDefaultLogFile(const char* file_name);
 
     namespace detail {
         extern std::atomic<uint64_t> enabled_mask;

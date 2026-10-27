@@ -7,6 +7,7 @@ namespace cerfcore {
 inline constexpr char    kStateMagic[8]      = {'C','E','R','F','I','M','G','2'};
 inline constexpr char    kDefaultStateFile[] = "state.img";
 inline constexpr char    kRollbackStateFile[] = "rollback.img";
+inline constexpr char    kSavedStateScreenshotFile[] = "saved_state.png";
 
 struct StateImageHeader {
     uint32_t rom_entry_va;

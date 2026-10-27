@@ -1,11 +1,6 @@
 #include "host_crash_capture.h"
 
-#include "host_app_bundle.h"
-
-#include <climits>
 #include <cstdint>
-#include <cstdlib>
-#include <mach-o/dyld.h>
 #include <mach/mach.h>
 #include <pthread.h>
 #include <sys/ucontext.h>
@@ -74,27 +69,6 @@ void CrashContextRegisters(const void* uc, uintptr_t& pc, uintptr_t& sp, uintptr
     sp = static_cast<uintptr_t>(state.__rsp);
     fp = static_cast<uintptr_t>(state.__rbp);
 #endif
-}
-
-void CrashLogDirectory(char* out, size_t cap) {
-    char        raw[PATH_MAX];
-    char        real[PATH_MAX];
-    uint32_t    size = sizeof(raw);
-    const char* path = nullptr;
-    if (::_NSGetExecutablePath(raw, &size) == 0) {
-        path = ::realpath(raw, real) != nullptr ? real : raw;
-    }
-    size_t length = 0;
-    if (path != nullptr) {
-        for (; path[length] != '\0' && length + 1 < cap; ++length) out[length] = path[length];
-    }
-    const size_t bundle = AppBundleLength(out, length);
-    const size_t end    = bundle != 0 ? bundle : length;
-    size_t       cut    = 0;
-    for (size_t i = 0; i < end; ++i) {
-        if (out[i] == '/') cut = i + 1;
-    }
-    out[cut] = '\0';
 }
 
 int CrashCaptureOtherThreads(CrashThreadState* out, int capacity) {

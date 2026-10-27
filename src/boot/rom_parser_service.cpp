@@ -13,7 +13,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
-#include "../core/host_file_bytes.h"
+#include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include "../core/no_emulation_runtime_service.h"
 #include <cerfcore/core/cerf_paths.h>
@@ -77,9 +77,12 @@ bool RomParserService::ParseCe1Xips(ParsedRom& rom) {
 }
 
 bool RomParserService::ParseOne(ParsedRom& rom) {
-    rom.raw = ReadHostFileBytes(rom.path);
+    if (!TryReadHostFileBytes(rom.path, rom.raw)) {
+        LOG(Caution, "RomParser: %s cannot be read\n", rom.path.c_str());
+        return false;
+    }
     if (rom.raw.empty()) {
-        LOG(Caution, "RomParser: failed to read %s\n", rom.path.c_str());
+        LOG(Caution, "RomParser: %s is empty\n", rom.path.c_str());
         return false;
     }
     LOG(Boot, "RomParser: %s - %zu bytes (%.1f MB)\n",

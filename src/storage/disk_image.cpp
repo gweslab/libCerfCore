@@ -3,7 +3,7 @@
 #include <cstring>
 
 #include <cerfcore/core/log.h>
-#include "../platform/host_error.h"
+#include <cerfcore/platform/host_error.h>
 
 namespace cerfcore {
 

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace cerfcore {
 
@@ -46,6 +47,9 @@ enum class DeleteResult : uint8_t {
 
 DeleteResult DeleteHostFile(const std::string& path, uint32_t& error);
 bool         ReplaceHostFile(const std::string& from, const std::string& to, bool write_through);
+bool         ReplaceHostFileContents(const std::string& path, std::string_view bytes, bool write_through,
+                                     uint32_t& error);
+bool         HostRegularFileSize(const std::string& path, uint64_t& size);
 bool         HostFileExists(const std::string& path);
 bool         HostPathExists(const std::string& path);
 

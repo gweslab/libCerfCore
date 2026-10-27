@@ -7,6 +7,7 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../host/audio_activity_widget.h"
+#include "../../platform/wave_pcm_format.h"
 #include <cerfcore/state/state_stream.h>
 #include "tps65950_audio_downlink.h"
 #include "tps65950_audio_uplink.h"
@@ -70,7 +71,7 @@ void Tps65950AudioInterface::OnReady() {
     downlink_   = &emu_.Get<Tps65950AudioDownlink>();
     hfclkin_hz_ = emu_.Get<Tps65950Board>().HfclkinHz();
     clock_->RegisterRateListener([this] { OnCpuRate(); });
-    host_.Start("Tps65950Audio", 0u, kChannels, kBits, true);
+    host_.Start("Tps65950Audio", 0u, kChannels, kBits);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }
 
@@ -247,7 +248,7 @@ void Tps65950AudioInterface::FlushFrames() {
 }
 
 size_t Tps65950AudioInterface::HostBlockBytes() const {
-    return static_cast<size_t>(host_.HostBlockFrames()) * kChannels * (kBits / 8u);
+    return static_cast<size_t>(host_.HostBlockFrames()) * PcmFrameBytes(kChannels, kBits);
 }
 
 void Tps65950AudioInterface::PushWholeBlocks() {

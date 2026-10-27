@@ -7,16 +7,13 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/device_config.h>
-#include <cerfcore/core/host_fs_path.h>
 #include <cerfcore/host/file_chooser.h>
 #include <cerfcore/host/number_prompt.h>
 #include <cerfcore/platform/host_file.h>
 
 #include <algorithm>
 #include <cstdint>
-#include <filesystem>
 #include <memory>
-#include <system_error>
 #include <vector>
 
 namespace cerfcore {
@@ -24,7 +21,7 @@ namespace cerfcore {
 REGISTER_SERVICE(CompactFlashInsertEntry);
 
 std::string CompactFlashInsertEntry::CfImgPath() const {
-    return GetCerfDir() + "CF.IMG";
+    return GetCerfDir() + kDefaultCfImageName;
 }
 
 std::string CompactFlashInsertEntry::ChooseImageFile() const {
@@ -41,9 +38,8 @@ std::vector<std::string> CompactFlashInsertEntry::ChooseFilesToGenerate() const 
 uint32_t CompactFlashInsertEntry::PayloadMb(const std::vector<std::string>& files) const {
     uint64_t total = 0;
     for (const auto& f : files) {
-        std::error_code ec;
-        const auto size = std::filesystem::file_size(HostFsPath(f), ec);
-        if (!ec) total += size;
+        uint64_t size = 0;
+        if (host_platform::HostRegularFileSize(f, size)) total += size;
     }
     return static_cast<uint32_t>((total + (1u << 20) - 1) >> 20);
 }

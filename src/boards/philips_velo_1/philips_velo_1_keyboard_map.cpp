@@ -1,5 +1,6 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/keyboard_map.h>
+#include "../../host/pc_special_key_order.h"
 #include <cerfcore/boards/board_context.h>
 #include "philips_velo_1_family_id.h"
 
@@ -56,6 +57,8 @@ public:
         };
         return kBindings;
     }
+
+    std::vector<uint8_t> SpecialKeyOrder() const override { return PcSpecialKeyOrder(); }
 };
 
 }  // namespace

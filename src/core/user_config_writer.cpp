@@ -4,9 +4,8 @@
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/device_config_keys.h>
 #include <cerfcore/core/log.h>
-
-#include <fstream>
 
 namespace cerfcore {
 
@@ -19,19 +18,20 @@ void UserConfigWriter::WriteConfigurableScreenSize(uint32_t width,
     auto& config = emu_.Get<DeviceConfig>();
     const std::string path = UserConfigPath(config.device_name);
 
-    nlohmann::json j = CfgReadJsonFile(path);
-    if (!j.is_object()) j = nlohmann::json::object();
-    if (!j.contains("board") || !j["board"].is_object())
-        j["board"] = nlohmann::json::object();
-    j["board"]["configurable_screen_width"]  = width;
-    j["board"]["configurable_screen_height"] = height;
-
-    std::ofstream f(HostFsPath(path), std::ios::trunc | std::ios::binary);
-    if (!f.is_open()) {
-        LOG(Cfg, "UserConfigWriter: cannot write '%s'\n", path.c_str());
+    std::string error;
+    const bool  written = CfgUpdateJsonFile(
+        path,
+        [&](nlohmann::ordered_json& j) {
+            if (!j.contains(config_key::kBoard) || !j[config_key::kBoard].is_object())
+                j[config_key::kBoard] = nlohmann::ordered_json::object();
+            j[config_key::kBoard][config_key::kScreenWidth]  = width;
+            j[config_key::kBoard][config_key::kScreenHeight] = height;
+        },
+        CfgEmptyObject::kWrite, error);
+    if (!written) {
+        LOG(Cfg, "UserConfigWriter: %s\n", error.c_str());
         return;
     }
-    f << j.dump(2) << '\n';
 
     config.board_configurable_screen_width    = width;
     config.board_configurable_screen_height   = height;

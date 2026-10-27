@@ -16,6 +16,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../platform/host_network.h"
 #include "../platform/host_thread.h"
@@ -68,9 +69,6 @@ in6_addr MakeAddr6(uint16_t a, uint16_t b, uint16_t c, uint16_t d,
     return r;
 }
 
-/* C-shims that bounce SlirpCb pointers into SlirpBackend instance methods.
-   Signatures match libslirp 4.9.1 (SLIRP_CONFIG_VERSION_MAX=6) - note
-   slirp_ssize_t for SlirpWriteCb (typedef'd to SSIZE_T on Windows). */
 slirp_ssize_t cb_send_packet(const void* buf, size_t len, void* opaque) {
     static_cast<SlirpBackend*>(opaque)->OnSlirpSendPacket(buf, len);
     return (slirp_ssize_t)len;
@@ -125,7 +123,7 @@ void SlirpBackend::OnReady() {
     bool host_has_v6 = host_has_v6_;
 
     SlirpConfig sc{};
-    sc.version = SLIRP_CONFIG_VERSION_MAX;   /* 6 in libslirp 4.9.1 */
+    sc.version = SLIRP_CONFIG_VERSION_MAX;
     sc.restricted = 0;
     sc.in_enabled = true;
     sc.vnetwork    = MakeAddr(10, 0, 2, 0);
@@ -142,6 +140,8 @@ void SlirpBackend::OnReady() {
     sc.bootfile         = nullptr;
     sc.vdhcp_start      = MakeAddr(10, 0, 2, 15);
     sc.vnameserver      = MakeAddr(10, 0, 2, 3);
+    vhost_n_            = sc.vhost.s_addr;
+    vnameserver_n_      = sc.vnameserver.s_addr;
     sc.vdnssearch       = nullptr;
     sc.vdomainname      = nullptr;
     sc.if_mtu           = mtu_;
@@ -155,6 +155,9 @@ void SlirpBackend::OnReady() {
     /* v5+ fields - zero-init via SlirpConfig sc{}; left explicit for clarity. */
     sc.mfr_id           = 0;
     /* sc.oob_eth_addr already zeroed by sc{}. */
+    if (const int rc = host_platform::OpenHostDnsProxy(dns_proxy_); rc != 0)
+        emu_.Get<Fatal>().Die("SlirpBackend: host DNS proxy failed to start (%d)", rc);
+    if (dns_proxy_) dns_proxy_->Configure(sc);
 
     cbs_ = new SlirpCb{};
     cbs_->send_packet              = &cb_send_packet;
@@ -239,17 +242,16 @@ void SlirpBackend::StopPollThread() {
     if (poll_thread_.joinable()) poll_thread_.join();
 }
 
-/* Poll thread and the in-flight ICMP echo threads both deliver RX frames into the
-   NIC peer; stop them before any peer is destroyed. libslirp/cbs frees stay in the
-   destructor, after the joins. */
 void SlirpBackend::OnShutdown() {
     StopPollThread();
-    JoinIcmpThreads();
+    icmp_replies_.Stop();
+    dns_proxy_.reset();
 }
 
 SlirpBackend::~SlirpBackend() {
     StopPollThread();
-    JoinIcmpThreads();
+    icmp_replies_.Stop();
+    dns_proxy_.reset();
     if (slirp_) {
         std::lock_guard<std::mutex> lk(slirp_mutex_);
         slirp_cleanup(slirp_);

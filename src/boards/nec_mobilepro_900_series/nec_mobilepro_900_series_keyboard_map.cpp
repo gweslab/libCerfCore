@@ -1,5 +1,6 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/keyboard_map.h>
+#include "../../host/pc_special_key_order.h"
 #include <cerfcore/boards/board_context.h>
 #include "nec_mobilepro_900_series_family_id.h"
 
@@ -58,6 +59,8 @@ public:
     }
 
     const std::vector<KeyBinding>& Bindings() const override { return bindings_; }
+
+    std::vector<uint8_t> SpecialKeyOrder() const override { return PcSpecialKeyOrder(); }
 
 private:
     std::vector<KeyBinding> bindings_;

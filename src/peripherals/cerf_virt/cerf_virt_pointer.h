@@ -3,7 +3,10 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
+#include <deque>
+#include <mutex>
 
 namespace cerfcore {
 
@@ -27,13 +30,26 @@ public:
     void ClearButtons();
 
 private:
-    void Bump();
+    struct PointerState {
+        uint32_t x;
+        uint32_t y;
+        uint32_t buttons;
+    };
 
-    std::atomic<uint32_t> x_{0};
-    std::atomic<uint32_t> y_{0};
-    std::atomic<uint32_t> buttons_{0};
-    std::atomic<uint32_t> wheel_{0};
-    std::atomic<uint32_t> seq_{0};
+    static constexpr size_t kHeldLimit = 256;
+
+    void Bump();
+    void Publish(const PointerState& state);
+    void Hold(const PointerState& next);
+
+    std::atomic<uint32_t>    x_{0};
+    std::atomic<uint32_t>    y_{0};
+    std::atomic<uint32_t>    buttons_{0};
+    std::atomic<uint32_t>    wheel_{0};
+    std::atomic<uint32_t>    seq_{0};
+    std::mutex               mutex_;
+    std::deque<PointerState> held_;
+    bool                     change_unseen_ = false;
 };
 
 }

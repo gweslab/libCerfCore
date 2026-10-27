@@ -2,6 +2,7 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/product_name.h>
 #include <cerfcore/host/user_alert.h>
 #include "../../platform/host_clock.h"
 #include <cerfcore/state/emulation_freeze.h>
@@ -46,7 +47,7 @@ HostSerialForward::~HostSerialForward() { OnClose(); }
 void HostSerialForward::ReportDead(const std::string& detail) {
     if (dead_.exchange(true)) return;
     emu_.Get<UserAlert>().Post(
-        AlertLevel::kWarning, "Serial port forwarder - CE Runtime Foundation",
+        AlertLevel::kWarning, "Serial port forwarder - " CERF_PRODUCT_NAME,
         "The serial port forwarder lost host " + port_name_ + ".\n\n" + detail +
             "\n\nThe port has been ejected. Check that the port exists "
             "and is not in use by another application, then insert it "

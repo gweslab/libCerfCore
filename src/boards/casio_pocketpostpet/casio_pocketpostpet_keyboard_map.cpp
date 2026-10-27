@@ -37,6 +37,10 @@ public:
         };
         return kBindings;
     }
+
+    std::vector<uint8_t> SpecialKeyOrder() const override {
+        return {0x0Du, 0x1Bu, 0x26u, 0x28u, 0x25u, 0x27u, 0x09u, 0x79u, 0xDFu};
+    }
 };
 
 }  // namespace

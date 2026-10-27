@@ -1,5 +1,7 @@
 #include "silent_block_pacer.h"
 
+#include "wave_pcm_format.h"
+
 #include <cerfcore/core/log.h>
 
 #include <algorithm>
@@ -18,7 +20,7 @@ bool SilentBlockPacer::Queue(uintptr_t block, uint32_t length, uint32_t rate_hz,
         LOG(Caution, "%s: %u silent blocks already pending\n", log_tag, kCapacity);
         CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
     }
-    const uint64_t   bytes_per_sec = static_cast<uint64_t>(rate_hz) * channels * (bits / 8u);
+    const uint64_t   bytes_per_sec = static_cast<uint64_t>(rate_hz) * PcmFrameBytes(channels, bits);
     Clock::duration period        = Clock::duration::zero();
     if (bytes_per_sec != 0u) {
         period = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(

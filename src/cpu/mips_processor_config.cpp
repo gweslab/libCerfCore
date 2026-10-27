@@ -3,6 +3,7 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/config_json.h>
+#include <cerfcore/core/device_config_keys.h>
 #include "../core/cpu_config.h"
 
 #include <string>
@@ -12,6 +13,8 @@ namespace cerfcore {
 REGISTER_SERVICE(MipsProcessorConfig);
 
 namespace {
+
+constexpr char kTlbSize[] = "tlb_size";
 
 constexpr std::pair<std::string_view, cerfengine::MipsIsaLevel> kIsaLevels[] = {
     {"mips1", cerfengine::MipsIsaLevel::kMips1},
@@ -35,14 +38,14 @@ void MipsProcessorConfig::OnReady() {
 
     prid_           = c.Number("prid");
     isa_level_      = c.Enum("isa_level", kIsaLevels);
-    tlb_size_       = c.Number("tlb_size");
+    tlb_size_       = c.Number(kTlbSize);
     min_page_shift_ = c.Enum("min_page_size", kMinPageShifts);
     phys_addr_mask_ = c.Number("phys_addr_mask");
     device_ip_mask_ = c.Number("device_ip_mask");
 
     if (tlb_size_ == 0u || tlb_size_ > cerfengine::kMipsTlbMax)
-        CfgFatal(c.Origin("tlb_size"), "cpu_config.tlb_size must be between 1 and " +
-                                           std::to_string(cerfengine::kMipsTlbMax));
+        CfgFatal(c.Origin(kTlbSize), "'" + CfgKeyPath({config_key::kCpuConfig, kTlbSize}) + "' must be between 1 and " +
+                                         std::to_string(cerfengine::kMipsTlbMax));
 
     fpu_                = c.Boolean("fpu");
     llsc_               = c.Boolean("llsc");

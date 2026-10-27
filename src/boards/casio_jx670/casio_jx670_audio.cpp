@@ -8,6 +8,7 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../host/paced_wave_out.h"
+#include "../../platform/wave_pcm_format.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -252,7 +253,7 @@ void CasioJx670Audio::RequireStreamFormat() {
 
 uint32_t CasioJx670Audio::FrameBytes() const {
     if (capture_) return CasioJx670Capture::kFrameBytes;
-    return static_cast<uint32_t>(channels_) * (kBitsPerSample / 8u);
+    return PcmFrameBytes(channels_, kBitsPerSample);
 }
 
 void CasioJx670Audio::StartStream() {

@@ -31,7 +31,7 @@ constexpr uint16_t kMainLow  = 0x3B8u;
 /* gwes.exe sub_AC38C (0xAC38C): ADIN1 >= 0x39D reads as the healthy second cell. */
 constexpr uint16_t kSecondCellHealthy = 0x39Du;
 
-/* touch.dll sub_137095C (Jx627 table @0x1370568): the right hard-icon strip is calibrated
+/* casio_toricomail_ce212 touch.dll sub_137095C (Jx627 table @0x1370568): the right hard-icon strip is calibrated
    X in [1308, 4*366), the screen is X < 1308 (v8 = 4x GDI px). */
 constexpr uint16_t kScreenRawXMax = 870u;
 

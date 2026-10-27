@@ -4,6 +4,7 @@
 #include "folder_share_stage.h"
 #include "folder_share_files.h"
 #include "folder_share_dir.h"
+#include "folder_share_path.h"
 
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../peripheral_dispatcher.h"
@@ -12,7 +13,7 @@
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/folder_share_config.h>
 #include <cerfcore/core/log.h>
-#include "../../core/share_folder_mount_name.h"
+#include <cerfcore/core/share_folder_mount_name.h>
 #include <cerfcore/core/utf16.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -114,6 +115,7 @@ private:
 
         emu_.Get<FolderShareFiles>().ReconcileGeneration();
         emu_.Get<FolderShareDir>().ReconcileGeneration();
+        emu_.Get<FolderSharePath>().ReconcileRoot();
 
         if (!emu_.Get<FolderShareConfig>().Enabled()) {
             result_ = kErrorGeneralFailure;

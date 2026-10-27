@@ -4,7 +4,7 @@
 #include "log_mutex.h"
 #include "steady_time.h"
 #include "../platform/host_clock.h"
-#include "../platform/host_error.h"
+#include <cerfcore/platform/host_error.h>
 #include "../platform/host_event.h"
 #include <cerfcore/platform/host_file.h>
 #include <cerfcore/platform/host_process.h>
@@ -318,13 +318,13 @@ static bool IsFloodSuppressed(Log::Cat cat) {
     return false;
 }
 
-void Log::InitDefaultLogFile() {
+void Log::InitDefaultLogFile(const char* file_name) {
     if (g_log_file.load(std::memory_order_acquire) != nullptr) {
         return;
     }
     const std::string dir = GetCerfDir();
     if (dir.empty()) return;
-    SetFile((dir + "cerf.log").c_str());
+    SetFile((dir + file_name).c_str());
 }
 
 void Log::SetEnabled(uint64_t mask) {

@@ -1,11 +1,6 @@
 #include "slirp_backend.h"
 
-#include <array>
-#include <atomic>
 #include <cstring>
-#include <memory>
-#include <mutex>
-#include <thread>
 #include <vector>
 
 #include <cerfcore/core/byte_order.h>
@@ -23,14 +18,12 @@ using cerf::be::Put16;
 using cerf::be::U16;
 using namespace cerf::inet;
 
-/* Identify an outbound IPv4 ICMP echo request. Returns false if the
-   frame is anything else (caller falls through to slirp_input). */
 struct IcmpEchoRequest {
-    MacAddress guest_mac;
-    uint32_t guest_ip_n;   /* network-byte-order */
-    uint32_t dest_ip_n;    /* network-byte-order */
-    uint16_t id;           /* host order */
-    uint16_t seq;          /* host order */
+    MacAddress           guest_mac;
+    uint32_t             guest_ip_n;
+    uint32_t             dest_ip_n;
+    uint16_t             id;
+    uint16_t             seq;
     std::vector<uint8_t> payload;
 };
 
@@ -59,7 +52,7 @@ std::vector<uint8_t> BuildIcmpEchoReplyFrame(const IcmpEchoRequest& req,
     std::vector<uint8_t> out;
     size_t icmp_data_len = reply_data.size();
     size_t max_data = (size_t)mtu_cap - kEthHeaderSize - kIpv4HeaderSize - kIcmpHeaderSize;
-    if (icmp_data_len > max_data) return out;  /* empty = caller drops */
+    if (icmp_data_len > max_data) return out;
     out.assign(kEthHeaderSize + kIpv4HeaderSize + kIcmpHeaderSize + icmp_data_len, 0);
 
     PutEthHeader(out.data(), req.guest_mac.data(), NetworkBackend::kHostGatewayMac.data(),
@@ -82,20 +75,16 @@ std::vector<uint8_t> BuildIcmpEchoReplyFrame(const IcmpEchoRequest& req,
     return out;
 }
 
-} /* namespace */
+}
 
 bool SlirpBackend::TryInterceptIcmpEcho(const uint8_t* frame, std::size_t len) {
     IcmpEchoRequest req;
     if (!ParseIcmpEchoRequest(frame, len, req)) return false;
+    if (req.dest_ip_n == vhost_n_ || req.dest_ip_n == vnameserver_n_) return false;
 
     uint16_t mtu_cap = (uint16_t)mtu_;
 
-    auto done = std::make_shared<std::atomic<bool>>(false);
-    std::shared_ptr<void> mark_done(nullptr, [done](void*) {
-        done->store(true, std::memory_order_release);
-    });
-
-    auto echo = [this, req = std::move(req), mtu_cap, mark_done]() mutable {
+    auto echo = [this, req = std::move(req), mtu_cap] {
         const host_platform::IcmpEchoResult result = host_platform::SendIcmpEcho(
             req.dest_ip_n, req.payload.data(), req.payload.size(), 1000);
         if (result.status == host_platform::IcmpEchoStatus::kOpenFailed) return;
@@ -116,30 +105,8 @@ bool SlirpBackend::TryInterceptIcmpEcho(const uint8_t* frame, std::size_t len) {
         DispatchFrame(reply_frame.data(), reply_frame.size());
     };
 
-    std::lock_guard<std::mutex> lk(icmp_mutex_);
-    if (icmp_stopping_) return true;   /* shutdown joined the live set; drop the echo */
-
-    for (auto it = icmp_threads_.begin(); it != icmp_threads_.end();) {
-        if (it->done->load(std::memory_order_acquire)) {
-            it->thread.join();
-            it = icmp_threads_.erase(it);
-        } else {
-            ++it;
-        }
-    }
-    icmp_threads_.push_back({std::thread(std::move(echo)), std::move(done)});
+    icmp_replies_.Start(std::move(echo));
     return true;
-}
-
-void SlirpBackend::JoinIcmpThreads() {
-    std::vector<IcmpEcho> live;
-    {
-        std::lock_guard<std::mutex> lk(icmp_mutex_);
-        icmp_stopping_ = true;
-        live.swap(icmp_threads_);
-    }
-    for (auto& e : live)
-        if (e.thread.joinable()) e.thread.join();
 }
 
 }

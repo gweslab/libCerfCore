@@ -3,7 +3,9 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/core/product_name.h>
 #include "../pcmcia/pcmcia_slot.h"
+#include <cerfcore/platform/host_path_name.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstring>
@@ -78,7 +80,8 @@ void PutAtaString(uint8_t* dst, const char* s, std::size_t bytes) {
 }  /* namespace */
 
 CompactFlashCard::CompactFlashCard(CerfEmulator& emu, std::string image_path)
-    : PcmciaCard(emu), image_path_(std::move(image_path)) {
+    : PcmciaCard(emu), image_path_(std::move(image_path)),
+      image_name_(host_platform::HostPathDisplayName(image_path_)) {
     uint64_t bytes = 0;
     if (file_.Open(image_path_, host_platform::FileMode::kReadWriteExisting))
         file_.Size(bytes);
@@ -90,10 +93,7 @@ CompactFlashCard::CompactFlashCard(CerfEmulator& emu, std::string image_path)
 CompactFlashCard::~CompactFlashCard() = default;
 
 std::string CompactFlashCard::DisplayName() const {
-    const std::size_t slash = image_path_.find_last_of("\\/");
-    const std::string name = slash == std::string::npos
-        ? image_path_ : image_path_.substr(slash + 1);
-    return "CompactFlash (" + name + ")";
+    return "CompactFlash (" + image_name_ + ")";
 }
 
 std::string CompactFlashCard::TooltipDetail() const {

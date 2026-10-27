@@ -37,7 +37,7 @@ void FreescaleSdmaAudioPlayer::OnReady() {
     }
     emu_.Get<FreescaleModuleClocks>().RegisterGateListener([this] { OnControl(); });
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetLine(); });
-    out_.Start(LogTag(), 0u, 0u, 0u, true);
+    out_.Start(LogTag(), 0u, 0u, 0u);
     wiring_->Sdma().RegisterChannelSink(this);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }

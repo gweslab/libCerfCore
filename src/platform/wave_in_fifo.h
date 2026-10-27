@@ -6,6 +6,8 @@
 
 namespace cerfcore {
 
+class WaveInBackend;
+
 class WaveInFifo {
 public:
     WaveInFifo();
@@ -21,8 +23,7 @@ public:
     size_t Take(uint8_t* dst, size_t bytes);
 
 private:
-    class Impl;
-    std::unique_ptr<Impl> impl_;
+    std::unique_ptr<WaveInBackend> backend_;
 };
 
 }

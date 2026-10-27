@@ -1,14 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace cerfcore {
 
 namespace cf_fat {
-
-std::string BaseName(const std::string& path);
 
 struct ShortName {
     uint8_t sfn[11];
@@ -39,8 +38,8 @@ struct FileEntry {
     uint32_t             clusters   = 0;
 };
 
-std::vector<FileEntry> CollectEntries(const std::vector<std::string>& files,
-                                      uint32_t cluster_bytes);
+std::optional<std::vector<FileEntry>> CollectEntries(const std::vector<std::string>& files,
+                                                     uint32_t cluster_bytes);
 
 }  /* namespace cf_fat */
 

@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "host_fd_handle.h"
+#include "host_path_open.h"
 
 namespace cerfcore {
 
@@ -14,7 +15,7 @@ namespace host_platform {
 
 bool OpenMappedFile(const std::string& path, FileMapping& mapping) {
     mapping.granularity = static_cast<uint32_t>(::sysconf(_SC_PAGESIZE));
-    const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+    const int fd = OpenHostPath(path, O_RDONLY | O_CLOEXEC, 0);
     if (fd < 0) return false;
     mapping.file = HandleOf(fd);
     struct stat st {};

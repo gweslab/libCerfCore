@@ -20,7 +20,7 @@
 #include <cerfcore/core/board_database.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
-#include "../core/host_file_bytes.h"
+#include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/service.h>
 #include <cerfcore/cpu/emulated_memory.h>
@@ -73,11 +73,6 @@ public:
             ce_major_, ce_minor_, layout_name);
 
         const auto victims = emu_.Get<BoardDatabase>().GaVideoDriverNames();
-        if (victims.empty()) {
-            LOG(Caution, "guest_additions enabled but db.json "
-                    "ga_video_driver_names is empty\n");
-            CerfFatalExit();
-        }
 
         const std::string stub_path =
             emu_.Get<GuestAdditionsBinaries>().StubPath();

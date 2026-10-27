@@ -28,8 +28,7 @@ public:
 protected:
     Sa11xxAudioConfig AudioConfig() const override {
         return { kSspAudioTxDdarMask, kSspAudioTxDdarValue,
-                 /*channels=*/2, /*bits=*/16, /*max_page=*/0x2000u,
-                 /*allow_resampler=*/true, "SmartBookAudio" };
+                 2, 16, 0x2000u, "SmartBookAudio" };
     }
 };
 

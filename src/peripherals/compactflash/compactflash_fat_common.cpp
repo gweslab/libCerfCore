@@ -1,7 +1,9 @@
 #include "compactflash_fat_common.h"
 
 #include <cerfcore/core/byte_order.h>
-#include "../../core/host_file_bytes.h"
+#include <cerfcore/core/host_file_bytes.h>
+#include <cerfcore/platform/host_path_name.h>
+#include <cerfcore/core/log.h>
 #include <cerfcore/core/utf16.h>
 
 #include <array>
@@ -11,11 +13,6 @@
 namespace cerfcore {
 
 namespace cf_fat {
-
-std::string BaseName(const std::string& path) {
-    const std::size_t s = path.find_last_of("\\/");
-    return s == std::string::npos ? path : path.substr(s + 1);
-}
 
 uint8_t LfnChecksum(const uint8_t sfn[11]) {
     uint8_t sum = 0;
@@ -141,8 +138,8 @@ uint8_t* EmitFileDir(uint8_t* dir, const std::u16string& name, const uint8_t sfn
     return dir + 32;
 }
 
-std::vector<FileEntry> CollectEntries(const std::vector<std::string>& files,
-                                      uint32_t cluster_bytes) {
+std::optional<std::vector<FileEntry>> CollectEntries(const std::vector<std::string>& files,
+                                                     uint32_t cluster_bytes) {
     std::vector<FileEntry> entries;
     std::vector<std::array<uint8_t, 11>> used_sfns;
     auto sfn_taken = [&](const uint8_t* s) {
@@ -153,8 +150,11 @@ std::vector<FileEntry> CollectEntries(const std::vector<std::string>& files,
     int sfn_index = 1;
     for (const auto& path : files) {
         FileEntry e;
-        e.name = Utf8ToUtf16(BaseName(path));
-        e.data = ReadHostFileBytes(path);
+        e.name = Utf8ToUtf16(host_platform::HostPathDisplayName(path));
+        if (!TryReadHostFileBytes(path, e.data)) {
+            LOG(Caution, "[CF] FAT build: %s cannot be read\n", path.c_str());
+            return std::nullopt;
+        }
         ShortName sn = MakeShortName(e.name, sfn_index);
         if (sfn_taken(sn.sfn)) {
             MakeMangledSfn(e.name, sfn_index, sn.sfn);

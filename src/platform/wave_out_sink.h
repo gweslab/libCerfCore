@@ -6,6 +6,8 @@
 
 namespace cerfcore {
 
+class WaveOutBackend;
+
 class WaveOutSink {
 public:
     static constexpr uint32_t kSlots  = 8;
@@ -25,8 +27,7 @@ public:
     void Stop();
     void PostCommand(uint32_t command);
 
-    bool EnsureFormat(uint32_t sample_rate_hz, uint16_t channels,
-                      uint16_t bits, bool allow_resampler, bool busy);
+    bool EnsureFormat(uint32_t sample_rate_hz, uint16_t channels, uint16_t bits, bool busy);
     bool IsOpen() const;
     bool SamplePosition(uint32_t& samples, uint32_t& generation) const;
 
@@ -34,8 +35,7 @@ public:
     void Reset();
 
 private:
-    class Impl;
-    std::unique_ptr<Impl> impl_;
+    std::unique_ptr<WaveOutBackend> backend_;
 };
 
 }

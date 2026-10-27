@@ -48,6 +48,7 @@ public:
     std::vector<KeyboardToggleLayer> ToggleLayers() const override {
         return jornada_kbd::ToggleLayers();
     }
+    std::vector<uint8_t> SpecialKeyOrder() const override { return jornada_kbd::SpecialKeyOrder(); }
 
 private:
     std::vector<KeyBinding> bindings_;

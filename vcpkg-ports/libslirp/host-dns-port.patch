@@ -1,0 +1,114 @@
+--- a/src/ip6_icmp.c
++++ b/src/ip6_icmp.c
+@@ -334,7 +334,7 @@
+     pl_size += NDPOPT_PREFIXINFO_LEN;
+ 
+     /* Prefix information (NDP option) */
+-    if (get_dns6_addr(&addr, &scope_id) >= 0) {
++    if (slirp->host_dns_port || get_dns6_addr(&addr, &scope_id) >= 0) {
+         /* Host system does have an IPv6 DNS server, announce our proxy.  */
+         struct ndpopt *opt3 = mtod(t, struct ndpopt *);
+         opt3->ndpopt_type = NDPOPT_RDNSS;
+--- a/src/libslirp.h
++++ b/src/libslirp.h
+@@ -158,7 +158,7 @@
+ } SlirpCb;
+ 
+ #define SLIRP_CONFIG_VERSION_MIN 1
+-#define SLIRP_CONFIG_VERSION_MAX 6
++#define SLIRP_CONFIG_VERSION_MAX 7
+ 
+ typedef struct SlirpConfig {
+     /* Version must be provided */
+@@ -246,6 +246,8 @@
+      * retrieved through NC-SI.
+      */
+     uint8_t oob_eth_addr[6];
++
++    uint16_t host_dns_port;
+ } SlirpConfig;
+ 
+ /* Create a new instance of a slirp stack */
+--- a/src/slirp.c
++++ b/src/slirp.c
+@@ -691,6 +691,12 @@
+     } else {
+         slirp->mfr_id = 0;
+         memset(slirp->oob_eth_addr, 0, ETH_ALEN);
++    }
++
++    if (cfg->version >= 7) {
++        slirp->host_dns_port = htons(cfg->host_dns_port);
++    } else {
++        slirp->host_dns_port = 0;
+     }
+ 
+     ip6_post_init(slirp);
+--- a/src/slirp.h
++++ b/src/slirp.h
+@@ -218,6 +218,7 @@
+     struct sockaddr_in *outbound_addr;
+     struct sockaddr_in6 *outbound_addr6;
+     bool disable_dns; /* slirp will not redirect/serve any DNS packet */
++    uint16_t host_dns_port;
+ };
+ 
+ /*
+--- a/src/socket.c
++++ b/src/socket.c
+@@ -968,7 +968,15 @@
+ static bool sotranslate_out4(Slirp *s, struct socket *so, struct sockaddr_in *sin)
+ {
+     if (!s->disable_dns && so->so_faddr.s_addr == s->vnameserver_addr.s_addr) {
+-        return so->so_fport == htons(53) && get_dns_addr(&sin->sin_addr) >= 0;
++        if (so->so_fport != htons(53)) {
++            return false;
++        }
++        if (s->host_dns_port) {
++            sin->sin_addr = loopback_addr;
++            sin->sin_port = s->host_dns_port;
++            return true;
++        }
++        return get_dns_addr(&sin->sin_addr) >= 0;
+     }
+ 
+     if (so->so_faddr.s_addr == s->vhost_addr.s_addr ||
+@@ -987,6 +995,12 @@
+ {
+     if (!s->disable_dns && in6_equal(&so->so_faddr6, &s->vnameserver_addr6)) {
+         uint32_t scope_id;
++        if (so->so_fport == htons(53) && s->host_dns_port) {
++            sin->sin6_addr = in6addr_loopback;
++            sin->sin6_scope_id = 0;
++            sin->sin6_port = s->host_dns_port;
++            return true;
++        }
+         if (so->so_fport == htons(53) && get_dns6_addr(&sin->sin6_addr, &scope_id) >= 0) {
+             sin->sin6_scope_id = scope_id;
+             return true;
+@@ -1036,6 +1050,12 @@
+ 
+     switch (addr->ss_family) {
+     case AF_INET:
++        if (slirp->host_dns_port && !slirp->disable_dns &&
++            so->so_faddr.s_addr == slirp->vnameserver_addr.s_addr) {
++            sin->sin_addr = so->so_faddr;
++            sin->sin_port = so->so_fport;
++            break;
++        }
+         if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+             slirp->vnetwork_addr.s_addr) {
+             uint32_t inv_mask = ~slirp->vnetwork_mask.s_addr;
+@@ -1050,6 +1070,12 @@
+         break;
+ 
+     case AF_INET6:
++        if (slirp->host_dns_port && !slirp->disable_dns &&
++            in6_equal(&so->so_faddr6, &slirp->vnameserver_addr6)) {
++            sin6->sin6_addr = so->so_faddr6;
++            sin6->sin6_port = so->so_fport;
++            break;
++        }
+         if (in6_equal_net(&so->so_faddr6, &slirp->vprefix_addr6,
+                           slirp->vprefix_len)) {
+             if (in6_equal(&sin6->sin6_addr, &in6addr_loopback) ||

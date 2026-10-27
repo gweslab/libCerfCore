@@ -26,6 +26,10 @@ void CerfEmulator::OnServiceDestroy(const servicelocator::Service& service) {
 
 void CerfEmulator::Boot() {
     Bootstrap();
+    StartGuest();
+}
+
+void CerfEmulator::StartGuest() {
     LOG(Boot, "services up; starting jit...\n");
     Get<JitRunner>().Start();
 }

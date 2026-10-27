@@ -12,8 +12,7 @@ bool SameStream(const WaveOutFormat& a, const WaveOutFormat& b) {
 
 bool WaveOutReopenPolicy::EnsureFormat(const WaveOutFormat& format, bool busy,
                                        WaveOutDevice& device, std::unique_lock<std::mutex>& lk) {
-    const bool changed = !SameStream(format, requested_) ||
-                         format.allow_resampler != requested_.allow_resampler;
+    const bool changed = !SameStream(format, requested_);
     requested_ = format;
     if (device.DeviceOpenLocked()) {
         if (SameStream(opened_, requested_)) return true;

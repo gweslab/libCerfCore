@@ -1,8 +1,11 @@
-#include "cpu_config_database.h"
+#include <cerfcore/core/cpu_config_database.h>
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
+#include <cerfcore/core/cpu_arch_name.h>
+
+#include "name_table.h"
 
 #include <nlohmann/json.hpp>
 
@@ -16,17 +19,37 @@ REGISTER_SERVICE(CpuConfigDatabase);
 namespace {
 
 using nlohmann::json;
+namespace db_key = cpu_config_db_key;
 
-CpuConfigParamType ParseParamType(const std::string& value, const std::string& path,
-                                  const std::string& ctx) {
-    if (value == "boolean") return CpuConfigParamType::Boolean;
-    if (value == "integer") return CpuConfigParamType::Integer;
-    if (value == "hex")     return CpuConfigParamType::Hex;
-    if (value == "enum")    return CpuConfigParamType::Enum;
-    CfgFatal(path, ctx + ".type '" + value + "' is unknown");
+constexpr char kId[]         = "id";
+constexpr char kName[]       = "name";
+constexpr char kArch[]       = "arch";
+constexpr char kEnumValues[] = "enum_values";
+constexpr char kSocId[]      = "soc_id";
+constexpr char kInherits[]   = "inherits_cpu_config_id";
+constexpr char kValues[]     = "values";
+
+constexpr std::pair<std::string_view, CpuConfigParamType> kParamTypes[] = {
+    {"boolean", CpuConfigParamType::Boolean},
+    {"integer", CpuConfigParamType::Integer},
+    {"hex", CpuConfigParamType::Hex},
+    {"enum", CpuConfigParamType::Enum},
+};
+
+CpuConfigValue ValueOf(const CpuConfigParam& param, const json& value) {
+    CpuConfigValue out;
+    switch (param.type) {
+    case CpuConfigParamType::Boolean: out.boolean = value.get<bool>(); break;
+    case CpuConfigParamType::Integer: out.number = value.get<uint32_t>(); break;
+    case CpuConfigParamType::Hex:     ParseCpuConfigHex(value.get<std::string>(), out.number); break;
+    case CpuConfigParamType::Enum:    out.enum_id = value.get<std::string>(); break;
+    }
+    return out;
 }
 
-bool ParseHex(const std::string& text, uint32_t& out) {
+}
+
+bool ParseCpuConfigHex(std::string_view text, uint32_t& out) {
     if (text.size() < 3 || text.size() > 10 || text[0] != '0' ||
         (text[1] != 'x' && text[1] != 'X'))
         return false;
@@ -41,44 +64,28 @@ bool ParseHex(const std::string& text, uint32_t& out) {
     return true;
 }
 
-}
-
 void CpuConfigDatabase::OnReady() {
-    const std::string path = DbJsonPath();
-    const json root = CfgReadInstalledJsonFile(path);
+    const json root = CfgReadInstalledJsonFile(DbJsonPath());
 
-    for (const auto& p : CfgRequireArray(root, "cpu_config_params", path)) {
-        if (!p.is_object()) CfgFatal(path, "cpu_config_params[] entries must be objects");
+    for (const auto& p : root.at(db_key::kParams)) {
         CpuConfigParam param;
-        param.id = CfgRequireString(p, "id", path, "cpu_config_params[]");
-        const std::string ctx = "cpu_config_params[" + param.id + "]";
-        param.arch = ParseCpuArch(CfgRequireString(p, "arch", path, ctx), path, ctx);
-        param.type = ParseParamType(CfgRequireString(p, "type", path, ctx), path, ctx);
-        if (param.type == CpuConfigParamType::Enum) {
-            for (const auto& v : CfgRequireArray(p, "enum_values", path)) {
-                if (!v.is_object()) CfgFatal(path, ctx + ".enum_values[] entries must be objects");
+        param.id   = p.at(kId).get<std::string>();
+        param.name = p.at(kName).get<std::string>();
+        param.arch = CpuArchFromName(p.at(kArch).get<std::string>());
+        param.type = ValueByName(kParamTypes, p.at(db_key::kType).get<std::string>());
+        if (param.type == CpuConfigParamType::Enum)
+            for (const auto& v : p.at(kEnumValues))
                 param.enum_values.push_back(
-                    CfgRequireString(v, "id", path, ctx + ".enum_values[]"));
-            }
-        }
+                    CpuConfigEnumValue{v.at(kId).get<std::string>(), v.at(kName).get<std::string>()});
         params_.push_back(std::move(param));
     }
 
-    for (const auto& c : CfgRequireArray(root, "cpu_configs", path)) {
-        if (!c.is_object()) CfgFatal(path, "cpu_configs[] entries must be objects");
-        Preset preset;
-        preset.id       = CfgReadOptString(c, "id", path, "cpu_configs[]");
-        preset.soc_id   = CfgReadOptString(c, "soc_id", path, "cpu_configs[]");
-        preset.inherits = CfgReadOptString(c, "inherits_cpu_config_id", path, "cpu_configs[]");
-        const std::string ctx =
-            "cpu_configs[" + (preset.id.empty() ? preset.soc_id : preset.id) + "]";
-        if (!c.contains("values") || !c["values"].is_object())
-            CfgFatal(path, ctx + ".values must be an object");
-        for (const auto& [key, value] : c["values"].items()) {
-            const CpuConfigParam* param = FindParam(key);
-            if (!param) CfgFatal(path, ctx + ".values." + key + " is not in cpu_config_params[]");
-            preset.values[key] = ParseValue(*param, value, path, ctx + ".values");
-        }
+    for (const auto& c : root.at(db_key::kConfigs)) {
+        CpuConfigPreset preset;
+        preset.id       = c.value(kId, std::string());
+        preset.soc_id   = c.value(kSocId, std::string());
+        preset.inherits = c.value(kInherits, std::string());
+        for (const auto& [key, value] : c.at(kValues).items()) preset.values[key] = ValueOf(*FindParam(key), value);
         presets_.push_back(std::move(preset));
     }
 }
@@ -89,55 +96,54 @@ const CpuConfigParam* CpuConfigDatabase::FindParam(std::string_view id) const {
     return nullptr;
 }
 
-CpuConfigValues CpuConfigDatabase::ResolvePreset(std::string_view soc_id) const {
-    for (const auto& preset : presets_) {
-        if (preset.soc_id != soc_id) continue;
-        CpuConfigValues out;
-        Apply(preset, out);
-        return out;
-    }
-    CfgFatal(DbJsonPath(), "soc '" + std::string(soc_id) + "' has no cpu_configs[] row");
+const CpuConfigPreset& CpuConfigDatabase::SocPreset(std::string_view soc_id) const {
+    return *std::find_if(presets_.begin(), presets_.end(),
+                         [soc_id](const CpuConfigPreset& preset) { return preset.soc_id == soc_id; });
 }
 
-void CpuConfigDatabase::Apply(const Preset& preset, CpuConfigValues& out) const {
+CpuConfigValues CpuConfigDatabase::ResolvePreset(std::string_view soc_id) const { return Resolve(SocPreset(soc_id)); }
+
+CpuConfigValues CpuConfigDatabase::Resolve(const CpuConfigPreset& preset) const {
+    CpuConfigValues out;
+    Apply(preset, out);
+    return out;
+}
+
+void CpuConfigDatabase::Apply(const CpuConfigPreset& preset, CpuConfigValues& out) const {
     if (!preset.inherits.empty()) Apply(PresetById(preset.inherits), out);
     for (const auto& [key, value] : preset.values) out[key] = value;
 }
 
-const CpuConfigDatabase::Preset& CpuConfigDatabase::PresetById(std::string_view id) const {
-    for (const auto& preset : presets_)
-        if (preset.id == id) return preset;
-    CfgFatal(DbJsonPath(), "cpu_configs[] has no row with id '" + std::string(id) + "'");
+const CpuConfigPreset& CpuConfigDatabase::PresetById(std::string_view id) const {
+    return *std::find_if(presets_.begin(), presets_.end(),
+                         [id](const CpuConfigPreset& preset) { return preset.id == id; });
 }
 
 CpuConfigValue CpuConfigDatabase::ParseValue(const CpuConfigParam& param, const json& value,
                                              const std::string& path,
                                              const std::string& ctx) const {
-    const std::string where = ctx + "." + param.id;
-    CpuConfigValue out;
+    const std::string where = CfgKeyPath({ctx, param.id});
+    uint32_t          hex   = 0;
     switch (param.type) {
     case CpuConfigParamType::Boolean:
-        if (!value.is_boolean()) CfgFatal(path, where + " must be a boolean");
-        out.boolean = value.get<bool>();
-        return out;
+        if (!value.is_boolean()) CfgFatal(path, "'" + where + "' must be a boolean");
+        break;
     case CpuConfigParamType::Integer:
         if (!value.is_number_unsigned() || value.get<uint64_t>() > UINT32_MAX)
-            CfgFatal(path, where + " must be an unsigned 32-bit integer");
-        out.number = value.get<uint32_t>();
-        return out;
+            CfgFatal(path, "'" + where + "' must be an unsigned 32-bit integer");
+        break;
     case CpuConfigParamType::Hex:
-        if (!value.is_string() || !ParseHex(value.get<std::string>(), out.number))
-            CfgFatal(path, where + " must be a 32-bit hex string such as \"0x1F\"");
-        return out;
+        if (!value.is_string() || !ParseCpuConfigHex(value.get<std::string>(), hex))
+            CfgFatal(path, "'" + where + "' must be a 32-bit hex string such as \"0x1F\"");
+        break;
     case CpuConfigParamType::Enum:
-        if (!value.is_string()) CfgFatal(path, where + " must be a string");
-        out.enum_id = value.get<std::string>();
-        if (std::find(param.enum_values.begin(), param.enum_values.end(), out.enum_id) ==
-            param.enum_values.end())
-            CfgFatal(path, where + " '" + out.enum_id + "' is unknown");
-        return out;
+        if (!value.is_string()) CfgFatal(path, "'" + where + "' must be a string");
+        if (std::none_of(param.enum_values.begin(), param.enum_values.end(),
+                         [&](const CpuConfigEnumValue& e) { return e.id == value.get<std::string>(); }))
+            CfgFatal(path, "'" + where + "' has the unknown value '" + value.get<std::string>() + "'");
+        break;
     }
-    CfgFatal(path, where + " has a type this build does not parse");
+    return ValueOf(param, value);
 }
 
 }

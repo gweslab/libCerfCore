@@ -1,10 +1,9 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/cerf_paths.h>
-#include <cerfcore/core/host_fs_path.h>
 #include <cerfcore/core/log.h>
-#include <cerfcore/core/utf16.h>
 #include <cerfcore/boards/board_context.h>
+#include <cerfcore/platform/host_path_name.h>
 #include "ford_sync_gen2_family_id.h"
 #include "../../socs/imx51/imx51_usboh3.h"
 #include <cerfcore/host/file_chooser.h>
@@ -131,7 +130,7 @@ private:
         if (file.empty()) return;
         BundledUsbMedia media;
         media.file = file;
-        media.name = Utf16ToUtf8(HostFsPath(file).filename().u16string());
+        media.name = host_platform::HostPathDisplayName(file);
         Apply(slot, generation, &media);
     }
     std::optional<ChoiceOption> Inserted(int slot) const {

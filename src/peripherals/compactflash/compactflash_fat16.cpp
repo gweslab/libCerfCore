@@ -4,7 +4,7 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
-#include "../../core/host_file_bytes.h"
+#include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include "../../storage/fat_volume_layout.h"
 
@@ -51,7 +51,9 @@ bool CompactFlashFat16Builder::Build(const std::string& out_path,
                                      const std::vector<std::string>& files,
                                      uint32_t data_mb) {
     const uint32_t clus_bytes = kBytesPerSec * kSecPerClus;
-    std::vector<cf_fat::FileEntry> entries = cf_fat::CollectEntries(files, clus_bytes);
+    std::optional<std::vector<cf_fat::FileEntry>> collected = cf_fat::CollectEntries(files, clus_bytes);
+    if (!collected) return false;
+    std::vector<cf_fat::FileEntry>& entries = *collected;
     uint32_t root_entries_used = 0;
     uint32_t payload_clusters = 0;
     for (const auto& e : entries) {

@@ -11,4 +11,12 @@ bool KeyboardInput::CanDeliverVk(uint8_t vk) const {
     return map && map->BaseDeviceCode(vk, code);
 }
 
+std::vector<SpecialKey> KeyboardInput::SpecialKeys() const { return emu_.Get<KeyboardMap>().SpecialKeys(); }
+
+bool KeyboardInput::HasLetterKeys() const {
+    for (uint8_t vk = 'A'; vk <= 'Z'; ++vk)
+        if (!CanDeliverVk(vk)) return false;
+    return true;
+}
+
 }
