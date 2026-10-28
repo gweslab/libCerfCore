@@ -88,8 +88,17 @@ void Serial16550::Reset() {
 
 void Serial16550::ResetRegisters() {
     std::lock_guard<std::mutex> lk(mu_);
-    ier_ = fcr_ = lcr_ = mcr_ = lsr_ = msr_ = scr_ = 0;
+    ClearRegistersLocked();
     dll_ = dlm_ = 0;
+}
+
+void Serial16550::MasterReset() {
+    std::lock_guard<std::mutex> lk(mu_);
+    ClearRegistersLocked();
+}
+
+void Serial16550::ClearRegistersLocked() {
+    ier_ = fcr_ = lcr_ = mcr_ = lsr_ = msr_ = scr_ = 0;
     thre_armed_ = false;
     rx_.clear();
     rx_pos_ = 0;

@@ -88,6 +88,7 @@ public:
 
     void Reset();
     void ResetRegisters();
+    void MasterReset();
     void ResendEndpointInputs();
 
     void PostRestoreLine();
@@ -106,6 +107,7 @@ private:
     uint8_t    ReadIirLocked();           /* reading IIR clears the THRE source */
     void       SettleAndFireIrq();        /* recompute level, call irq_line_ off-lock */
     LineConfig GetLineConfigLocked() const;
+    void       ClearRegistersLocked();
 
     IrqLineFn       irq_line_;
     Config          cfg_;
