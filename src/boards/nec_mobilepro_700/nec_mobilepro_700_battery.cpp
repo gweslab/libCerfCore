@@ -10,15 +10,12 @@ namespace cerfcore {
 
 namespace {
 
-/* nec_mobilepro_700_ce2 battdrv.dll BatteryDriverGetStatus 0x1560644: VRC4172 EXGPDATA0
-   (kseg1 0xB5001080) bit 0x20 clear reports ACLineStatus online. */
 constexpr int kOffAcPin = 5;
 
 }
 
 bool NecMobilePro700Battery::ShouldRegister() {
-    auto* bd = emu_.TryGet<BoardContext>();
-    return bd && bd->GetBoardFamilyId() == BoardFamilyId::NecMobilepro700;
+    return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::NecMobilepro700;
 }
 
 void NecMobilePro700Battery::OnReady() {

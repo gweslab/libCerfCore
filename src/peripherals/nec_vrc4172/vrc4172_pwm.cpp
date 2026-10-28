@@ -36,9 +36,7 @@ public:
 
     void OnReady() override {
         ApplyReset();
-        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
-            if (kind == ResetLineKind::Rtc) ApplyReset();
-        });
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ApplyReset(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
