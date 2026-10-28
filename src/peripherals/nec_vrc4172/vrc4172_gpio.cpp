@@ -1,9 +1,8 @@
 #include "vrc4172_gpio.h"
+#include "vrc4172_gpio_config.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
-#include <cerfcore/boards/board_context.h>
-#include "../../boards/nec_mobilepro_700/nec_mobilepro_700_family_id.h"
 #include "../peripheral_dispatcher.h"
 #include "../../socs/vr41xx/vr41xx_giu.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
@@ -22,17 +21,20 @@ constexpr uint32_t kDir0    = 0x02u;
 constexpr uint32_t kInten0  = 0x04u;
 constexpr uint32_t kIntst0  = 0x06u;
 constexpr uint32_t kInttyp0 = 0x08u;
-
-constexpr int kGiuIntPin = 1;
+constexpr uint32_t kIntlv0L = 0x0Au;
+constexpr uint32_t kIntlv0H = 0x0Cu;
 
 }
 
 REGISTER_SERVICE(Vrc4172Gpio);
 
 bool Vrc4172Gpio::ShouldRegister() {
-    return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::NecMobilepro700;
+    return emu_.TryGet<Vrc4172GpioConfig>() != nullptr;
 }
 void Vrc4172Gpio::OnReady() {
+    const auto& config = emu_.Get<Vrc4172GpioConfig>();
+    giu_pin_ = config.GiuIntPin();
+    level_   = config.InitialInputLevels();
     emu_.Get<PeripheralDispatcher>().Register(this);
     auto& reset = emu_.Get<GuestCpuReset>();
     reset.RegisterResetListener([this](ResetLineKind) {
@@ -78,6 +80,8 @@ void Vrc4172Gpio::WriteHalf(uint32_t addr, uint16_t value) {
         case kInttyp0: inttyp_ = value; break;
         case kInten0:  inten_  = value; break;
         case kIntst0:  intclr_ = value; break;
+        case kIntlv0L: intlv0l_ = value; break;
+        case kIntlv0H: intlv0h_ = value; break;
         default:       HaltUnsupportedAccess("VRC4172 GPIO WriteHalf", kBase + off, value);
     }
     EvaluateStatusLocked();
@@ -91,6 +95,8 @@ uint16_t Vrc4172Gpio::ReadReg16Locked(uint32_t off) {
         case kInten0:  return inten_;
         case kIntst0:  return intst_;
         case kInttyp0: return inttyp_;
+        case kIntlv0L: return intlv0l_;
+        case kIntlv0H: return intlv0h_;
         default:       HaltUnsupportedAccess("VRC4172 GPIO ReadHalf", kBase + off, 0);
     }
 }
@@ -145,7 +151,7 @@ void Vrc4172Gpio::DriveGiuLocked() {
     const bool asserted = (intst_ & inten_) != 0;
     if (asserted == giu_asserted_) return;
     giu_asserted_ = asserted;
-    emu_.Get<Vr41xxGiu>().SetPinLevel(kGiuIntPin, asserted);
+    emu_.Get<Vr41xxGiu>().SetPinLevel(giu_pin_, asserted);
 }
 
 void Vrc4172Gpio::SaveState(StateWriter& w) {
@@ -163,7 +169,7 @@ void Vrc4172Gpio::RestoreState(StateReader& r) {
 void Vrc4172Gpio::PostRestore() {
     std::lock_guard<std::mutex> lk(mtx_);
     giu_asserted_ = (intst_ & inten_) != 0;
-    emu_.Get<Vr41xxGiu>().SetPinLevel(kGiuIntPin, giu_asserted_);
+    emu_.Get<Vr41xxGiu>().SetPinLevel(giu_pin_, giu_asserted_);
 }
 
 }

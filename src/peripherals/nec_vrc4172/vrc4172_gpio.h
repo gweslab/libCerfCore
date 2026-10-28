@@ -51,9 +51,9 @@ private:
     uint16_t intlv0l_ = 0;
     uint16_t intlv0h_ = 0;
 
-    static constexpr uint16_t kColdBootPin = 0x0008u;
-    uint16_t level_ = kColdBootPin;
+    uint16_t level_ = 0;
 
+    int  giu_pin_      = 0;
     bool giu_asserted_ = false;
 };
 
