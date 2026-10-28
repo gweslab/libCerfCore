@@ -63,9 +63,6 @@ file(GLOB_RECURSE cerfcore_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR
 cerfcore_select_host_sources(cerfcore_sources)
 if(NOT CERFCORE_DEVICE_TRACES)
     list(FILTER cerfcore_sources EXCLUDE REGEX "/src/tracing/[^/]+/(.*/)?[^/]+\\.cpp$")
-    file(GLOB cerfcore_nkdbg_sources CONFIGURE_DEPENDS
-         "${CMAKE_CURRENT_SOURCE_DIR}/src/tracing/*/nkdbg/*.cpp")
-    list(APPEND cerfcore_sources ${cerfcore_nkdbg_sources})
 endif()
 
 add_library(cerfcore STATIC ${cerfcore_sources})
