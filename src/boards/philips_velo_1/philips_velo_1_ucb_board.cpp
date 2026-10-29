@@ -59,8 +59,7 @@ public:
             case kAuxMain:   return MainBatteryAdc(emu_.Get<PhilipsVelo1Battery>().FillPercent());
             case kAuxBackup: return kBackupAdcHealthy;
             default:
-                LOG(Caution, "PhilipsVelo1UcbBoard: aux ADC channel %u unmodeled\n", channel);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("PhilipsVelo1UcbBoard: aux ADC channel %u unmodeled", channel);
         }
     }
 

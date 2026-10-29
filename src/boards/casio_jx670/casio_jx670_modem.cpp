@@ -1,5 +1,9 @@
 #include "casio_jx670_modem.h"
 
+#include <cerfcore/boards/board_context.h>
+#include "casio_jx670_family_id.h"
+#include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -23,7 +27,14 @@ constexpr uint32_t kOffIer8684 = 0x8684u;
 
 }  /* namespace */
 
-void CasioJx670Modem::Init() {
+REGISTER_SERVICE(CasioJx670Modem);
+
+bool CasioJx670Modem::ShouldRegister() {
+    auto* bd = emu_.TryGet<BoardContext>();
+    return bd && bd->GetBoardFamilyId() == BoardFamilyId::CasioJx670;
+}
+
+void CasioJx670Modem::OnReady() {
     uart_ = std::make_unique<Serial16550>(
         nullptr, [this](bool a) { OnUartIrq(a); }, Serial16550::Config{});
 }
@@ -69,9 +80,8 @@ void CasioJx670Modem::OnUartIrq(bool asserted) {
     if (!asserted) return;
     /* nk_main_kernel.exe cascade 0x9F036130: companion 0x0004 bit4 -> loc_9F0369A4
        li $a0,0x13 (SYSINTR 19). */
-    LOG(Caution, "EM-500 companion modem 16550 asserted INTR: companion->GIU "
-                 "cascade (0x0004 bit4 -> SYSINTR 19) not yet modeled\n");
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("EM-500 companion modem 16550 asserted INTR: companion->GIU "
+                          "cascade (0x0004 bit4 -> SYSINTR 19) not yet modeled");
 }
 
 void CasioJx670Modem::SaveState(StateWriter& w) const {

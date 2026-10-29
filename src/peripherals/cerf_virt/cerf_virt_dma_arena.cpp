@@ -4,6 +4,7 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
@@ -34,9 +35,8 @@ void CerfVirtDmaArena::OnReady() {
     mem.AddRegion(BasePa(), SizeBytes(), MemoryKind::kRam);
     base_ = mem.TryTranslate(BasePa());
     if (!base_) {
-        LOG(Cerf, "[CerfVirtDmaArena] arena region at PA 0x%08X is not backed\n",
-            BasePa());
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[CerfVirtDmaArena] arena region at PA 0x%08X is not backed",
+                              BasePa());
     }
     ZeroOwners();
     emu_.Get<EngineBridge>().Guest().SetDmaRegion(BasePa(), SizeBytes());
@@ -59,8 +59,7 @@ uint8_t* CerfVirtDmaArena::At(uint32_t offset, uint32_t bytes) {
 
 void CerfVirtDmaArena::Claim(uint32_t pid) {
     if (pid == 0u) {
-        LOG(Cerf, "[CerfVirtDmaArena] claim with pid 0\n");
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[CerfVirtDmaArena] claim with pid 0");
     }
     uint32_t free_idx = CerfVirt::kDmaArenaProcMax;
     for (uint32_t i = 0; i < CerfVirt::kDmaArenaProcMax; ++i) {
@@ -69,10 +68,9 @@ void CerfVirtDmaArena::Claim(uint32_t pid) {
         if (owner == 0u && free_idx == CerfVirt::kDmaArenaProcMax) free_idx = i;
     }
     if (free_idx == CerfVirt::kDmaArenaProcMax) {
-        LOG(Cerf, "[CerfVirtDmaArena] no free partition for pid 0x%X "
-                  "(%u simultaneous cerf_guest loaders)\n",
-            pid, CerfVirt::kDmaArenaProcMax);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[CerfVirtDmaArena] no free partition for pid 0x%X "
+                              "(%u simultaneous cerf_guest loaders)",
+                              pid, CerfVirt::kDmaArenaProcMax);
     }
     cerf::le::Put32(base_ + PartitionBase(free_idx) + CerfVirt::kDmaPartOwnerPid, pid);
 }

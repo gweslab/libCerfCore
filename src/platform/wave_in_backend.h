@@ -9,13 +9,15 @@
 
 namespace cerfcore {
 
+class InstanceThreads;
+
 class WaveInBackend {
 public:
     static std::unique_ptr<WaveInBackend> Create();
 
     virtual ~WaveInBackend() = default;
 
-    void         Start(const char* log_tag, size_t cap_bytes);
+    void         Start(InstanceThreads& threads, const char* log_tag, size_t cap_bytes);
     virtual void Stop() = 0;
 
     void   Request(uint32_t sample_rate_hz, uint16_t channels, uint16_t bits);
@@ -30,7 +32,8 @@ protected:
 
     CappedByteFifo fifo_;
     WaveInRequest  request_;
-    const char*    log_tag_ = "WaveInFifo";
+    const char*      log_tag_ = "WaveInFifo";
+    InstanceThreads* threads_ = nullptr;
 };
 
 }

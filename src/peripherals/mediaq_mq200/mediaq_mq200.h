@@ -50,6 +50,7 @@ public:
     const uint8_t* FbBytes()  const { return fb_.data(); }
     uint8_t*       FbMutableBytes() override { return fb_.data(); }
     uint32_t       FbSize()   const override { return kFbSize; }
+    Fatal&         OwnerFatal() override;
 
 private:
     /* simpad_sl4_ce4_10 ddi.dll sub_134BAA8: a1[65] frame buffer size, a1[72] = a1[71] +

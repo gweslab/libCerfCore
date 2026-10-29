@@ -5,6 +5,7 @@
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 
@@ -36,9 +37,8 @@ public:
             emu_.Get<CerfVirtDmaArena>().Claim(value);
             return;
         }
-        LOG(Cerf, "[CerfVirtArenaCtl] write 0x%08X to unmodeled offset 0x%X\n",
-            value, off);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[CerfVirtArenaCtl] write 0x%08X to unmodeled offset 0x%X",
+                              value, off);
     }
 };
 

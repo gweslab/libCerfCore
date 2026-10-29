@@ -2,7 +2,8 @@
 
 namespace cerfcore {
 
-void WaveInBackend::Start(const char* log_tag, size_t cap_bytes) {
+void WaveInBackend::Start(InstanceThreads& threads, const char* log_tag, size_t cap_bytes) {
+    threads_ = &threads;
     log_tag_ = log_tag;
     fifo_.SetCap(cap_bytes);
     Begin();

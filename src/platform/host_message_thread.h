@@ -6,6 +6,10 @@
 #include <functional>
 #include <thread>
 
+namespace cerfcore {
+class InstanceThreads;
+}
+
 namespace cerfcore::host_platform {
 
 class HostMessageThread {
@@ -20,7 +24,8 @@ public:
     HostMessageThread(const HostMessageThread&)            = delete;
     HostMessageThread& operator=(const HostMessageThread&) = delete;
 
-    void Start(PrepareHandler prepare, StartHandler on_start, SignalHandler on_signal, MessageHandler on_message);
+    void Start(InstanceThreads& threads, PrepareHandler prepare, StartHandler on_start, SignalHandler on_signal,
+               MessageHandler on_message);
     void Stop();
     void Post(UINT message, WPARAM wparam = 0, LPARAM lparam = 0) const;
     DWORD ThreadId() const { return thread_id_; }

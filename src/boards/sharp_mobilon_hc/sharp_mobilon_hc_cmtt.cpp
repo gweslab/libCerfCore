@@ -1,6 +1,7 @@
 #include "sharp_mobilon_hc_cmtt.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "sharp_mobilon_hc_family_id.h"
@@ -46,8 +47,7 @@ void SharpMobilonHcCmtt::WriteDataPort(uint32_t value) {
                 write_ready_ = false;
                 return;
             }
-            LOG(Caution, "Cmtt CS3+0x00 unmodeled command 0x%08X\n", value);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Cmtt CS3+0x00 unmodeled command 0x%08X", value);
     }
 }
 

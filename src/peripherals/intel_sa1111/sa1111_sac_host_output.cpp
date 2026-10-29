@@ -1,6 +1,8 @@
 #include "sa1111_sac_host_output.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/hp_jornada_700/hp_jornada_700_family_id.h"
 #include "../../execution/guest_cycle_clock.h"
@@ -21,7 +23,7 @@ bool Sa1111SacHostOutput::ShouldRegister() {
 }
 
 void Sa1111SacHostOutput::OnReady() {
-    out_.Start("Sa1111Sac", kHostIdleRateHz, kChannels, kBitsPerSample);
+    out_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), "Sa1111Sac", kHostIdleRateHz, kChannels, kBitsPerSample);
     rate_ = kHostIdleRateHz;
 }
 

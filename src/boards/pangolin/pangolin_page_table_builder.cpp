@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "pangolin_family_id.h"
@@ -79,9 +80,8 @@ uint32_t PangolinPageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "PangolinPageTableBuilder::VaToPa: VA 0x%08X outside every "
-            "OAT band (nk.exe OEMAddressTable @ 0x8C1438DC)\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("PangolinPageTableBuilder::VaToPa: VA 0x%08X outside every "
+                          "OAT band (nk.exe OEMAddressTable @ 0x8C1438DC)", va);
 }
 
 std::vector<DramRegion> PangolinPageTableBuilder::CachedDramRegions() const {

@@ -4,6 +4,7 @@
 
 #include "sed1356_config.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/host/panel_frame_renderer.h>
 #include <cerfcore/lcd/lcd_pixel_expand.h>
@@ -51,9 +52,8 @@ public:
 
         const uint32_t swivel = sed.SwivelMode();
         if (swivel == 1u || swivel == 3u) {    /* Table 8-19: 90/270 degrees. */
-            LOG(Caution, "Sed1356Renderer: SwivelView %u-degree mode is not "
-                "implemented\n", swivel * 90u);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Sed1356Renderer: SwivelView %u-degree mode is not "
+                                  "implemented", swivel * 90u);
         }
 
         const uint32_t gw     = sed.LcdGuestW(), gh = sed.LcdGuestH();

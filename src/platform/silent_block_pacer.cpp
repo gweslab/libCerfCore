@@ -2,23 +2,21 @@
 
 #include "wave_pcm_format.h"
 
-#include <cerfcore/core/log.h>
+#include <cerfcore/core/fatal.h>
 
 #include <algorithm>
 
 namespace cerfcore {
 
-bool SilentBlockPacer::Queue(uintptr_t block, uint32_t length, uint32_t rate_hz,
+bool SilentBlockPacer::Queue(Fatal& fatal, uintptr_t block, uint32_t length, uint32_t rate_hz,
                              uint16_t channels, uint16_t bits, const char* log_tag) {
     for (uint32_t i = 0; i < count_; ++i) {
         if (blocks_[i].id != block) continue;
-        LOG(Caution, "%s: block %llu is already awaiting a silent completion\n", log_tag,
-            static_cast<unsigned long long>(block));
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal.Die("%s: block %llu is already awaiting a silent completion", log_tag,
+                  static_cast<unsigned long long>(block));
     }
     if (count_ == kCapacity) {
-        LOG(Caution, "%s: %u silent blocks already pending\n", log_tag, kCapacity);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal.Die("%s: %u silent blocks already pending", log_tag, kCapacity);
     }
     const uint64_t   bytes_per_sec = static_cast<uint64_t>(rate_hz) * PcmFrameBytes(channels, bits);
     Clock::duration period        = Clock::duration::zero();
@@ -27,9 +25,8 @@ bool SilentBlockPacer::Queue(uintptr_t block, uint32_t length, uint32_t rate_hz,
             static_cast<double>(length) / static_cast<double>(bytes_per_sec)));
     }
     if (period == Clock::duration::zero()) {
-        LOG(Caution, "%s: cannot pace a silent block at %u Hz x %u ch x %u bit\n", log_tag,
-            rate_hz, channels, bits);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal.Die("%s: cannot pace a silent block at %u Hz x %u ch x %u bit", log_tag,
+                  rate_hz, channels, bits);
     }
     tail_             = std::max(Clock::now(), tail_) + period;
     blocks_[count_++] = Block{block, tail_};

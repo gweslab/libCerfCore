@@ -36,11 +36,7 @@ public:
 
     /* SP (PA) the kernel inherits from the bootloader. The kernel
        sets up its own per-mode stacks shortly after taking control. */
-    virtual uint32_t InitStackTopPa() const {
-        LOG(Caution, "PageTableBuilder::InitStackTopPa: this board declares no "
-                "bootloader-handoff SP\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
-    }
+    virtual uint32_t InitStackTopPa() const;
 
     /* VA→PA in the SoC's full BSP OAT view (every band - DRAM and
        peripheral). Halts on a VA outside every band. */

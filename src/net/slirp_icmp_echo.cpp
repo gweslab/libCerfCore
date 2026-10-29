@@ -105,7 +105,7 @@ bool SlirpBackend::TryInterceptIcmpEcho(const uint8_t* frame, std::size_t len) {
         DispatchFrame(reply_frame.data(), reply_frame.size());
     };
 
-    icmp_replies_.Start(std::move(echo));
+    icmp_replies_.Start(*threads_, std::move(echo));
     return true;
 }
 

@@ -385,7 +385,7 @@ template <uint32_t kPort>
 uint64_t Omap3530McBspPortClock<kPort>::FrameBitCycle(Dir dir, uint64_t n, uint64_t bit) const {
     const Derived& d = d_[Idx(dir)];
     if (d.fs != Fs::Resync) return ClockCycleOfTick(d, FrameTick0(d, n) + bit);
-    RatedTickCount at;
+    RatedTickCount at{emu_};
     AnchorResync(d, n, at);
     return at.CycleOfTick(bit);
 }
@@ -428,7 +428,7 @@ Omap3530McBspDxFrame Omap3530McBspPortClock<kPort>::FrameShape(Dir dir, uint64_t
     Omap3530McBspDxFrame f;
     f.index = n;
     if (d.fs == Fs::Resync) {
-        RatedTickCount at;
+        RatedTickCount at{emu_};
         AnchorResync(d, n, at);
         f.period = static_cast<uint32_t>(at.TicksAt(StartCycle(d, n + 1u)));
     } else {

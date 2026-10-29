@@ -2,6 +2,7 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
@@ -76,9 +77,8 @@ public:
         bas.EnsureExists();
         const std::string path = bas.GetImagePath();
         if (!disk_.Open(path, bas.GetCapacityBytes())) {
-            LOG(Caution, "[ATA] FATAL: cannot open core disk '%s' - held by "
-                         "another cerf instance, or no write access.\n", path.c_str());
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[ATA] FATAL: cannot open core disk '%s' - held by "
+                                  "another cerf instance, or no write access.", path.c_str());
         }
         module_clocks_ = &emu_.Get<FreescaleModuleClocks>();
         module_clocks_->RegisterGateListener([this] { RefreshClock(); });

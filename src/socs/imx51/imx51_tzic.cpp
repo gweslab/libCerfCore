@@ -1,6 +1,7 @@
 #include "imx51_tzic.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/arm/arm_jit.h>
@@ -64,8 +65,7 @@ bool Imx51Tzic::HasPendingUnmasked() const { return ComputeActiveSource() >= 0; 
 
 void Imx51Tzic::AssertIrq(int source_bit) {
     if (source_bit < 0 || source_bit >= static_cast<int>(kSourceCount)) {
-        LOG(Caution, "Imx51Tzic::AssertIrq: source %d out of range (128)\n", source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Imx51Tzic::AssertIrq: source %d out of range (128)", source_bit);
     }
     std::lock_guard<std::mutex> lk(state_mutex_);
     raw_[source_bit / kBitsPerBank] |= 1u << (source_bit % kBitsPerBank);
@@ -74,8 +74,7 @@ void Imx51Tzic::AssertIrq(int source_bit) {
 
 void Imx51Tzic::DeAssertIrq(int source_bit) {
     if (source_bit < 0 || source_bit >= static_cast<int>(kSourceCount)) {
-        LOG(Caution, "Imx51Tzic::DeAssertIrq: source %d out of range (128)\n", source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Imx51Tzic::DeAssertIrq: source %d out of range (128)", source_bit);
     }
     std::lock_guard<std::mutex> lk(state_mutex_);
     raw_[source_bit / kBitsPerBank] &= ~(1u << (source_bit % kBitsPerBank));
@@ -84,9 +83,8 @@ void Imx51Tzic::DeAssertIrq(int source_bit) {
 }
 
 void Imx51Tzic::AssertSubIrq(int /*main_bit*/, int /*sub_bit*/) {
-    LOG(Caution, "Imx51Tzic::AssertSubIrq: TZIC has no sub-interrupt layer; "
-            "caller is using the wrong INTC model for this SoC\n");
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("Imx51Tzic::AssertSubIrq: TZIC has no sub-interrupt layer; "
+                          "caller is using the wrong INTC model for this SoC");
 }
 
 int Imx51Tzic::BankInSet(uint32_t off, uint32_t base) {
@@ -122,9 +120,8 @@ uint32_t Imx51Tzic::ReadReg(uint32_t off) {
     case kOffSyncctrl: return syncctrl_;
     case kOffDsmint:   return dsmint_;
     }
-    LOG(Caution, "Imx51Tzic::ReadReg: offset 0x%X outside the documented "
-            "TZIC register map (RM Table 57-1)\n", off);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("Imx51Tzic::ReadReg: offset 0x%X outside the documented "
+                          "TZIC register map (RM Table 57-1)", off);
 }
 
 void Imx51Tzic::WriteReg(uint32_t off, uint32_t value) {
@@ -158,9 +155,8 @@ void Imx51Tzic::WriteReg(uint32_t off, uint32_t value) {
                 case kOffSyncctrl: syncctrl_ = value;         break;
                 case kOffDsmint:   dsmint_   = value;         break;
                 default:
-                    LOG(Caution, "Imx51Tzic::WriteReg: offset 0x%X outside the "
-                            "documented TZIC register map (RM Table 57-1)\n", off);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                    emu_.Get<Fatal>().Die("Imx51Tzic::WriteReg: offset 0x%X outside the "
+                                          "documented TZIC register map (RM Table 57-1)", off);
                 }
             }
         }

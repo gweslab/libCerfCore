@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "ford_sync_gen2_family_id.h"
@@ -69,9 +70,8 @@ uint32_t FordSyncGen2PageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "FordSyncGen2PageTableBuilder::VaToPa: VA 0x%08X is outside "
-            "every i.MX51 OAL OAT band (nk.exe 0x801014AC)\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("FordSyncGen2PageTableBuilder::VaToPa: VA 0x%08X is outside "
+                          "every i.MX51 OAL OAT band (nk.exe 0x801014AC)", va);
 }
 
 std::vector<DramRegion> FordSyncGen2PageTableBuilder::CachedDramRegions() const {

@@ -1,6 +1,7 @@
 #include "mediaq_mq1188_ge.h"
 
 #include <cerfcore/core/byte_order.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 
 namespace cerfcore {
@@ -13,9 +14,8 @@ void MediaQMq1188Ge::BlitColorSource(const uint32_t* r) {
     const uint32_t stride = r[kGe0ADstStride] & Lyt().stride_mask;
     const uint32_t base   = r[kGe0BBase] & Lyt().base_mask;
     if (bpp != 2u || stride == 0u) {
-        LOG(Caution, "MediaQ MQ1188 GE: colour-source blit unsupported depth/stride "
-                     "(bpp=%u stride=%u)\n", bpp, stride);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("MediaQ MQ1188 GE: colour-source blit unsupported depth/stride "
+                         "(bpp=%u stride=%u)", bpp, stride);
     }
 
     const uint32_t size = r[kGe01Size];
@@ -61,9 +61,8 @@ void MediaQMq1188Ge::BlitMonoSource(const uint32_t* r) {
     const uint32_t stride = r[kGe0ADstStride] & Lyt().stride_mask;
     const uint32_t base   = r[kGe0BBase] & Lyt().base_mask;
     if (bpp != 2u || stride == 0u) {
-        LOG(Caution, "MediaQ MQ1188 GE: mono-source blit unsupported depth/stride "
-                     "(bpp=%u stride=%u)\n", bpp, stride);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("MediaQ MQ1188 GE: mono-source blit unsupported depth/stride "
+                         "(bpp=%u stride=%u)", bpp, stride);
     }
 
     const uint32_t size = r[kGe01Size];
@@ -78,10 +77,9 @@ void MediaQMq1188Ge::BlitMonoSource(const uint32_t* r) {
     const uint32_t total_bits = bit_off0 + (h - 1u) * stride_bits + w;
     const uint32_t need_dw = (total_bits + 31u) / 32u;
     if (src_fifo_.size() < need_dw) {
-        LOG(Caution, "MediaQ MQ1188 GE: mono-source general-path layout not implemented "
-                     "(have=%zu need=%u w=%u h=%u sb=%u off=%u)\n",
-            src_fifo_.size(), need_dw, w, h, stride_bits, bit_off0);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("MediaQ MQ1188 GE: mono-source general-path layout not implemented "
+                         "(have=%zu need=%u w=%u h=%u sb=%u off=%u)",
+                         src_fifo_.size(), need_dw, w, h, stride_bits, bit_off0);
     }
 
     const uint8_t  rop = static_cast<uint8_t>(r[kGe00Command] & kCmdRopMask);

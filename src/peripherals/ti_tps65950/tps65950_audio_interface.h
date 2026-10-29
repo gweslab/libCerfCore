@@ -91,7 +91,7 @@ private:
     std::vector<std::function<void()>> pad_listeners_;
 
     Config         cfg_;
-    RatedTickCount bits_;
+    RatedTickCount bits_{emu_};
 
     std::deque<Omap3530McBspDxFrame> history_;
     PacedWaveOut                     host_;

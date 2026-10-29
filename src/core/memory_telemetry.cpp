@@ -1,5 +1,6 @@
 #include "memory_telemetry.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include "../platform/host_process_memory.h"
 
@@ -17,7 +18,7 @@ MemoryTelemetry::~MemoryTelemetry() {
 }
 
 void MemoryTelemetry::OnReady() {
-    thread_ = std::thread(ThreadMain, this);
+    thread_ = emu_.Get<InstanceThreads>().Start([this] { ThreadMain(this); });
     LOG(Mem, "telemetry started (poll=%lldms)\n", (long long)kPollInterval.count());
 }
 

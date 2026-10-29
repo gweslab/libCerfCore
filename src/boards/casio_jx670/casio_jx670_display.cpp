@@ -118,16 +118,14 @@ bool CasioJx670Display::TryWriteWord(uint32_t off, uint32_t value) {
         case kOffFillGo:
             /* ddi.dll sub_FC48A0 @0xFC4960: only 1 is written to GO. */
             if (value != 1u) {
-                LOG(Caution, "EM-500 display fill GO value 0x%X\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_->Get<Fatal>().Die("EM-500 display fill GO value 0x%X", value);
             }
             RunFill();
             return true;
         case kOffBlitGo:
             /* ddi.dll sub_FC4E38 @0xFC4F00 li $t1, 1; @0xFC4F3C sw $t1, 0($v0). */
             if (value != 1u) {
-                LOG(Caution, "EM-500 display blit GO value 0x%X\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_->Get<Fatal>().Die("EM-500 display blit GO value 0x%X", value);
             }
             RunBlit();
             return true;
@@ -137,8 +135,7 @@ bool CasioJx670Display::TryWriteWord(uint32_t off, uint32_t value) {
 
 void CasioJx670Display::RunBlit() {
     if (blit_op_ != kBlitOpCopy) {
-        LOG(Caution, "EM-500 display blit opcode 0x%X unsupported\n", blit_op_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_->Get<Fatal>().Die("EM-500 display blit opcode 0x%X unsupported", blit_op_);
     }
     const uint32_t bytes = blit_len_words_ * 4u;
     if (bytes == 0u) return;
@@ -146,22 +143,19 @@ void CasioJx670Display::RunBlit() {
        physical address is the virtual address minus 0xA0000000. */
     const uint32_t src_pa = cerfengine::MipsSeg::UnmappedPa(blit_src_);
     if (static_cast<uint64_t>(blit_dst_) + bytes > kFbSize) {
-        LOG(Caution, "EM-500 display blit dst=0x%X len=%u exceeds framebuffer\n",
-            blit_dst_, bytes);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_->Get<Fatal>().Die("EM-500 display blit dst=0x%X len=%u exceeds framebuffer",
+                               blit_dst_, bytes);
     }
     uint8_t* host_src = emu_->Get<EmulatedMemory>().TryTranslate(src_pa);
     if (!host_src) {
-        LOG(Caution, "EM-500 display blit src_pa=0x%X unbacked\n", src_pa);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_->Get<Fatal>().Die("EM-500 display blit src_pa=0x%X unbacked", src_pa);
     }
     std::memcpy(fb_.data() + blit_dst_, host_src, bytes);
 }
 
 void CasioJx670Display::RunFill() {
     if (fill_cmd_ != 0u) {
-        LOG(Caution, "EM-500 display fill cmd 0x%X unsupported\n", fill_cmd_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_->Get<Fatal>().Die("EM-500 display fill cmd 0x%X unsupported", fill_cmd_);
     }
     const uint32_t w = fill_w_;
     const uint32_t h = fill_h_;
@@ -172,9 +166,8 @@ void CasioJx670Display::RunFill() {
     const uint64_t last = static_cast<uint64_t>(h - 1u) * StrideBytes()
                         + static_cast<uint64_t>(w) * 2u;
     if (static_cast<uint64_t>(fb_off) + last > kFbSize) {
-        LOG(Caution, "EM-500 display fill off=0x%X w=%u h=%u exceeds framebuffer\n",
-            fb_off, w, h);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_->Get<Fatal>().Die("EM-500 display fill off=0x%X w=%u h=%u exceeds framebuffer",
+                               fb_off, w, h);
     }
     for (uint32_t row = 0; row < h; ++row) {
         uint8_t* p = fb_.data() + fb_off + row * StrideBytes();

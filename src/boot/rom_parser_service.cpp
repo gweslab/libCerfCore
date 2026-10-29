@@ -13,6 +13,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include "../core/no_emulation_runtime_service.h"
@@ -60,7 +61,11 @@ bool RomParserService::ShouldRegister() {
 
 bool RomParserService::ParseCe1Xips(ParsedRom& rom) {
     uint32_t base_va = 0;
-    if (!ResolveCe1Xips(rom.flat, rom.xips, base_va)) return false;
+    std::string error;
+    if (!ResolveCe1Xips(rom.flat, rom.xips, base_va, error)) {
+        if (!error.empty()) emu_.Get<Fatal>().Die("%s", error.c_str());
+        return false;
+    }
 
     rom.is_ce1       = true;
     rom.flat_base_va = base_va;

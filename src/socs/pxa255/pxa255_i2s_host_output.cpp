@@ -2,6 +2,8 @@
 
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include "../../host/audio_activity_widget.h"
 #include "pxa255_id.h"
 
@@ -24,7 +26,7 @@ bool Pxa255I2sHostOutput::ShouldRegister() {
 }
 
 void Pxa255I2sHostOutput::OnReady() {
-    host_.Start("Pxa255I2s", 0u, kChannels, kBits);
+    host_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), "Pxa255I2s", 0u, kChannels, kBits);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }
 

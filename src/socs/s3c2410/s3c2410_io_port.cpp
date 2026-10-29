@@ -394,8 +394,7 @@ private:
     }
 
     [[noreturn]] void HaltEint(const char* op, int eint) {
-        LOG(Caution, "S3C2410IoPort::%s: EINT%d outside EINT[23:0]\n", op, eint);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("S3C2410IoPort::%s: EINT%d outside EINT[23:0]", op, eint);
     }
 
     void Reset() {

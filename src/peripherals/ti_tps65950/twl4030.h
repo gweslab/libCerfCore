@@ -35,7 +35,7 @@ public:
     void PostRestore();
 
 private:
-    static int AddrIndex(uint8_t slave_addr);
+    int AddrIndex(uint8_t slave_addr) const;
     void       LoadBankLocked(uint8_t slave_addr, const Tps65950RegValue* image, size_t count);
     void       LoadDigitalLocked();
     void       LoadPowerLocked(bool backup_domain);

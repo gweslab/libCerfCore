@@ -2,6 +2,8 @@
 
 #include "rtl8019.h"
 
+#include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -13,20 +15,23 @@ namespace {
 
 constexpr uint8_t kPageShift = 6;
 
-[[noreturn]] void HaltUnsupported(const char* op, uint32_t offset,
-                                  uint8_t page, uint32_t value) {
-    LOG(Caution, "[NE2000] %s offset 0x%02X page %u value 0x%X - "
-            "unsupported register access; halting\n",
-            op, offset, page, value);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
-}
-
 }
 
 Dp8390::Dp8390(Rtl8019& card,
                std::array<uint8_t, kRomSize>& rom,
                std::array<uint8_t, kRamSize>& ram)
     : card_(card), rom_(rom), ram_(ram) {}
+
+Fatal& Dp8390::OwnerFatal() const {
+    return card_.emu_.Get<Fatal>();
+}
+
+void Dp8390::HaltUnsupported(const char* op, uint32_t offset,
+                             uint8_t page, uint32_t value) const {
+    OwnerFatal().Die("[NE2000] %s offset 0x%02X page %u value 0x%X - "
+                     "unsupported register access; halting",
+                     op, offset, page, value);
+}
 
 void Dp8390::PowerUpLocked() {
     cr_ = 0u;
@@ -166,9 +171,8 @@ uint8_t Dp8390::IoRead8Locked(uint32_t offset) {
 
 uint16_t Dp8390::IoRead16Locked(uint32_t offset) {
     if (offset != 0x10u) {
-        LOG(Caution, "[NE2000] read16 unsupported offset 0x%02X; "
-                "halting\n", offset);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("[NE2000] read16 unsupported offset 0x%02X; "
+                         "halting", offset);
     }
     /* QEMU hw/net/ne2000.c ne2000_asic_ioport_read (no byte-count
        guard on the read side) + ne2000_mem_readw (addr &= ~1). */
@@ -222,9 +226,8 @@ void Dp8390::IoWrite8Locked(uint32_t offset, uint8_t value,
                 if (dma_remaining_ == 0u) RaiseIsrLocked(kIsrRdc);
                 break;
             case 3u:
-                LOG(Caution, "[NE2000] CR=0x%02X Send Packet command "
-                        "unimplemented; halting\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                OwnerFatal().Die("[NE2000] CR=0x%02X Send Packet command "
+                                 "unimplemented; halting", value);
             default:
                 /* p. 1-149: RD2 set aborts/completes remote DMA. */
                 dma_remaining_ = 0u;
@@ -234,14 +237,12 @@ void Dp8390::IoWrite8Locked(uint32_t offset, uint8_t value,
             /* p. 1-149 TXP note: "Before the transmit command is
                given, the STA bit must be set and the STP bit reset". */
             if (!(value & kCrSta) || (value & kCrStp)) {
-                LOG(Caution, "[NE2000] CR=0x%02X TXP without STA (or "
-                        "with STP); halting\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                OwnerFatal().Die("[NE2000] CR=0x%02X TXP without STA (or "
+                                 "with STP); halting", value);
             }
             if (tbcr_ == 0u) {
-                LOG(Caution, "[NE2000] CR=0x%02X TXP with TBCR=0; "
-                        "halting\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                OwnerFatal().Die("[NE2000] CR=0x%02X TXP with TBCR=0; "
+                                 "halting", value);
             }
             /* p. 1-159: "The NCR is cleared after the TXP bit in the CR
                is set"; p. 1-154: TSR "is cleared when the next
@@ -331,9 +332,8 @@ void Dp8390::IoWrite8Locked(uint32_t offset, uint8_t value,
                 return;
             case 0x0Cu:
                 if (value & (kRcrSaveErrored | kRcrAcceptRunt)) {
-                    LOG(Caution, "[NE2000] RCR=0x%02X SEP/AR "
-                            "unimplemented; halting\n", value);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                    OwnerFatal().Die("[NE2000] RCR=0x%02X SEP/AR "
+                                     "unimplemented; halting", value);
                 }
                 rcr_ = value;
                 /* DP8390D datasheet, 1992 National LAN databook,
@@ -344,17 +344,15 @@ void Dp8390::IoWrite8Locked(uint32_t offset, uint8_t value,
                 return;
             case 0x0Du:
                 if (value & (kTcrAtd | kTcrOfst)) {
-                    LOG(Caution, "[NE2000] TCR=0x%02X ATD/OFST "
-                            "unimplemented; halting\n", value);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                    OwnerFatal().Die("[NE2000] TCR=0x%02X ATD/OFST "
+                                     "unimplemented; halting", value);
                 }
                 tcr_ = value;
                 return;
             case 0x0Eu:
                 if (value & kDcrBos) {
-                    LOG(Caution, "[NE2000] DCR=0x%02X BOS byte-swap "
-                            "unimplemented; halting\n", value);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                    OwnerFatal().Die("[NE2000] DCR=0x%02X BOS byte-swap "
+                                     "unimplemented; halting", value);
                 }
                 dcr_ = value;
                 return;
@@ -386,9 +384,8 @@ void Dp8390::IoWrite8Locked(uint32_t offset, uint8_t value,
 
 void Dp8390::IoWrite16Locked(uint32_t offset, uint16_t value) {
     if (offset != 0x10u) {
-        LOG(Caution, "[NE2000] write16 unsupported offset 0x%02X = "
-                "0x%04X; halting\n", offset, value);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("[NE2000] write16 unsupported offset 0x%02X = "
+                         "0x%04X; halting", offset, value);
     }
     if (dma_remaining_ == 0u) return;
     const uint16_t base = crda_ & static_cast<uint16_t>(~uint16_t{1});
@@ -403,9 +400,8 @@ void Dp8390::TransmitLocked(std::vector<uint8_t>& out_frame) {
     const uint32_t start = (uint32_t)tpsr_ * 256u;
     const uint16_t count = tbcr_;
     if (start < kRamBase || start + count > kRamBase + kRamSize) {
-        LOG(Caution, "[NE2000] TX with TPSR=0x%02X TBCR=0x%04X outside "
-                "card RAM; halting\n", tpsr_, count);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("[NE2000] TX with TPSR=0x%02X TBCR=0x%04X outside "
+                         "card RAM; halting", tpsr_, count);
     }
     out_frame.assign(ram_.begin() + (start - kRamBase),
                      ram_.begin() + (start - kRamBase) + count);

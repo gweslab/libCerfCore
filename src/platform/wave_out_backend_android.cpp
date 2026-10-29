@@ -5,6 +5,7 @@
 #include "wave_pcm_format.h"
 
 #include <cerfcore/core/byte_order.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 
 #include <aaudio/AAudio.h>
@@ -38,6 +39,7 @@ private:
 
     void StartWorker() override;
     void OwnerMain();
+    void FinishOwner();
     bool OpenStreamLocked(std::unique_lock<std::mutex>& lk);
     void CloseStreamLocked(std::unique_lock<std::mutex>& lk);
     void FlushStreamLocked(std::unique_lock<std::mutex>& lk);
@@ -68,7 +70,9 @@ private:
     std::thread             owner_thread_;
 };
 
-void AaudioWaveOutBackend::StartWorker() { owner_thread_ = std::thread([this] { OwnerMain(); }); }
+void AaudioWaveOutBackend::StartWorker() {
+    owner_thread_ = threads_->Start([this] { OwnerMain(); }, [this] { FinishOwner(); });
+}
 
 void AaudioWaveOutBackend::Stop() {
     {
@@ -87,7 +91,7 @@ void AaudioWaveOutBackend::OwnerMain() {
             return shutdown_ || request_ != Request::kNone || flush_ ||
                    (stream_ != nullptr && !writes_.empty());
         });
-        if (shutdown_) break;
+        if (shutdown_) return;
         if (request_ == Request::kOpen) {
             request_result_ = OpenStreamLocked(lk);
             request_        = Request::kNone;
@@ -118,6 +122,11 @@ void AaudioWaveOutBackend::OwnerMain() {
         if (err < 0 && !abort_ && !shutdown_ && request_ == Request::kNone && stream_ == stream)
             LoseDeviceLocked(lk, "AAudioStream_write", err);
     }
+}
+
+void AaudioWaveOutBackend::FinishOwner() {
+    std::unique_lock<std::mutex> lk(mtx_);
+    shutdown_ = true;
     CompleteQueuedLocked();
     if (stream_ != nullptr) CloseStreamLocked(lk);
     if (request_ != Request::kNone) {

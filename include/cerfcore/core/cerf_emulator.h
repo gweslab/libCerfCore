@@ -4,11 +4,14 @@
 
 #include <servicelocator/service_locator.h>
 
+#include <string>
 #include <type_traits>
 
 namespace cerfengine { class EngineService; }
 
 namespace cerfcore {
+
+class Fatal;
 
 class CerfEmulator : public servicelocator::ServiceLocator<CerfEmulator, 2048> {
     using Locator = servicelocator::ServiceLocator<CerfEmulator, 2048>;
@@ -31,12 +34,12 @@ public:
         return Locator::TryGet<T>();
     }
 
-    void Boot();
     void StartGuest();
     void WaitForExit();
 
-    [[noreturn]] static void OnLocatorError(const char* message);
-    static void OnServiceDestroy(const servicelocator::Service& service);
+    static void              OnServiceDestroy(const servicelocator::Service& service);
+    void                     ShutDownService(servicelocator::Service& service);
+    [[noreturn]] static void RaiseLocatorError(const std::string& message);
 
     const CerfConfig& Config() const { return config_; }
     int    Argc() const { return argc_; }
@@ -44,8 +47,9 @@ public:
 
 private:
     CerfConfig config_;
-    int        argc_ = 0;
-    char**     argv_ = nullptr;
+    int        argc_          = 0;
+    char**     argv_          = nullptr;
+    Fatal*     teardown_fatal_ = nullptr;
 };
 
 #define REGISTER_SERVICE(Type) SERVICELOCATOR_REGISTER(::cerfcore::CerfEmulator, Type)

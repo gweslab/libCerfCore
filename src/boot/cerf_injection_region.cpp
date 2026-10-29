@@ -4,6 +4,7 @@
 #include "../boards/page_table_builder.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../execution/engine_bridge.h"
@@ -32,11 +33,10 @@ uint32_t CerfInjectionRegion::BandVaBase() {
     const uint32_t va =
         emu_.Get<PageTableBuilder>().StaticWindowHole(CerfVirt::kInjectionBandSize);
     if (!va) {
-        LOG(Caution, "guest-additions injection band: this board's OAT fills the "
-                "kernel static window [0x80000000,0xA0000000) with no 0x%X-byte "
-                "hole - the stub band cannot be placed\n",
-            CerfVirt::kInjectionBandSize);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("guest-additions injection band: this board's OAT fills the "
+                              "kernel static window [0x80000000,0xA0000000) with no 0x%X-byte "
+                              "hole - the stub band cannot be placed",
+                              CerfVirt::kInjectionBandSize);
     }
 
     emu_.Get<EmulatedMemory>().AddRegion(BandPaBase(),

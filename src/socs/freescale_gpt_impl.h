@@ -442,7 +442,7 @@ private:
     GuestCycleClock*        clock_  = nullptr;
     FreescaleTimerClocks*   clocks_ = nullptr;
     GuestCycleClock::Event* event_  = nullptr;
-    CycleAnchoredCounter    counter_;
+    CycleAnchoredCounter    counter_{emu_};
 
     uint32_t cr_     = 0u;
     uint32_t pr_     = 0u;

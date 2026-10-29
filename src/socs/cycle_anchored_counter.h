@@ -4,6 +4,7 @@
 #include "../execution/guest_cycle_clock.h"
 
 #include <cstdint>
+#include <type_traits>
 
 namespace cerfcore {
 
@@ -29,6 +30,8 @@ struct CounterPhase {
 
 class ExactCounterUnits {
 public:
+    explicit ExactCounterUnits(CerfEmulator& emu) : ticks_per_cycle_(emu), cycles_per_tick_(emu) {}
+
     static bool FitsRatio(const WideUint<2>&, const WideUint<2>&) { return true; }
 
     void Set(const WideUint<2>& cycles, const WideUint<2>& ticks) {
@@ -95,6 +98,11 @@ template <class Units>
 class BasicCycleAnchoredCounter {
 public:
     using Phase = CounterPhase;
+
+    BasicCycleAnchoredCounter() = default;
+    explicit BasicCycleAnchoredCounter(CerfEmulator& emu)
+        requires std::is_constructible_v<Units, CerfEmulator&>
+        : units_(emu) {}
 
     bool SetRatio(uint64_t cycles, uint64_t ticks);
     bool Rescale(uint64_t cycle, uint64_t cycles, uint64_t ticks);

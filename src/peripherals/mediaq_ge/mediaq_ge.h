@@ -7,6 +7,7 @@
 
 namespace cerfcore {
 
+class Fatal;
 class StateWriter;
 class StateReader;
 
@@ -21,6 +22,7 @@ public:
     virtual ~MediaQGeHost() = default;
     virtual uint8_t* FbMutableBytes() = 0;
     virtual uint32_t FbSize() const = 0;
+    virtual Fatal&   OwnerFatal() = 0;
 };
 
 class MediaQGe {
@@ -150,6 +152,7 @@ protected:
 
     uint8_t*      Fb()     { return host_.FbMutableBytes(); }
     uint32_t      FbBytes() const { return host_.FbSize(); }
+    Fatal&        OwnerFatal() const { return host_.OwnerFatal(); }
     const uint32_t* Regs() const { return reg_; }
 
     uint32_t reg_[kNumRegs] = {};

@@ -4,6 +4,7 @@
 #include "ford_sync_gen2_vmcu_diag_channel.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/product_name.h>
 #include <cerfcore/boards/board_context.h>
@@ -192,9 +193,8 @@ void FordSyncGen2VmcuPeer::HandlePmInbound(const uint8_t* pm, std::size_t n) {
             break;
         }
         default:
-            LOG(Caution, "[VMCU] unmodelled inbound pm message type=0x%02X len=%zu\n",
-                static_cast<unsigned>(pm[0]), n);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[VMCU] unmodelled inbound pm message type=0x%02X len=%zu",
+                                  static_cast<unsigned>(pm[0]), n);
     }
 }
 
@@ -217,9 +217,8 @@ void FordSyncGen2VmcuPeer::HandleInboundRequest(const uint8_t* inb, std::size_t 
         case 0x02u: HandleInboundGetAllOids(inb, n); break;  /* head reads OIDs */
         case 0x03u: HandleInboundSetOids(inb, n); break;     /* head writes OIDs */
         default:
-            LOG(Caution, "[VMCU] unmodelled inbound OID message type=0x%02X len=%zu\n",
-                static_cast<unsigned>(inb[0]), n);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[VMCU] unmodelled inbound OID message type=0x%02X len=%zu",
+                                  static_cast<unsigned>(inb[0]), n);
     }
 }
 
@@ -375,11 +374,10 @@ void FordSyncGen2VmcuPeer::OnGuestTx(uint8_t byte) {
                            cid == FordSyncGen2VmcuDiagChannel::kCid2) {
                     emu_.Get<FordSyncGen2VmcuDiagChannel>().HandleInbound(cid, &dec[2], n - 2u);
                 } else {
-                    LOG(Caution,
-                        "[VMCU] unmodelled inbound data request cid=%u type=0x%02X len=%zu\n",
+                    emu_.Get<Fatal>().Die(
+                        "[VMCU] unmodelled inbound data request cid=%u type=0x%02X len=%zu",
                         static_cast<unsigned>(cid),
                         static_cast<unsigned>(n >= 3u ? dec[2] : 0u), n);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
                 }
             }
             tx_frame_.clear();

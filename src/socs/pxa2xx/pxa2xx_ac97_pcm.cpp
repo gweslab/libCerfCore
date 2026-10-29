@@ -2,6 +2,8 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../host/audio_activity_widget.h"
 #include "../../peripherals/ac97_codec.h"
@@ -27,7 +29,7 @@ constexpr uint32_t kRightHalf = 2u;
 void Pxa2xxAc97Pcm::OnReady() {
     Pxa2xxAc97OutFifo::OnReady();
     bit_clock_ = &emu_.Get<Pxa2xxAc97BitClock>();
-    host_.Start("Pxa2xxAc97Pcm", 0u, kChannels, kBits);
+    host_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), "Pxa2xxAc97Pcm", 0u, kChannels, kBits);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }
 

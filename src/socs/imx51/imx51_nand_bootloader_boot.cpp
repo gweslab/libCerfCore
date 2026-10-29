@@ -7,6 +7,7 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/boot/guest_cold_boot.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
@@ -59,10 +60,9 @@ public:
         uint64_t      hdr_off = 0;
         FlashHeaderV1 hdr{};
         if (!FindHeader(store, hdr_off, hdr)) {
-            LOG(Caution, "Imx51NandBootloaderBoot: no flash_header_v1 in the "
-                         "first %llu KB of NAND flash\n",
-                static_cast<unsigned long long>(kHeaderScanBytes / 1024));
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Imx51NandBootloaderBoot: no flash_header_v1 in the "
+                                  "first %llu KB of NAND flash",
+                                  static_cast<unsigned long long>(kHeaderScanBytes / 1024));
         }
 
         image_base_ = hdr_off - kFlashHdrOffset;

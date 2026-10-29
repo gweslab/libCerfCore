@@ -5,6 +5,7 @@
 #include "imx51_id.h"
 #include "../../boot/sec_flash.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/host_file_bytes.h>
@@ -42,8 +43,7 @@ void Imx51NandStore::OnReady() {
     const bool existed = HostFileNonEmpty(path);
 
     if (!img_.Open(path, device_pages_ * kPageStride)) {
-        LOG(Caution, "Imx51NandStore: cannot open '%s'\n", path.c_str());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Imx51NandStore: cannot open '%s'", path.c_str());
     }
 
     emu_.Get<HostWidgetRegistry>().Register(this);
@@ -56,9 +56,8 @@ void Imx51NandStore::OnReady() {
 
     auto* sf = emu_.TryGet<SecFlash>();
     if (!sf || !sf->IsPresent()) {
-        LOG(Caution, "Imx51NandStore: no '%s' and no `.sec` to seed/flash from\n",
-            path.c_str());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Imx51NandStore: no '%s' and no `.sec` to seed/flash from",
+                              path.c_str());
     }
     LOG(SocNand, "Imx51NandStore: synthesizing '%s' - seeding factory boot region\n",
         path.c_str());

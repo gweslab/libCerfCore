@@ -449,7 +449,7 @@ private:
         const bool               host_audio_;
         GuestCycleClock::Event*  event_    = nullptr;
         uint32_t                 cnt_port_ = 0;
-        RatedTickCount           words_;
+        RatedTickCount           words_{p_.emu_};
         RatedTickCount::Position frozen_;
         Pr31x00SibDmaSetup       dma_;
         uint32_t                 cnt_         = 0;

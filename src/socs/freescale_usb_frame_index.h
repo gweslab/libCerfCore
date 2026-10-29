@@ -21,7 +21,7 @@ public:
 
     enum class Role : uint8_t { kHost, kDeviceHighSpeed, kDevicePrelude };
 
-    explicit FreescaleUsbFrameIndex(CerfEmulator& emu) : emu_(emu) {}
+    explicit FreescaleUsbFrameIndex(CerfEmulator& emu) : emu_(emu), uframes_(emu) {}
 
     static uint32_t FrameListSizeCode(uint32_t usbcmd);
     static uint32_t FrameListElements(uint32_t fs) { return 1024u >> fs; }

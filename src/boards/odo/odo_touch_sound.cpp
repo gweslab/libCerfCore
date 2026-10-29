@@ -280,10 +280,9 @@ uint32_t OdoTouchSound::ReadWord(uint32_t addr) {
 
 void OdoTouchSound::WriteWord(uint32_t addr, uint32_t value) {
     if ((value & 0xFFFF0000u) != 0u) {
-        LOG(Caution, "Odo TOUCH_SOUND: WriteWord 0x%08X = 0x%08X has "
-                "non-zero high 16 bits in the PAD region of a "
-                "16-bit register.\n", addr, value);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Odo TOUCH_SOUND: WriteWord 0x%08X = 0x%08X has "
+                              "non-zero high 16 bits in the PAD region of a "
+                              "16-bit register.", addr, value);
     }
     WriteHalf(addr, static_cast<uint16_t>(value & 0xFFFFu));
 }

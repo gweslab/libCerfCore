@@ -217,35 +217,6 @@ void CrashDumpOtherThreads() {
     CloseHandle(snap);
 }
 
-void CrashPrintNativeStack(const char* tag) {
-    void* frames[32];
-    USHORT n = CaptureStackBackTrace(0, 32, frames, NULL);
-    std::unique_lock<std::mutex> lk(g_dbghelp_mutex, std::try_to_lock);
-    bool have_sym = lk.owns_lock();
-    if (have_sym) EnsureDbgHelpInited_Locked();
-    char line[512];
-    char sym_buf[sizeof(SYMBOL_INFO) + 256];
-    SYMBOL_INFO* sym = (SYMBOL_INFO*)sym_buf;
-    sym->SizeOfStruct = sizeof(SYMBOL_INFO);
-    sym->MaxNameLen = 255;
-    for (USHORT i = 0; i < n; i++) {
-        int ln = 0;
-        if (have_sym) {
-            DWORD64 disp = 0;
-            if (SymFromAddr(GetCurrentProcess(), (DWORD64)frames[i], &disp, sym)) {
-                ln = wsprintfA(line, "%s   [%u] %s+0x%X\n",
-                               tag, i, sym->Name, (uint32_t)disp);
-            } else {
-                ln = wsprintfA(line, "%s   [%u] 0x%p\n", tag, i, frames[i]);
-            }
-        } else {
-            ln = wsprintfA(line, "%s   [%u] 0x%p (sym-locked)\n",
-                           tag, i, frames[i]);
-        }
-        if (ln > 0) CrashWrite(line, (size_t)ln);
-    }
-}
-
 bool CrashSymbolize(const void* addr, char* out, size_t out_size) {
     if (!out || out_size == 0) return false;
     out[0] = '\0';

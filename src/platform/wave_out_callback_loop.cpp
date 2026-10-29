@@ -1,15 +1,18 @@
 #include "wave_out_callback_loop.h"
 
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
+
 #include <utility>
 
 namespace cerfcore {
 
-void WaveOutCallbackLoop::Start(WaveOutSink::StartHandler on_start,
+void WaveOutCallbackLoop::Start(Fatal& fatal, InstanceThreads& threads, WaveOutSink::StartHandler on_start,
                                 WaveOutSink::CommandHandler on_command,
                                 WaveOutSink::DoneHandler on_done, RetryHandler on_retry_open) {
-    thread_ = std::thread([this, on_start = std::move(on_start), on_command = std::move(on_command),
-                           on_done = std::move(on_done),
-                           on_retry_open = std::move(on_retry_open)] {
+    fatal_  = &fatal;
+    thread_ = threads.Start([this, on_start = std::move(on_start), on_command = std::move(on_command),
+                             on_done = std::move(on_done), on_retry_open = std::move(on_retry_open)] {
         Main(on_start, on_command, on_done, on_retry_open);
     });
 }
@@ -46,7 +49,7 @@ void WaveOutCallbackLoop::PostRetryOpen() {
 void WaveOutCallbackLoop::QueueSilent(uint32_t slot, uint32_t length, uint32_t rate_hz,
                                       uint16_t channels, uint16_t bits, const char* log_tag) {
     std::lock_guard<std::mutex> lk(mtx_);
-    if (silent_.Queue(slot, length, rate_hz, channels, bits, log_tag)) cv_.notify_all();
+    if (silent_.Queue(*fatal_, slot, length, rate_hz, channels, bits, log_tag)) cv_.notify_all();
 }
 
 void WaveOutCallbackLoop::CompleteSilent() {

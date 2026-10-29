@@ -2,6 +2,7 @@
 #include "wave_out_queued_backend.h"
 #include "wave_pcm_format.h"
 
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 
 #include <alsa/asoundlib.h>
@@ -32,6 +33,7 @@ private:
 
     void StartWorker() override;
     void WriterMain();
+    void FinishWriter();
     int  WriteBlock(snd_pcm_t* pcm, const Block& block, uint32_t frame_bytes);
     void LoseDeviceLocked(const char* call, int err);
 
@@ -50,7 +52,16 @@ private:
     std::thread             writer_thread_;
 };
 
-void AlsaWaveOutBackend::StartWorker() { writer_thread_ = std::thread([this] { WriterMain(); }); }
+void AlsaWaveOutBackend::StartWorker() {
+    writer_thread_ = threads_->Start([this] { WriterMain(); }, [this] { FinishWriter(); });
+}
+
+void AlsaWaveOutBackend::FinishWriter() {
+    std::lock_guard<std::mutex> lk(mtx_);
+    shutdown_ = true;
+    writing_  = false;
+    idle_cv_.notify_all();
+}
 
 void AlsaWaveOutBackend::Stop() {
     {

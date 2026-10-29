@@ -5,6 +5,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include "../../host/audio_activity_widget.h"
 #include "tps65950_gain.h"
 #include "twl4030.h"
@@ -57,7 +58,7 @@ bool Tps65950AudioUplink::ShouldRegister() {
 
 void Tps65950AudioUplink::OnReady() {
     twl_ = &emu_.Get<Twl4030>();
-    mic_.Start("Tps65950Capture", kMicFifoBytes);
+    mic_.Start(emu_.Get<InstanceThreads>(), "Tps65950Capture", kMicFifoBytes);
     Refresh();
 }
 

@@ -3,6 +3,7 @@
 #include "folder_share_path.h"
 #include "folder_share_stage.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/folder_share_config.h>
 #include <cerfcore/core/log.h>
@@ -78,12 +79,10 @@ uint32_t FolderShareFiles::Run(uint32_t code, ServerPB& pb) {
         case kServerGetSpace:       return GetSpace(pb);
         case kServerGetFCBInfo:     return GetFcbInfo(pb);
         case kServerGetMaxIOSize:
-            LOG(Cerf, "[FolderShareFiles] GET_MAX_IO_SIZE has no issuing client\n");
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[FolderShareFiles] GET_MAX_IO_SIZE has no issuing client");
         default: break;
     }
-    LOG(Cerf, "[FolderShareFiles] Run called with unowned op 0x%X\n", code);
-    CerfFatalExit();
+    emu_.Get<Fatal>().Die("[FolderShareFiles] Run called with unowned op 0x%X", code);
 }
 
 bool FolderShareFiles::AllocHandle(uint16_t& handle) {
@@ -96,8 +95,7 @@ bool FolderShareFiles::AllocHandle(uint16_t& handle) {
 }
 
 uint16_t FolderShareFiles::GetDriveConfig(ServerPB&) {
-    LOG(Cerf, "[FolderShareFiles] GET_DRIVE_CONFIG has no issuing client\n");
-    CerfFatalExit();
+    emu_.Get<Fatal>().Die("[FolderShareFiles] GET_DRIVE_CONFIG has no issuing client");
 }
 
 uint16_t FolderShareFiles::Create(ServerPB& pb) {
@@ -124,9 +122,8 @@ uint16_t FolderShareFiles::Open(ServerPB& pb) {
         case kOpenAccessWriteOnly: access = host_platform::SharedFileAccess::kWrite; break;
         case kOpenAccessReadWrite: access = host_platform::SharedFileAccess::kReadWrite; break;
         default:
-            LOG(Cerf, "[FolderShareFiles] Open with undefined access mode 0x%X\n",
-                pb.fOpenMode);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[FolderShareFiles] Open with undefined access mode 0x%X",
+                                  pb.fOpenMode);
     }
     host_platform::SharedFileShare share;
     switch (pb.fOpenMode & 0x70u) {
@@ -135,9 +132,8 @@ uint16_t FolderShareFiles::Open(ServerPB& pb) {
         case kOpenShareDenyRead:      share = host_platform::SharedFileShare::kDenyRead; break;
         case kOpenShareDenyNone:      share = host_platform::SharedFileShare::kDenyNone; break;
         default:
-            LOG(Cerf, "[FolderShareFiles] Open with undefined share mode 0x%X\n",
-                pb.fOpenMode);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[FolderShareFiles] Open with undefined share mode 0x%X",
+                                  pb.fOpenMode);
     }
 
     std::unique_ptr<host_platform::SharedFsFile> opened;
@@ -155,9 +151,8 @@ uint16_t FolderShareFiles::Read(ServerPB& pb) {
     OpenFile* file = FileFor(pb.fHandle);
     if (!file) return kErrorInvalidHandle;
     if (pb.fSize > kFolderShareMaxReadWriteSize) {
-        LOG(Cerf, "[FolderShareFiles] Read of %u bytes exceeds the stage\n",
-            pb.fSize);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[FolderShareFiles] Read of %u bytes exceeds the stage",
+                              pb.fSize);
     }
     uint32_t done = 0;
     const SharedFsStatus st = file->file->ReadAt(
@@ -171,9 +166,8 @@ uint16_t FolderShareFiles::Write(ServerPB& pb) {
     OpenFile* file = FileFor(pb.fHandle);
     if (!file) return kErrorInvalidHandle;
     if (pb.fSize > kFolderShareMaxReadWriteSize) {
-        LOG(Cerf, "[FolderShareFiles] Write of %u bytes exceeds the stage\n",
-            pb.fSize);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[FolderShareFiles] Write of %u bytes exceeds the stage",
+                              pb.fSize);
     }
     uint32_t done = 0;
     const SharedFsStatus st = file->file->WriteAt(

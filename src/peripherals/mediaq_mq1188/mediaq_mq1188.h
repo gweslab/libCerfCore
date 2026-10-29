@@ -47,6 +47,7 @@ public:
     const uint8_t* FbBytes()  const { return sram_.data(); }
     uint8_t*       FbMutableBytes() override { return sram_.data(); }   /* GE blit target. */
     uint32_t       FbSize()   const override { return kApertureSize; }
+    Fatal&         OwnerFatal() override;
 
 private:
     static constexpr uint32_t kApertureSize = 0x00080000u;  /* 512 KB total. */

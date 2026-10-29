@@ -6,6 +6,7 @@
 
 namespace cerfcore {
 
+class InstanceThreads;
 class WaveInBackend;
 
 class WaveInFifo {
@@ -15,7 +16,7 @@ public:
     WaveInFifo(const WaveInFifo&)            = delete;
     WaveInFifo& operator=(const WaveInFifo&) = delete;
 
-    void   Start(const char* log_tag, size_t cap_bytes);
+    void   Start(InstanceThreads& threads, const char* log_tag, size_t cap_bytes);
     void   Stop();
 
     void   Request(uint32_t sample_rate_hz, uint16_t channels, uint16_t bits);

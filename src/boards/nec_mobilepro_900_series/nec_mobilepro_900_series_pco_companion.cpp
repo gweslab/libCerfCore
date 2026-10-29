@@ -309,7 +309,7 @@ void NecMobilepro900SeriesPcoCompanion::OnHostRequest() {
 }
 
 uint64_t NecMobilepro900SeriesPcoCompanion::HoldEndFrom(uint64_t start) const {
-    RatedTickCount hold;
+    RatedTickCount hold{emu_};
     hold.SetRate(clock_->ClockRate(), kKeyPassRate);
     hold.Start(start);
     return hold.CycleOfTick(kKeyHoldPasses);

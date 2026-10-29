@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "askey_pc3xx_family_id.h"
@@ -69,9 +70,8 @@ uint32_t AskeyPc3xxPageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "AskeyPc3xxPageTableBuilder::VaToPa: VA 0x%08X outside "
-            "every OAT band (nk.exe 0x800BA4E0)\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("AskeyPc3xxPageTableBuilder::VaToPa: VA 0x%08X outside "
+                          "every OAT band (nk.exe 0x800BA4E0)", va);
 }
 
 /* Carve the board CPLD page (PA 0xA3CC3000) out of RAM backing so its reset

@@ -26,6 +26,10 @@ bool MediaQMq200::ShouldRegister() {
     return emu_.TryGet<MediaQMq200Config>() != nullptr;
 }
 
+Fatal& MediaQMq200::OwnerFatal() {
+    return emu_.Get<Fatal>();
+}
+
 void MediaQMq200::OnReady() {
     auto& cfg  = emu_.Get<MediaQMq200Config>();
     mmio_base_ = cfg.HostWindowBase();

@@ -2,6 +2,7 @@
 
 #include "folder_share_path.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/folder_share_config.h>
 #include <cerfcore/core/log.h>
@@ -69,8 +70,7 @@ uint32_t FolderShareDir::Run(uint32_t code, ServerPB& pb) {
         case kServerFindClose:     return CloseFind(pb);
         default: break;
     }
-    LOG(Cerf, "[FolderShareDir] Run called with unowned op 0x%X\n", code);
-    CerfFatalExit();
+    emu_.Get<Fatal>().Die("[FolderShareDir] Run called with unowned op 0x%X", code);
 }
 
 uint16_t FolderShareDir::MkDir(ServerPB& pb) {

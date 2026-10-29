@@ -1,6 +1,7 @@
 #include "tick_scale.h"
 
-#include <cerfcore/core/log.h>
+#include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 
 namespace cerfcore {
 
@@ -47,10 +48,8 @@ uint64_t ExactScale::WideRemainderU64(uint64_t value) const {
 }
 
 uint64_t ExactScale::RequireDenU64() const {
-    if (!den_.FitsU64()) {
-        LOG(Caution, "ExactScale: a 64-bit read of a %d-bit denominator\n", den_.BitLength());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
-    }
+    if (!den_.FitsU64())
+        emu_->Get<Fatal>().Die("ExactScale: a 64-bit read of a %d-bit denominator", den_.BitLength());
     return den_.w[0];
 }
 

@@ -36,6 +36,20 @@ char             g_crash_dir[4096 - 16];
 
 void CaptureLogDirectory() { std::snprintf(g_crash_dir, sizeof(g_crash_dir), "%s", InstallDirectory().c_str()); }
 
+void CrashPrintNativeStack(const char* tag) {
+    void*     frames[32];
+    const int n = CaptureBacktrace(frames, 32);
+    char      line[640];
+    char      sym[512];
+    for (int i = 0; i < n; ++i) {
+        const int ln = CrashSymbolize(frames[i], sym, sizeof(sym))
+                           ? std::snprintf(line, sizeof(line), "%s   [%d] %s\n", tag, i, sym)
+                           : std::snprintf(line, sizeof(line), "%s   [%d] %p\n", tag, i, frames[i]);
+        if (ln > 0) CrashWrite(line, static_cast<size_t>(ln) < sizeof(line) ? static_cast<size_t>(ln)
+                                                                                : sizeof(line) - 1);
+    }
+}
+
 void UnhandledSignal(int sig, siginfo_t* info, void* uc) {
     LOG(Cerf, "this run ends here; the crash tail is in cerf.crash.log\n");
     Log::Close();
@@ -131,20 +145,6 @@ void CrashDumpOtherThreads() {
         }
     }
     Log::Emergency("=== end frozen thread dump ===\n\n");
-}
-
-void CrashPrintNativeStack(const char* tag) {
-    void*     frames[32];
-    const int n = CaptureBacktrace(frames, 32);
-    char      line[640];
-    char      sym[512];
-    for (int i = 0; i < n; ++i) {
-        const int ln = CrashSymbolize(frames[i], sym, sizeof(sym))
-                           ? std::snprintf(line, sizeof(line), "%s   [%d] %s\n", tag, i, sym)
-                           : std::snprintf(line, sizeof(line), "%s   [%d] %p\n", tag, i, frames[i]);
-        if (ln > 0) CrashWrite(line, static_cast<size_t>(ln) < sizeof(line) ? static_cast<size_t>(ln)
-                                                                                : sizeof(line) - 1);
-    }
 }
 
 bool CrashSymbolize(const void* addr, char* out, size_t out_size) {

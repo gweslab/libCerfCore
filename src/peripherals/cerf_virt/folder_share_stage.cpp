@@ -3,6 +3,7 @@
 #include <cerfcore/peripherals/cerf_virt/cerf_virt_addr_map.h>
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
@@ -26,8 +27,7 @@ void FolderShareStage::OnReady() {
     mem.AddRegion(BasePa(), CerfVirt::kFsStageSize, MemoryKind::kRam);
     base_ = mem.TryTranslate(BasePa());
     if (!base_) {
-        LOG(Cerf, "[FolderShareStage] region at PA 0x%08X is not backed\n", BasePa());
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[FolderShareStage] region at PA 0x%08X is not backed", BasePa());
     }
     emu_.Get<EngineBridge>().Guest().SetDmaRegion(BasePa(), CerfVirt::kFsStageSize);
 }

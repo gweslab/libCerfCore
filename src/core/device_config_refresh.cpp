@@ -3,6 +3,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
+#include <cerfcore/core/config_reader.h>
 #include "config_loader.h"
 #include "config_mutable_fields.h"
 #include <cerfcore/core/device_config.h>
@@ -25,9 +26,9 @@ void DeviceConfigRefresh::Refresh() {
         {kDeviceConfigFileName, CfgBrokenFile::kHalt}, {kUserConfigFileName, CfgBrokenFile::kSkip}};
     for (const auto& [name, broken] : kFiles) {
         const std::string path = dir + name;
-        nlohmann::json j = CfgReadLoggedJsonFile(path, broken);
+        nlohmann::json j = emu_.Get<ConfigReader>().ReadLoggedJsonFile(path, broken);
         if (j.is_null()) continue;
-        CfgLoadMutableFields(j, config, path);
+        emu_.Get<ConfigMutableFields>().LoadAll(j, config, path);
     }
     emu_.Get<ConfigLoader>().ApplyBoardPanelDefault(config);
 

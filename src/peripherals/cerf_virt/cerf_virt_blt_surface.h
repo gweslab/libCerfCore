@@ -4,6 +4,7 @@
 #include "cerf_virt_blt_pixelops.h"
 #include <cerfcore/peripherals/cerf_virt/cerf_virt_framebuffer.h>
 #include "cerf_virt_dma_arena.h"
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/lcd/lcd_pixel_expand.h>
 
@@ -43,16 +44,16 @@ protected:
 
     [[noreturn]] void FatalStraddle(const Surface& s, int32_t x, int32_t y,
                                     ptrdiff_t off) {
-        LOG(Cerf, "[BltSurfaceAccess] pixel byte unaddressable at x=%d y=%d "
-                  "off=%lld: buffer=0x%08X is_fb_pa=%u fmt=%u stride=%d "
-                  "stage_off=0x%08X stage_len=%u\n",
-            x, y, static_cast<long long>(off), s.desc->buffer, s.desc->is_fb_pa, s.desc->format,
-            s.desc->stride, s.desc->stage_off, s.desc->stage_len);
-        CerfFatalExit();
+        fatal_->Die("[BltSurfaceAccess] pixel byte unaddressable at x=%d y=%d "
+                    "off=%lld: buffer=0x%08X is_fb_pa=%u fmt=%u stride=%d "
+                    "stage_off=0x%08X stage_len=%u",
+                    x, y, static_cast<long long>(off), s.desc->buffer, s.desc->is_fb_pa,
+                    s.desc->format, s.desc->stride, s.desc->stage_off, s.desc->stage_len);
     }
 
     CerfVirtFramebuffer* fb_ = nullptr;
     CerfVirtDmaArena*    arena_ = nullptr;
+    Fatal*               fatal_ = nullptr;
 };
 
 inline bool ResolveMasks(const CerfBltSurface& s, uint32_t m[3], uint32_t* bpp) {

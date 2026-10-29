@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "ti_omap35x_evm_family_id.h"
@@ -64,9 +65,8 @@ uint32_t TiOmap35xEvmPageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "TiOmap35xEvmPageTableBuilder::VaToPa: VA 0x%08X is "
-            "outside every OAT band\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("TiOmap35xEvmPageTableBuilder::VaToPa: VA 0x%08X is "
+                          "outside every OAT band", va);
 }
 
 std::vector<DramRegion> TiOmap35xEvmPageTableBuilder::CachedDramRegions() const {

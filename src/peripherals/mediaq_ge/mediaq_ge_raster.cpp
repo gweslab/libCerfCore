@@ -1,6 +1,7 @@
 #include "mediaq_ge.h"
 
 #include <cerfcore/core/byte_order.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 
 namespace cerfcore {
@@ -54,9 +55,8 @@ void MediaQGe::FillSolid(uint8_t rop, uint32_t color, uint32_t cmd) {
     const uint32_t stride = DestStrideBytes();
     const uint32_t base   = BaseAddr();
     if (bpp == 0u || stride == 0u) {
-        LOG(Caution, "MediaQ GE: solid fill unsupported depth/stride (GE0AR=0x%08X)\n",
-            reg_[kGe0ADstStride]);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("MediaQ GE: solid fill unsupported depth/stride (GE0AR=0x%08X)",
+                         reg_[kGe0ADstStride]);
     }
 
     const uint32_t size = reg_[kGe01Size];
@@ -99,9 +99,8 @@ void MediaQGe::BlitColorFromDisplay(uint32_t cmd) {
     const uint32_t stride = DestStrideBytes();
     const uint32_t base   = BaseAddr();
     if (bpp == 0u || stride == 0u) {
-        LOG(Caution, "MediaQ GE: screen-to-screen blit unsupported depth/stride "
-                     "(GE0AR=0x%08X)\n", reg_[kGe0ADstStride]);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("MediaQ GE: screen-to-screen blit unsupported depth/stride "
+                         "(GE0AR=0x%08X)", reg_[kGe0ADstStride]);
     }
     const uint32_t size = reg_[kGe01Size];
     const uint32_t w = size & 0xFFFu;
@@ -160,9 +159,8 @@ void MediaQGe::BlitMonoFromDisplay(uint32_t cmd) {
     const uint32_t stride = DestStrideBytes();
     const uint32_t base   = BaseAddr();
     if (bpp == 0u || stride == 0u) {
-        LOG(Caution, "MediaQ GE: mono-from-display blit unsupported depth/stride "
-                     "(GE0AR=0x%08X)\n", reg_[kGe0ADstStride]);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("MediaQ GE: mono-from-display blit unsupported depth/stride "
+                         "(GE0AR=0x%08X)", reg_[kGe0ADstStride]);
     }
     const uint32_t size = reg_[kGe01Size];
     const uint32_t w = size & 0xFFFu;
@@ -227,9 +225,8 @@ void MediaQGe::DrawBresenhamLine(uint32_t cmd, uint32_t line_color) {
     const uint32_t stride = DestStrideBytes();
     const uint32_t base   = BaseAddr();
     if (bpp == 0u || stride == 0u) {
-        LOG(Caution, "MediaQ GE: line draw unsupported depth/stride (GE0AR=0x%08X)\n",
-            reg_[kGe0ADstStride]);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        OwnerFatal().Die("MediaQ GE: line draw unsupported depth/stride (GE0AR=0x%08X)",
+                         reg_[kGe0ADstStride]);
     }
 
     const uint32_t pmask = cerf::ByteWidthMask(bpp);

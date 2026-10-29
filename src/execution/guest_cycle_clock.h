@@ -116,8 +116,8 @@ private:
     host_platform::HostWaitTimer timer_;
     Rate          rate_        = Rate{1u, 1u};
     uint64_t      rate_requests_ = 0;
-    ExactScale    ns_to_cycles_;
-    ExactScale    cycles_to_ns_;
+    ExactScale    ns_to_cycles_{emu_};
+    ExactScale    cycles_to_ns_{emu_};
     uint64_t      ref_cycle_   = 0;
     int64_t       ref_wall_ns_ = 0;
     uint64_t      guest_ns_cycle_ = 0;

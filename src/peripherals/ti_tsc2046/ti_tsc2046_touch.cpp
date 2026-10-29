@@ -3,6 +3,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/ti_omap35x_evm/ti_omap35x_evm_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 
 namespace cerfcore {
@@ -38,9 +39,8 @@ uint32_t Tsc2046Touch::Transfer(uint32_t out_word, uint32_t wl_bits) {
        would have already destroyed the control bits before Transfer is
        called. Fail loudly so a misconfigured BSP is caught at the slave. */
     if (wl_bits < 8u) {
-        LOG(Caution, "Tsc2046Touch::Transfer wl_bits=%u; TSC2046 requires "
-                     ">=8 bits per transaction\n", wl_bits);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Tsc2046Touch::Transfer wl_bits=%u; TSC2046 requires "
+                              ">=8 bits per transaction", wl_bits);
     }
     const uint32_t shift = wl_bits - 8u;
     const uint8_t  ctrl  = static_cast<uint8_t>((out_word >> shift) & 0xFFu);

@@ -14,7 +14,7 @@ class StateWriter;
 
 class OscillatorTicks {
 public:
-    OscillatorTicks(CerfEmulator& emu, bool credits_park) : emu_(emu), credits_park_(credits_park) {}
+    OscillatorTicks(CerfEmulator& emu, bool credits_park) : emu_(emu), credits_park_(credits_park), ticks_(emu) {}
     virtual ~OscillatorTicks() = default;
 
     struct Reading {

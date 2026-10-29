@@ -9,6 +9,7 @@
 
 namespace cerfcore {
 
+class Fatal;
 class Rtl8019;
 class StateWriter;
 class StateReader;
@@ -103,6 +104,10 @@ public:
 
 private:
     friend class Dp8390Receiver;
+
+    Fatal& OwnerFatal() const;
+    [[noreturn]] void HaltUnsupported(const char* op, uint32_t offset,
+                                      uint8_t page, uint32_t value) const;
 
     void RaiseIsrLocked(uint8_t bits);
     void BumpCntr2Locked();

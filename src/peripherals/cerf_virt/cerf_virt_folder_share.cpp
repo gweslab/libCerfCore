@@ -10,6 +10,7 @@
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/folder_share_config.h>
 #include <cerfcore/core/log.h>
@@ -124,9 +125,8 @@ private:
 
         CerfVirt::ServerPB& pb = *emu_.Get<FolderShareStage>().Pb();
         if (pb.fStructureSize != sizeof(pb)) {
-            LOG(Cerf, "[FolderShare] ServerPB fStructureSize %u != %u\n",
-                pb.fStructureSize, (unsigned)sizeof(pb));
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[FolderShare] ServerPB fStructureSize %u != %u",
+                                  pb.fStructureSize, (unsigned)sizeof(pb));
         }
 
 #if CERF_DEV_MODE
@@ -140,8 +140,7 @@ private:
         else if (FolderShareDir::Owns(code))
             r = emu_.Get<FolderShareDir>().Run(code, pb);
         else {
-            LOG(Cerf, "[FolderShare] unmodeled op 0x%X\n", code);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[FolderShare] unmodeled op 0x%X", code);
         }
 
         result_ = r;

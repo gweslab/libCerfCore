@@ -2,6 +2,7 @@
 #include "imx51_gpu2d_rasterizer.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
@@ -30,8 +31,7 @@ void Imx51Gpu2dRasterizer::OnReady() {
 }
 
 void Imx51Gpu2dRasterizer::HaltFill(const char* why, float a, float b) const {
-    LOG(Caution, "[GPU2D-RAST] %s (%.4f, %.4f) - not modeled\n", why, a, b);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("[GPU2D-RAST] %s (%.4f, %.4f) - not modeled", why, a, b);
 }
 
 void Imx51Gpu2dRasterizer::MoveTo(float x, float y, bool closed) {
@@ -54,8 +54,7 @@ uint8_t* Imx51Gpu2dRasterizer::DestHost(const Gpu2dFillTarget& t, int32_t x, int
                       + static_cast<uint32_t>(x * (t.dest_565 ? 2 : 4));
     uint8_t* hp = emu_.Get<EmulatedMemory>().TryTranslateWrite(pa);
     if (!hp) {
-        LOG(Caution, "[GPU2D-RAST] dest pixel unbacked pa=0x%08X (x=%d y=%d)\n", pa, x, y);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[GPU2D-RAST] dest pixel unbacked pa=0x%08X (x=%d y=%d)", pa, x, y);
     }
     return hp;
 }
@@ -63,11 +62,8 @@ uint8_t* Imx51Gpu2dRasterizer::DestHost(const Gpu2dFillTarget& t, int32_t x, int
 uint32_t Imx51Gpu2dRasterizer::LoadDest(const Gpu2dFillTarget& t, int32_t x, int32_t y) {
     uint8_t* hp = DestHost(t, x, y);
     if (t.dest_565) {
-        /* A blend/coverage read-modify-write into a 565 dest is a distinct
-           sub-path not yet exercised; born-FATAL until a 565 dest-reading op
-           fires (then modeled with that op's grounding). */
-        LOG(Caution, "[GPU2D-RAST] blend read of G2D_0565 dest not modeled (x=%d y=%d)\n", x, y);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[GPU2D-RAST] blend read of G2D_0565 dest not modeled (x=%d y=%d)",
+                              x, y);
     }
     return *reinterpret_cast<const uint32_t*>(hp);
 }

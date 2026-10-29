@@ -3,6 +3,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "casio_jx670_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include "../../socs/vr41xx/vr41xx_giu.h"
@@ -171,7 +172,7 @@ bool CasioJx670Companion::ShouldRegister() {
 void CasioJx670Companion::OnReady() {
     audio_.Init(emu_, [this] { UpdateIrqLine(); });
     display_.Init(emu_);
-    modem_.Init();
+    modem_ = &emu_.Get<CasioJx670Modem>();
     touch_.Init(emu_, [this] { UpdateIrqLine(); });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
@@ -179,7 +180,7 @@ void CasioJx670Companion::OnReady() {
 uint8_t CasioJx670Companion::ReadByte(uint32_t addr) {
     const uint32_t off = addr - kBase;
     if (uint8_t v; display_.TryReadByte(off, v)) return v;
-    if (uint8_t v; modem_.TryReadByte(off, v)) return v;
+    if (uint8_t v; modem_->TryReadByte(off, v)) return v;
     HaltUnsupportedAccess("EM-500 companion ReadByte", addr, 0);
 }
 
@@ -205,7 +206,7 @@ uint16_t CasioJx670Companion::ReadHalf(uint32_t addr) {
     /* socket.dll table[4]=+0 (0x8000): sub_F42258 RMW read-back only; the sole
        consuming read sub_F422A8 @0xF416A0 targets table[2]=0x8010, never 0x8000. */
     if (off == kOffStrap8000) return static_cast<uint16_t>(strap8000_);
-    if (uint16_t mv; modem_.TryReadHalf(off, mv)) return mv;
+    if (uint16_t mv; modem_->TryReadHalf(off, mv)) return mv;
     if (off == kOffSocketId8010) return kSocketIdEmpty;
     /* nk_main_kernel.exe @0x9F038904/@0x9F03890C/@0x9F038914 (lh x3, $t1
        overwritten untested, before cop0 0x22); xref-complete, no writer. */
@@ -220,7 +221,7 @@ uint16_t CasioJx670Companion::ReadHalf(uint32_t addr) {
 uint32_t CasioJx670Companion::ReadWord(uint32_t addr) {
     const uint32_t off = addr - kBase;
     if (uint32_t v; display_.TryReadWord(off, v)) return v;
-    if (uint32_t mv; modem_.TryReadWord(off, mv)) return mv;
+    if (uint32_t mv; modem_->TryReadWord(off, mv)) return mv;
     if (uint32_t tv; touch_.TryReadWord(off, tv)) return tv;
     if (off == kOffCtrl8904) return ctrl8904_;
     if (off == kOffMboxCmd) return 0u;
@@ -241,9 +242,8 @@ uint32_t CasioJx670Companion::ReadWord(uint32_t addr) {
     if (off == kOffCodecReady) return 1u;
     if (off == kOffCodecData) {
         if (!codec_data_valid_) {
-            LOG(Caution, "EM-500 companion codec data port 0x03F4 read with no "
-                         "preceding 0x03C0 read command\n");
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("EM-500 companion codec data port 0x03F4 read with no "
+                                  "preceding 0x03C0 read command");
         }
         return codec_data_;
     }
@@ -269,7 +269,7 @@ uint32_t CasioJx670Companion::ReadWord(uint32_t addr) {
 void CasioJx670Companion::WriteByte(uint32_t addr, uint8_t value) {
     const uint32_t off = addr - kBase;
     if (display_.TryWriteByte(off, value)) return;
-    if (modem_.TryWriteByte(off, value)) return;
+    if (modem_->TryWriteByte(off, value)) return;
     HaltUnsupportedAccess("EM-500 companion WriteByte", addr, value);
 }
 
@@ -287,7 +287,7 @@ void CasioJx670Companion::WriteHalf(uint32_t addr, uint16_t value) {
     if (off == kOffIntCfg8404) { intcfg8404_ = value; return; }
     if (off == kOffStrap8000) { strap8000_ = value; return; }
     if (off == kOffCfg8018) return;
-    if (modem_.TryWriteHalf(off, value)) return;
+    if (modem_->TryWriteHalf(off, value)) return;
     if (audio_.TryWriteHalf(off, value)) return;
     if (off >= kOffEdgeCfgLo && off <= kOffEdgeCfgHi && (off & 1u) == 0u) {
         edge_cfg_[(off - kOffEdgeCfgLo) / 2u] = value;
@@ -305,7 +305,7 @@ void CasioJx670Companion::WriteHalf(uint32_t addr, uint16_t value) {
 void CasioJx670Companion::WriteWord(uint32_t addr, uint32_t value) {
     const uint32_t off = addr - kBase;
     if (display_.TryWriteWord(off, value)) return;
-    if (modem_.TryWriteWord(off, value)) return;
+    if (modem_->TryWriteWord(off, value)) return;
     if (touch_.TryWriteWord(off, value)) return;
     if (eeprom_.TryWriteWord(off, value)) return;
     if (audio_.TryWriteWord(off, value)) return;
@@ -374,9 +374,8 @@ void CasioJx670Companion::WriteCodecCommand(uint32_t value) {
     const uint32_t index = (value >> kCodecIndexShift) & kCodecIndexMask;
     if (value & kCodecWriteBit) {
         if (index >= kCodecRegCount) {
-            LOG(Caution, "EM-500 companion codec write command 0x%X targets "
-                         "register %u\n", value, index);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("EM-500 companion codec write command 0x%X targets "
+                                  "register %u", value, index);
         }
         codec_regs_[index] = static_cast<uint16_t>(value & kCodecDataMask);
         codec_written_ |= static_cast<uint8_t>(1u << index);
@@ -386,9 +385,8 @@ void CasioJx670Companion::WriteCodecCommand(uint32_t value) {
     }
     if (index != kCodecReadIndex ||
         (codec_written_ & static_cast<uint8_t>(1u << index)) == 0u) {
-        LOG(Caution, "EM-500 companion codec read command 0x%X targets register %u "
-                     "(written mask 0x%02X)\n", value, index, codec_written_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("EM-500 companion codec read command 0x%X targets register %u "
+                              "(written mask 0x%02X)", value, index, codec_written_);
     }
     codec_data_ = codec_regs_[index];
     codec_data_valid_ = true;
@@ -420,7 +418,7 @@ void CasioJx670Companion::SaveState(StateWriter& w) {
     eeprom_.SaveState(w);
     audio_.SaveState(w);
     display_.SaveState(w);
-    modem_.SaveState(w);
+    modem_->SaveState(w);
     touch_.SaveState(w);
 }
 
@@ -455,13 +453,13 @@ void CasioJx670Companion::RestoreState(StateReader& r) {
     eeprom_.RestoreState(r);
     audio_.RestoreState(r);
     display_.RestoreState(r);
-    modem_.RestoreState(r);
+    modem_->RestoreState(r);
     touch_.RestoreState(r);
 }
 
 void CasioJx670Companion::PostRestore() {
     audio_.PostRestore();
-    modem_.PostRestore();
+    modem_->PostRestore();
     touch_.PostRestore();
     UpdateIrqLine();
 }

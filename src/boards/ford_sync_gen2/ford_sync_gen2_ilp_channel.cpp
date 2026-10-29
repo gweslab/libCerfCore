@@ -5,6 +5,7 @@
 #include "ford_sync_gen2_family_id.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
 #include <algorithm>
@@ -115,8 +116,7 @@ void FordSyncGen2IlpChannel::HandleInbound(const uint8_t* data, std::size_t n) {
     const uint16_t tid = U16(data, 2);
     if (data[0] == 2) { HandleSet(data, n, tid); return; }
     if (data[0] != 4 && data[0] != 5 && data[0] != 6) {
-        LOG(Caution, "[VMCU] unmodelled ILP transaction type=%u tid=%u len=%zu\n", data[0], tid, n);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[VMCU] unmodelled ILP transaction type=%u tid=%u len=%zu", data[0], tid, n);
     }
     auto& signals = emu_.Get<FordSyncGen2IlpSignals>();
     Refresh();
@@ -146,8 +146,7 @@ void FordSyncGen2IlpChannel::HandleInbound(const uint8_t* data, std::size_t n) {
         break;
     }
     default:
-        LOG(Caution, "[VMCU] unmodelled ILP transaction type=%u tid=%u len=%zu\n", data[0], tid, n);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[VMCU] unmodelled ILP transaction type=%u tid=%u len=%zu", data[0], tid, n);
     }
 }
 
@@ -201,8 +200,7 @@ void FordSyncGen2IlpChannel::RegisterDevice(Device device) {
     if (device.key.empty() || device.key.size() > 64 || devices_.size() >= 64 ||
         !device.refresh || !device.save || !device.restore || !device.reset ||
         std::any_of(devices_.begin(), devices_.end(), [&](const Device& d) { return d.key == device.key; })) {
-        LOG(Caution, "[VMCU] invalid ILP device registration\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[VMCU] invalid ILP device registration");
     }
     devices_.push_back(std::move(device));
     std::sort(devices_.begin(), devices_.end(), [](const Device& a, const Device& b) { return a.key < b.key; });

@@ -2,6 +2,7 @@
 #include "imx51_gpu2d_gradw_sampler.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
@@ -54,8 +55,7 @@ void Imx51Gpu2dGradwSampler::EvalProgram(const Gpu2dGradwPaint& p, int32_t px, i
 
     auto val = [&](uint32_t idx) -> float {
         if (idx <= 9u || (idx >= 16u && idx <= 30u)) return r[idx];
-        LOG(Caution, "[GPU2D-GRADW] ISA reads un-modeled GRADREG %u\n", idx);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[GPU2D-GRADW] ISA reads un-modeled GRADREG %u", idx);
     };
 
     const uint32_t n = std::min(p.ninst, 8u);
@@ -69,12 +69,10 @@ void Imx51Gpu2dGradwSampler::EvalProgram(const Gpu2dGradwPaint& p, int32_t px, i
         if (op == kOpDot)          res = va * vb + vc * vd + ve;
         else if (op == kOpSqrtMul) res = std::sqrt(va) * vb + vc * vd + ve;
         else {
-            LOG(Caution, "[GPU2D-GRADW] ISA opcode %u not modeled (INST%u=0x%08X)\n", op, i, w);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[GPU2D-GRADW] ISA opcode %u not modeled (INST%u=0x%08X)", op, i, w);
         }
         if (dst > 9u) {  /* writable: X/Y-as-temp, temps 2-7, OUTX(8)/OUTY(9) */
-            LOG(Caution, "[GPU2D-GRADW] ISA writes un-modeled GRADREG %u\n", dst);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[GPU2D-GRADW] ISA writes un-modeled GRADREG %u", dst);
         }
         r[dst] = res;
     }
@@ -90,8 +88,7 @@ uint32_t Imx51Gpu2dGradwSampler::Fetch(const Gpu2dGradwPaint& p, int32_t tx, int
                                      + static_cast<uint32_t>(tx)) * 4u;
     const uint8_t* hp = emu_.Get<EmulatedMemory>().TryTranslate(pa);
     if (!hp) {
-        LOG(Caution, "[GPU2D-GRADW] texel unbacked pa=0x%08X (tx=%d ty=%d)\n", pa, tx, ty);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[GPU2D-GRADW] texel unbacked pa=0x%08X (tx=%d ty=%d)", pa, tx, ty);
     }
     return *reinterpret_cast<const uint32_t*>(hp);  /* fmt7 ARGB8888 */
 }

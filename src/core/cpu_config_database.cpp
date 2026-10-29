@@ -3,6 +3,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
+#include <cerfcore/core/config_reader.h>
 #include <cerfcore/core/cpu_arch_name.h>
 
 #include "name_table.h"
@@ -126,21 +127,22 @@ CpuConfigValue CpuConfigDatabase::ParseValue(const CpuConfigParam& param, const 
     uint32_t          hex   = 0;
     switch (param.type) {
     case CpuConfigParamType::Boolean:
-        if (!value.is_boolean()) CfgFatal(path, "'" + where + "' must be a boolean");
+        if (!value.is_boolean()) emu_.Get<ConfigReader>().Fail(path, "'" + where + "' must be a boolean");
         break;
     case CpuConfigParamType::Integer:
         if (!value.is_number_unsigned() || value.get<uint64_t>() > UINT32_MAX)
-            CfgFatal(path, "'" + where + "' must be an unsigned 32-bit integer");
+            emu_.Get<ConfigReader>().Fail(path, "'" + where + "' must be an unsigned 32-bit integer");
         break;
     case CpuConfigParamType::Hex:
         if (!value.is_string() || !ParseCpuConfigHex(value.get<std::string>(), hex))
-            CfgFatal(path, "'" + where + "' must be a 32-bit hex string such as \"0x1F\"");
+            emu_.Get<ConfigReader>().Fail(path, "'" + where + "' must be a 32-bit hex string such as \"0x1F\"");
         break;
     case CpuConfigParamType::Enum:
-        if (!value.is_string()) CfgFatal(path, "'" + where + "' must be a string");
+        if (!value.is_string()) emu_.Get<ConfigReader>().Fail(path, "'" + where + "' must be a string");
         if (std::none_of(param.enum_values.begin(), param.enum_values.end(),
                          [&](const CpuConfigEnumValue& e) { return e.id == value.get<std::string>(); }))
-            CfgFatal(path, "'" + where + "' has the unknown value '" + value.get<std::string>() + "'");
+            emu_.Get<ConfigReader>().Fail(path, "'" + where + "' has the unknown value '" +
+                                                    value.get<std::string>() + "'");
         break;
     }
     return ValueOf(param, value);

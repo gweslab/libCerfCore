@@ -3,6 +3,7 @@
 #include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../core/rate_probe.h"
 #include "../../execution/engine_bridge.h"
@@ -59,9 +60,8 @@ bool Pxa2xxIntc::IsKnown(uint32_t off) const {
 
 void Pxa2xxIntc::NotifyLocked() {
     if (IcFpAllLocked() != 0) {
-        LOG(SocIntc, "FIQ asserted (ICFP=0x%08X) - FIQ delivery not wired "
-                     "through ArmJit\n", IcFpAllLocked());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("FIQ asserted (ICFP=0x%08X) - FIQ delivery not wired "
+                              "through ArmJit", IcFpAllLocked());
     }
     cerfengine::ArmJit& jit = *jit_;
     if (IcIpAllLocked() != 0) {
@@ -81,9 +81,8 @@ void Pxa2xxIntc::NotifyLocked() {
 void Pxa2xxIntc::AssertIrq(int source_bit) {
     uint32_t bank = 0, bit = 0;
     if (!SplitSource(source_bit, bank, bit)) {
-        LOG(Caution, "Pxa2xxIntc::AssertIrq: peripheral ID %d has no bit in this "
-                     "interrupt controller\n", source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Pxa2xxIntc::AssertIrq: peripheral ID %d has no bit in this "
+                              "interrupt controller", source_bit);
     }
     const uint32_t mask = 1u << bit;
     std::lock_guard<std::mutex> guard(state_mtx_);
@@ -99,9 +98,8 @@ void Pxa2xxIntc::AssertIrq(int source_bit) {
 void Pxa2xxIntc::DeAssertIrq(int source_bit) {
     uint32_t bank = 0, bit = 0;
     if (!SplitSource(source_bit, bank, bit)) {
-        LOG(Caution, "Pxa2xxIntc::DeAssertIrq: peripheral ID %d has no bit in this "
-                     "interrupt controller\n", source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Pxa2xxIntc::DeAssertIrq: peripheral ID %d has no bit in this "
+                              "interrupt controller", source_bit);
     }
     const uint32_t mask = 1u << bit;
     std::lock_guard<std::mutex> guard(state_mtx_);
@@ -115,10 +113,9 @@ void Pxa2xxIntc::DeAssertIrq(int source_bit) {
 }
 
 void Pxa2xxIntc::AssertSubIrq(int main_source_bit, int sub_source_bit) {
-    LOG(Caution, "Pxa2xxIntc::AssertSubIrq(%d, %d) - Table 25-16 lists no "
-                 "second-level source register in this interrupt controller\n",
-        main_source_bit, sub_source_bit);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("Pxa2xxIntc::AssertSubIrq(%d, %d) - Table 25-16 lists no "
+                          "second-level source register in this interrupt controller",
+                          main_source_bit, sub_source_bit);
 }
 
 void Pxa2xxIntc::SetSourceLevel(uint32_t mask, uint32_t level) {
@@ -132,16 +129,6 @@ void Pxa2xxIntc::SetSourceLevel(uint32_t mask, uint32_t level) {
         NotifyLocked();
     }
 }
-
-namespace {
-
-void HaltWideIchpField(uint32_t pid, const char* which) {
-    LOG(Caution, "Pxa2xxIntc: peripheral ID %u has the highest %s priority but "
-                 "the ICHP field holds five bits\n", pid, which);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
-}
-
-}  /* namespace */
 
 /* Intel PXA27x Developer's Manual 280000-001 Section 25.5.7 (page 25-28):
    "Priority 0 is the highest priority and 39 is the lowest priority." "The
@@ -178,12 +165,16 @@ uint32_t Pxa2xxIntc::IchpLocked() {
     uint32_t valid = 0;
     uint32_t pid   = 0;
     if (HighestPriorityLocked(irq_pending, pid)) {
-        if (pid > kIchpFieldMask) HaltWideIchpField(pid, "IRQ");
+        if (pid > kIchpFieldMask)
+            emu_.Get<Fatal>().Die("Pxa2xxIntc: peripheral ID %u has the highest IRQ priority "
+                                  "but the ICHP field holds five bits", pid);
         irq    = pid;
         valid |= kIchpValIrq;
     }
     if (HighestPriorityLocked(fiq_pending, pid)) {
-        if (pid > kIchpFieldMask) HaltWideIchpField(pid, "FIQ");
+        if (pid > kIchpFieldMask)
+            emu_.Get<Fatal>().Die("Pxa2xxIntc: peripheral ID %u has the highest FIQ priority "
+                                  "but the ICHP field holds five bits", pid);
         fiq    = pid;
         valid |= kIchpValFiq;
     }
@@ -211,8 +202,7 @@ uint32_t Pxa2xxIntc::ReadRegLocked(uint32_t off) {
         break;
     }
     if (!IsKnown(off)) {
-        LOG(Caution, "Pxa2xxIntc: read of offset 0x%02X\n", off);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Pxa2xxIntc: read of offset 0x%02X", off);
     }
     return ipr_[IprIndex(off)];
 }
@@ -239,8 +229,7 @@ void Pxa2xxIntc::WriteRegLocked(uint32_t off, uint32_t value) {
     case kIcip2: case kIcfp2: case kIcpr2: case kIchp: break;
     default:
         if (!IsKnown(off)) {
-            LOG(Caution, "Pxa2xxIntc: write 0x%08X to offset 0x%02X\n", value, off);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Pxa2xxIntc: write 0x%08X to offset 0x%02X", value, off);
         }
         ipr_[IprIndex(off)] = value & kIprMask;
         break;

@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "symbol_hamptons_family_id.h"
@@ -110,8 +111,7 @@ uint32_t SymbolHamptonsPageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "MK500: VA %08X is outside the OEMAddressTable\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("MK500: VA %08X is outside the OEMAddressTable", va);
 }
 
 std::vector<DramRegion> SymbolHamptonsPageTableBuilder::CachedDramRegions() const {

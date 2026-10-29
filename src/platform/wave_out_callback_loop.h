@@ -21,8 +21,9 @@ public:
     WaveOutCallbackLoop(const WaveOutCallbackLoop&)            = delete;
     WaveOutCallbackLoop& operator=(const WaveOutCallbackLoop&) = delete;
 
-    void Start(WaveOutSink::StartHandler on_start, WaveOutSink::CommandHandler on_command,
-               WaveOutSink::DoneHandler on_done, RetryHandler on_retry_open);
+    void Start(Fatal& fatal, InstanceThreads& threads, WaveOutSink::StartHandler on_start,
+               WaveOutSink::CommandHandler on_command, WaveOutSink::DoneHandler on_done,
+               RetryHandler on_retry_open);
     void Stop();
 
     void PostCommand(uint32_t command);
@@ -46,6 +47,7 @@ private:
     std::condition_variable cv_;
     std::deque<Event>       events_;
     SilentBlockPacer        silent_;
+    Fatal*                  fatal_    = nullptr;
     bool                    shutdown_ = false;
     std::thread             thread_;
 };

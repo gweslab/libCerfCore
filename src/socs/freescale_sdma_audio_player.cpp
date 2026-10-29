@@ -1,6 +1,8 @@
 #include "freescale_sdma_audio_player.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../host/audio_activity_widget.h"
@@ -37,7 +39,7 @@ void FreescaleSdmaAudioPlayer::OnReady() {
     }
     emu_.Get<FreescaleModuleClocks>().RegisterGateListener([this] { OnControl(); });
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetLine(); });
-    out_.Start(LogTag(), 0u, 0u, 0u);
+    out_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), LogTag(), 0u, 0u, 0u);
     wiring_->Sdma().RegisterChannelSink(this);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }

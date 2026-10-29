@@ -3,6 +3,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
+#include <cerfcore/core/config_reader.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/device_config_keys.h>
 #include <cerfcore/core/log.h>
@@ -21,22 +22,23 @@ namespace {
 constexpr uint64_t    kThousandths = 1000u;
 constexpr double      kMaxThousandths = 9.0e18;
 
-EmulationSpeedConfig::Multiplier ReadMultiplier(const nlohmann::json& root, const char* key,
-                                                bool zero_allowed, const std::string& path,
-                                                EmulationSpeedConfig::Multiplier current) {
-    if (!root.contains(key)) return current;
-    const auto& v = root[key];
-    if (!v.is_number()) CfgFatal(path, std::string("'") + key + "' must be a number");
-    const double scaled = v.get<double>() * static_cast<double>(kThousandths);
-    if (!std::isfinite(scaled) || scaled < 0.0 || scaled >= kMaxThousandths)
-        CfgFatal(path, std::string("'") + key + "' is out of range");
-    const uint64_t thousandths = static_cast<uint64_t>(std::llround(scaled));
-    if (thousandths == 0u && !zero_allowed)
-        CfgFatal(path, std::string("'") + key + "' must be greater than 0");
-    const uint64_t g = std::gcd(thousandths, kThousandths);
-    return EmulationSpeedConfig::Multiplier{thousandths / g, kThousandths / g};
 }
 
+EmulationSpeedConfig::Multiplier EmulationSpeedConfig::ReadMultiplier(const nlohmann::json& root, const char* key,
+                                                                      bool zero_allowed, const std::string& path,
+                                                                      Multiplier current) {
+    if (!root.contains(key)) return current;
+    auto&       reader = emu_.Get<ConfigReader>();
+    const auto& v      = root[key];
+    if (!v.is_number()) reader.Fail(path, std::string("'") + key + "' must be a number");
+    const double scaled = v.get<double>() * static_cast<double>(kThousandths);
+    if (!std::isfinite(scaled) || scaled < 0.0 || scaled >= kMaxThousandths)
+        reader.Fail(path, std::string("'") + key + "' is out of range");
+    const uint64_t thousandths = static_cast<uint64_t>(std::llround(scaled));
+    if (thousandths == 0u && !zero_allowed)
+        reader.Fail(path, std::string("'") + key + "' must be greater than 0");
+    const uint64_t g = std::gcd(thousandths, kThousandths);
+    return Multiplier{thousandths / g, kThousandths / g};
 }
 
 void EmulationSpeedConfig::OnReady() {
@@ -51,7 +53,7 @@ void EmulationSpeedConfig::OnReady() {
 }
 
 void EmulationSpeedConfig::Load(const std::string& path, CfgBrokenFile broken) {
-    const nlohmann::json root = CfgReadJsonFile(path, broken);
+    const nlohmann::json root = emu_.Get<ConfigReader>().ReadJsonFile(path, broken);
     if (root.is_null()) return;
     throttle_ = ReadMultiplier(root, config_key::kThrottleMultiplier, true, path, throttle_);
     cpu_rate_ = ReadMultiplier(root, config_key::kCpuRateMultiplier, false, path, cpu_rate_);

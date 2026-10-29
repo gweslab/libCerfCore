@@ -6,6 +6,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -16,6 +17,8 @@ struct SlirpCb;
 
 namespace cerfcore {
 
+class Fatal;
+class InstanceThreads;
 struct SlirpTimer;
 
 class SlirpBackend : public NetworkBackend {
@@ -48,7 +51,12 @@ public:
 private:
     void PollLoop();
     void StopPollThread();
+    void RethrowCallbackFailure();
     int64_t NowMs() const;
+
+    Fatal*             fatal_   = nullptr;
+    InstanceThreads*   threads_ = nullptr;
+    std::exception_ptr callback_failure_;
 
     cerf::inet::MacAddress guest_mac_{};
     uint32_t mtu_ = 1500;

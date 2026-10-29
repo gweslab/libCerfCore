@@ -2,6 +2,7 @@
 
 #include <cerfcore/boot/guest_cold_boot.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../execution/engine_bridge.h"
 
@@ -11,10 +12,9 @@ REGISTER_SERVICE(GuestCpuReset);
 
 void GuestCpuReset::SetCauseLatch(ResetCauseLatch* latch) {
     if (latch_ != nullptr) {
-        LOG(Caution, "GuestCpuReset: second ResetCauseLatch registered - "
-                "one SoC owns the reset-cause register; two implementers "
-                "mean a ShouldRegister gate is wrong\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("GuestCpuReset: second ResetCauseLatch registered - "
+                              "one SoC owns the reset-cause register; two implementers "
+                              "mean a ShouldRegister gate is wrong");
     }
     latch_ = latch;
 }

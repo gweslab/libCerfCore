@@ -15,9 +15,8 @@ cerf::inet::MacAddress NetworkBackend::ConfiguredGuestMac() const {
     const std::string& s = emu_.Get<DeviceConfig>().network_mac;
     cerf::inet::MacAddress out{};
     if (!cerf::inet::ParseMac(s, out)) {
-        LOG(Caution, "FATAL: malformed network_mac='%s' (need XX:XX:XX:XX:XX:XX)\n",
-                s.c_str());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("FATAL: malformed network_mac='%s' (need XX:XX:XX:XX:XX:XX)",
+                              s.c_str());
     }
     return out;
 }

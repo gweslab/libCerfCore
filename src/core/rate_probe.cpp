@@ -1,6 +1,7 @@
 #include "rate_probe.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include "timestamp_counter.h"
 
@@ -39,7 +40,7 @@ void RateProbe::CalibrateTscPerSec() {
 void RateProbe::OnReady() {
 #if CERF_DEV_MODE
     CalibrateTscPerSec();
-    thread_ = std::thread([this] { LogLoop(); });
+    thread_ = emu_.Get<InstanceThreads>().Start([this] { LogLoop(); });
 #endif
 }
 

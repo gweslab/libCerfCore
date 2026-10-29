@@ -6,6 +6,7 @@
 #include "pxa270_id.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/host/panel_frame_renderer.h>
@@ -90,12 +91,10 @@ private:
     void RequireSupportedMode(Pxa27xLcd& lcd) {
         const uint32_t bpp = lcd.GetBppCode();
         if (bpp != kBppCode16Bpp) {
-            LOG(Caution, "PXA27x LCD BPP3:BPP code 0x%X is not modelled\n", bpp);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("PXA27x LCD BPP3:BPP code 0x%X is not modelled", bpp);
         }
         if (lcd.ChannelIsPalette(0)) {
-            LOG(Caution, "PXA27x LCD channel 0 loaded a palette descriptor\n");
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("PXA27x LCD channel 0 loaded a palette descriptor");
         }
     }
 };

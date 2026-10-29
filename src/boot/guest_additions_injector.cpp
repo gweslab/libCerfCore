@@ -20,6 +20,7 @@
 #include <cerfcore/core/board_database.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/service.h>
@@ -88,8 +89,7 @@ public:
             if (imgfs.ReplaceVictim(victim.c_str(), stub_path)) ++matched;
         }
         if (matched == 0) {
-            LOG(Caution, "no display-driver victim matched\n");
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("no display-driver victim matched");
         }
         LOG(GuestAdditions, "%d victim(s) replaced\n", matched);
     }
@@ -117,12 +117,10 @@ private:
 uint32_t GuestAdditionsInjector::DetectCeMajor() {
     uint16_t major = 0, minor = 0;
     if (!emu_.Get<RomParserQueries>().KernelSubsystemVersion(major, minor)) {
-        LOG(Caution, "nk.exe e32_rom subsystem version not locatable\n");
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("nk.exe e32_rom subsystem version not locatable");
     }
     if (major < 2 || major > 8) {
-        LOG(Caution, "nk.exe e32_subsysmajor=%u outside CE range 2..8\n", major);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("nk.exe e32_subsysmajor=%u outside CE range 2..8", major);
     }
     ce_minor_ = minor;
     return major;
@@ -223,25 +221,22 @@ bool GuestAdditionsInjector::Replace(const char* victim_name,
 
     std::vector<uint8_t> pe_bytes;
     if (!TryReadHostFileBytes(source_path, pe_bytes)) {
-        LOG(Caution, "cannot open %s - cerf_guest_stub.dll must be built and "
-                "staged before injecting %s\n", source_path.c_str(), victim_name);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("cannot open %s - cerf_guest_stub.dll must be built and "
+                              "staged before injecting %s", source_path.c_str(), victim_name);
     }
     const size_t pe_bytes_size = pe_bytes.size();
 
     PeImage pe(std::move(pe_bytes));
     if (!pe.Parsed()) {
-        LOG(Caution, "PE parse failed for %s - stub is corrupt; injection of "
-                "%s aborted\n", source_path.c_str(), victim_name);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("PE parse failed for %s - stub is corrupt; injection of "
+                              "%s aborted", source_path.c_str(), victim_name);
     }
 
     auto& parser = emu_.Get<RomParserService>();
     const auto& rom = parser.Primary();
     if (rom.xips.empty()) {
-        LOG(Caution, "primary ROM has no XIP regions - FindVictim matched %s "
-                "but the TOC vanished\n", victim_name);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("primary ROM has no XIP regions - FindVictim matched %s "
+                              "but the TOC vanished", victim_name);
     }
     const auto& primary_toc = rom.xips[0].toc;
     auto& pt  = emu_.Get<PageTableBuilder>();
@@ -258,9 +253,8 @@ bool GuestAdditionsInjector::Replace(const char* victim_name,
     const uint16_t orig_subsysmaj = mem.ReadHalf(orig_e32_pa + L.off_subsysmajor);
     const uint16_t orig_subsysmin = mem.ReadHalf(orig_e32_pa + L.off_subsysminor);
     if (orig_objcnt == 0) {
-        LOG(Caution, "%s victim has zero sections - no footprint to reuse for "
-                "the stub\n", victim_name);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("%s victim has zero sections - no footprint to reuse for "
+                              "the stub", victim_name);
     }
     LOG(GuestAdditions, "orig %s e32 @KVA 0x%08X imageflags=0x%04X objcnt=%u "
               "subsysver=%u.%02u o32 @KVA 0x%08X\n",
@@ -301,12 +295,11 @@ bool GuestAdditionsInjector::Replace(const char* victim_name,
         vbase_ok = in_dll_region || xip_codebase;
     }
     if (!vbase_ok) {
-        LOG(Caution, "%s original vbase 0x%08X fails sanity (CE major=%u, "
-                "codebase=0x%08X, dllfirst=0x%08X dlllast=0x%08X) - probable "
-                "ROMHDR corruption or unsupported CE version\n",
-            victim_name, orig_vbase, ce_major_, codebase,
-            primary_toc.romhdr.dllfirst, primary_toc.romhdr.dlllast);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("%s original vbase 0x%08X fails sanity (CE major=%u, "
+                              "codebase=0x%08X, dllfirst=0x%08X dlllast=0x%08X) - probable "
+                              "ROMHDR corruption or unsupported CE version",
+                              victim_name, orig_vbase, ce_major_, codebase,
+                              primary_toc.romhdr.dllfirst, primary_toc.romhdr.dlllast);
     }
 
     const size_t   nsec       = pe.Sections().size();
@@ -352,11 +345,10 @@ bool GuestAdditionsInjector::Replace(const char* victim_name,
     LOG(GuestAdditions, "%s reloc code_delta=0x%08X patched=%u unhandled=%u\n",
         victim_name, uint32_t(code_delta), reloc_count, unhandled_relocs);
     if (unhandled_relocs > 0) {
-        LOG(Caution, "%s has %u unhandled relocation entries (likely "
-                "ARM_MOV32/THUMB_MOV32) - the stub would jump to unrelocated "
-                "addresses; rebuild it without MOVW/MOVT or extend "
-                "ce_image_relocator\n", victim_name, unhandled_relocs);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("%s has %u unhandled relocation entries (likely "
+                              "ARM_MOV32/THUMB_MOV32) - the stub would jump to unrelocated "
+                              "addresses; rebuild it without MOVW/MOVT or extend "
+                              "ce_image_relocator", victim_name, unhandled_relocs);
     }
 
     emu_.Get<GuestAdditionsBinaries>().StampWindowBase(patched_bytes);

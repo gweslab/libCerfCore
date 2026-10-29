@@ -1,6 +1,7 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "odo_family_id.h"
@@ -102,11 +103,10 @@ void OdoPcmcia::WriteHalf(uint32_t addr, uint16_t value) {
 #endif
     if (IsControlSlot(off)) {
         if (value != 0) {
-            LOG(Caution, "Odo PCMCIA: activation write to "
-                    "PCMCIA_REG%c = 0x%04X - non-zero control "
-                    "bits set, no host PCMCIA model behind this "
-                    "peripheral.\n", SlotIndex(off), value);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Odo PCMCIA: activation write to "
+                                  "PCMCIA_REG%c = 0x%04X - non-zero control "
+                                  "bits set, no host PCMCIA model behind this "
+                                  "peripheral.", SlotIndex(off), value);
         }
         std::lock_guard<std::mutex> lk(state_mutex_);
         if (off == kSlotPcmciaReg0) pcmcia_reg0_ = value;
@@ -115,12 +115,11 @@ void OdoPcmcia::WriteHalf(uint32_t addr, uint16_t value) {
     }
     if (IsIntrSlot(off)) {
         if ((value & ~kPcmciaStateIntr) != 0) {
-            LOG(Caution, "Odo PCMCIA: write to PCMCIA_INTR_REG%c = "
-                    "0x%04X - bits other than PCMCIA_STATE_INTR "
-                    "(0x0001) set; only bit 0 has a modeled W1C "
-                    "semantic.\n",
-                    SlotIndex(off), value);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Odo PCMCIA: write to PCMCIA_INTR_REG%c = "
+                                  "0x%04X - bits other than PCMCIA_STATE_INTR "
+                                  "(0x0001) set; only bit 0 has a modeled W1C "
+                                  "semantic.",
+                                  SlotIndex(off), value);
         }
         std::lock_guard<std::mutex> lk(state_mutex_);
         if (off == kSlotPcmciaIntrReg0) {
@@ -155,10 +154,9 @@ uint32_t OdoPcmcia::ReadWord(uint32_t addr) {
 
 void OdoPcmcia::WriteWord(uint32_t addr, uint32_t value) {
     if ((value & 0xFFFF0000u) != 0) {
-        LOG(Caution, "Odo PCMCIA: WriteWord at 0x%08X = 0x%08X has "
-                "non-zero high 16 bits; only bits 0-7 are "
-                "modeled.\n", addr, value);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Odo PCMCIA: WriteWord at 0x%08X = 0x%08X has "
+                              "non-zero high 16 bits; only bits 0-7 are "
+                              "modeled.", addr, value);
     }
     WriteHalf(addr, static_cast<uint16_t>(value & 0xFFFFu));
 }

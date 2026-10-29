@@ -1,6 +1,7 @@
 #include "../vr41xx/vr41xx_pmu_impl.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/mips/mips_interrupt_channel.h>
@@ -90,8 +91,7 @@ public:
     /* Table 1-1 (VR4100 Series UM U15509EJ2V0UM): the VR4122's on-chip unit list
        carries no watchdog timer. */
     void LatchWatchdogReset() override {
-        LOG(Caution, "Vr4122Pmu::LatchWatchdogReset: no watchdog unit on the VR4122\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Vr4122Pmu::LatchWatchdogReset: no watchdog unit on the VR4122");
     }
 
     void SaveState(StateWriter& w) override {
@@ -143,9 +143,8 @@ protected:
                 return;
             case kOffCnt2Reg:
                 if (value & kCnt2SoftRst) {
-                    LOG(Caution, "Vr4122Pmu: PMUCNT2REG SOFTRST=1 write (0x%04X) - "
-                            "software-reset flow not modeled\n", value);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                    emu_.Get<Fatal>().Die("Vr4122Pmu: PMUCNT2REG SOFTRST=1 write (0x%04X) - "
+                                          "software-reset flow not modeled", value);
                 }
                 cnt2reg_.store(static_cast<uint16_t>(value & kCnt2Writable),
                                std::memory_order_release);

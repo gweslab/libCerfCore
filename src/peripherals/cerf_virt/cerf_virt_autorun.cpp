@@ -6,6 +6,7 @@
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/utf16.h>
@@ -28,16 +29,14 @@ public:
     void OnReady() override {
         const auto& list = emu_.Get<DeviceConfig>().guest_additions_autorun;
         if (list.size() > CerfVirt::kArMaxEntries) {
-            LOG(Caution, "FATAL: guest_additions.autorun has %u entries, max %u",
-                (unsigned)list.size(), CerfVirt::kArMaxEntries);
-            CerfFatalExit(CERF_FATAL_USER_ERROR);
+            emu_.Get<Fatal>().UserError("FATAL: guest_additions.autorun has %u entries, max %u",
+                                        (unsigned)list.size(), CerfVirt::kArMaxEntries);
         }
         for (const std::string& s : list) {
             std::u16string w = Utf8ToUtf16(s);
             if (w.size() >= CerfVirt::kArEntryWchars) {
-                LOG(Caution, "FATAL: guest_additions.autorun entry '%s' exceeds %u characters",
-                    s.c_str(), CerfVirt::kArEntryWchars - 1);
-                CerfFatalExit(CERF_FATAL_USER_ERROR);
+                emu_.Get<Fatal>().UserError("FATAL: guest_additions.autorun entry '%s' exceeds %u characters",
+                                            s.c_str(), CerfVirt::kArEntryWchars - 1);
             }
             LOG(GuestAdditions, "autorun[%u] = '%s'", (unsigned)entries_.size(), s.c_str());
             entries_.push_back(std::move(w));

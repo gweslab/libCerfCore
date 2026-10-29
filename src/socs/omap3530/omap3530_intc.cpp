@@ -1,6 +1,7 @@
 #include "omap3530_intc.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/arm/arm_jit.h>
@@ -62,9 +63,8 @@ bool Omap3530Intc::HasPendingUnmasked() const {
 
 void Omap3530Intc::AssertIrq(int source_bit) {
     if (source_bit < 0 || source_bit >= static_cast<int>(kSourceCount)) {
-        LOG(Caution, "Omap3530Intc::AssertIrq: source_bit %d out of "
-                "range - OMAP3 has 96 IRQ sources\n", source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Omap3530Intc::AssertIrq: source_bit %d out of "
+                              "range - OMAP3 has 96 IRQ sources", source_bit);
     }
 
     {
@@ -73,10 +73,9 @@ void Omap3530Intc::AssertIrq(int source_bit) {
         /* FIQ routing not modelled - CE programs ILR[N].bit0 = 0 for
            every source. Halt loudly if a source is configured FIQ. */
         if (ilr_[source_bit] & 0x1u) {
-            LOG(Caution, "Omap3530Intc::AssertIrq: source %d routed to "
-                    "FIQ (ILR[%d].bit0 set) - FIQ delivery not modelled\n",
-                    source_bit, source_bit);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Omap3530Intc::AssertIrq: source %d routed to "
+                                  "FIQ (ILR[%d].bit0 set) - FIQ delivery not modelled",
+                                  source_bit, source_bit);
         }
 
         const uint32_t bank     = source_bit / kBitsPerBank;
@@ -88,9 +87,8 @@ void Omap3530Intc::AssertIrq(int source_bit) {
 
 void Omap3530Intc::DeAssertIrq(int source_bit) {
     if (source_bit < 0 || source_bit >= static_cast<int>(kSourceCount)) {
-        LOG(Caution, "Omap3530Intc::DeAssertIrq: source_bit %d out of "
-                "range - OMAP3 has 96 IRQ sources\n", source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Omap3530Intc::DeAssertIrq: source_bit %d out of "
+                              "range - OMAP3 has 96 IRQ sources", source_bit);
     }
 
     std::lock_guard<std::mutex> lk(state_mutex_);
@@ -102,10 +100,9 @@ void Omap3530Intc::DeAssertIrq(int source_bit) {
 }
 
 void Omap3530Intc::AssertSubIrq(int /*main_source_bit*/, int /*sub_source_bit*/) {
-    LOG(Caution, "Omap3530Intc::AssertSubIrq: OMAP3530 INTC has no "
-            "sub-interrupt register layer; caller is using the wrong "
-            "model for this SoC family\n");
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("Omap3530Intc::AssertSubIrq: OMAP3530 INTC has no "
+                          "sub-interrupt register layer; caller is using the wrong "
+                          "model for this SoC family");
 }
 
 uint32_t Omap3530Intc::ReadReg(uint32_t off) {
@@ -129,10 +126,9 @@ uint32_t Omap3530Intc::ReadReg(uint32_t off) {
         case kBankPendingIrq: return (b.itr | b.isr) & ~b.mir;
         case kBankPendingFiq: return 0;
         }
-        LOG(Caution, "Omap3530Intc::ReadReg: bank %d offset 0x%X "
-                "outside the documented per-bank slot set\n",
-                bank_idx, bank_off);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Omap3530Intc::ReadReg: bank %d offset 0x%X "
+                              "outside the documented per-bank slot set",
+                              bank_idx, bank_off);
     }
 
     switch (off) {
@@ -154,9 +150,8 @@ uint32_t Omap3530Intc::ReadReg(uint32_t off) {
     case kOffFiqPriority: return 0xFFu;
     case kOffThreshold:   return threshold_;
     }
-    LOG(Caution, "Omap3530Intc::ReadReg: offset 0x%X is outside the "
-            "documented OMAP_INTC_MPU_REGS layout\n", off);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("Omap3530Intc::ReadReg: offset 0x%X is outside the "
+                          "documented OMAP_INTC_MPU_REGS layout", off);
 }
 
 void Omap3530Intc::WriteReg(uint32_t off, uint32_t value) {
@@ -182,10 +177,9 @@ void Omap3530Intc::WriteReg(uint32_t off, uint32_t value) {
                 case kBankPendingIrq: /* read-only */                   break;
                 case kBankPendingFiq: /* read-only */                   break;
                 default:
-                    LOG(Caution, "Omap3530Intc::WriteReg: bank %d "
-                            "offset 0x%X outside documented slots\n",
-                            bank_idx, bank_off);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                    emu_.Get<Fatal>().Die("Omap3530Intc::WriteReg: bank %d "
+                                          "offset 0x%X outside documented slots",
+                                          bank_idx, bank_off);
                 }
             } else {
                 switch (off) {
@@ -206,10 +200,9 @@ void Omap3530Intc::WriteReg(uint32_t off, uint32_t value) {
                                       reeval_needed = true;
                                       break;
                 default:
-                    LOG(Caution, "Omap3530Intc::WriteReg: offset 0x%X "
-                            "is outside the documented "
-                            "OMAP_INTC_MPU_REGS layout\n", off);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                    emu_.Get<Fatal>().Die("Omap3530Intc::WriteReg: offset 0x%X "
+                                          "is outside the documented "
+                                          "OMAP_INTC_MPU_REGS layout", off);
                 }
             }
         }

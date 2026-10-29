@@ -3,6 +3,7 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../peripherals/peripheral_dispatcher.h"
@@ -229,9 +230,8 @@ void Imx51Nfc::ExecuteLaunch(uint32_t value) {
                 seq_cache_off_ = 0;
                 break;
             default:
-                LOG(Caution, "Imx51Nfc: unhandled FCMD NAND_CMD=0x%02X (LAUNCH 0x%08X)\n",
-                    nand_cmd_, value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("Imx51Nfc: unhandled FCMD NAND_CMD=0x%02X (LAUNCH 0x%08X)",
+                                      nand_cmd_, value);
         }
         int_pending_ = true;
         return;
@@ -248,9 +248,8 @@ void Imx51Nfc::ExecuteLaunch(uint32_t value) {
         else if (fdo == kFdoDataOutput) ReadPage();
         else if (fdo == kFdoStatus)     ReadStatus();
         else {
-            LOG(Caution, "Imx51Nfc: unhandled FDO field %u in LAUNCH_NFC 0x%08X (cmd=0x%02X)\n",
-                fdo, value, nand_cmd_);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Imx51Nfc: unhandled FDO field %u in LAUNCH_NFC 0x%08X (cmd=0x%02X)",
+                                  fdo, value, nand_cmd_);
         }
         int_pending_ = true;
         return;
@@ -271,9 +270,8 @@ void Imx51Nfc::ExecuteLaunch(uint32_t value) {
         return;
     }
     if (value & (kLaunchFdiMask | kLaunchAutoMask)) {
-        LOG(Caution, "Imx51Nfc: unhandled LAUNCH_NFC 0x%08X (cmd=0x%02X)\n",
-            value, nand_cmd_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Imx51Nfc: unhandled LAUNCH_NFC 0x%08X (cmd=0x%02X)",
+                              value, nand_cmd_);
     }
     int_pending_ = true;
 }
@@ -305,9 +303,8 @@ void Imx51Nfc::AutoRead() {
        lands at the AXI buffer base; a non-000 RBA would need a sub-buffer offset. */
     const uint32_t iterations = (cfg1_ >> 8) & 0xFu;
     if (iterations != 0) {
-        LOG(Caution, "Imx51Nfc: AUTO_READ NUM_OF_ITERATIONS=%u unsupported (cfg1=0x%08X)\n",
-            iterations, cfg1_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Imx51Nfc: AUTO_READ NUM_OF_ITERATIONS=%u unsupported (cfg1=0x%08X)",
+                              iterations, cfg1_);
     }
     /* AUTO_READ issues the address phases (MCIMX51RM §45.9.1.2), latching the NAND
        address; a later manual FDO data-output (FDO=001) outputs that same latched

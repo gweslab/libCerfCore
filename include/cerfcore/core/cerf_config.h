@@ -7,6 +7,7 @@ struct CerfConfig {
     const char* device_override = nullptr;
 
     const char* log_file = nullptr;
+    const char* crash_log_file = nullptr;
     bool flush_outputs = false;
     uint64_t no_log_mask = 0;
     int timeout_seconds = 0;

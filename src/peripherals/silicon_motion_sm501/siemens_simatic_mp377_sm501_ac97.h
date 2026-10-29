@@ -163,7 +163,7 @@ private:
     DeferredService<SiemensSimaticMp377Sm501AudioMcu> mcu_{emu_};
     GuestCycleClock* clock_ = nullptr;
     GuestCycleClock::Event* frame_event_ = nullptr;
-    RatedTickCount frames_;
+    RatedTickCount frames_{emu_};
     uint64_t next_frame_ = 0u;
     uint32_t control_ = 0;
     uint32_t tx_slot0_ = 0;

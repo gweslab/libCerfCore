@@ -5,6 +5,7 @@
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
@@ -29,8 +30,7 @@ void CerfVirtCursor::OnReady() {
     mem.AddRegion(pa, CerfVirt::kCurStageSize, MemoryKind::kRam);
     stage_ = mem.TryTranslate(pa);
     if (!stage_) {
-        LOG(Cerf, "[CerfVirtCursor] stage region at PA 0x%08X is not backed\n", pa);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[CerfVirtCursor] stage region at PA 0x%08X is not backed", pa);
     }
     emu_.Get<EngineBridge>().Guest().SetDmaRegion(pa, CerfVirt::kCurStageSize);
 }

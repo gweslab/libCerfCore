@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdarg>
@@ -121,7 +122,29 @@ namespace Log {
 
     void Print(Cat cat, const char* fmt, ...);
 
+    struct CautionRing {
+        static constexpr size_t kLines     = 12;
+        static constexpr size_t kLineBytes = 256;
+
+        char   lines[kLines][kLineBytes] = {};
+        size_t next                      = 0;
+        size_t count                     = 0;
+    };
+
+    class CautionScope {
+    public:
+        explicit CautionScope(CautionRing& ring);
+        explicit CautionScope(std::nullptr_t);
+        ~CautionScope();
+        CautionScope(const CautionScope&)            = delete;
+        CautionScope& operator=(const CautionScope&) = delete;
+
+    private:
+        CautionRing* previous_;
+    };
+
     void CopyRecentCautionsPostFreeze(char* out, size_t out_size);
+    void CopyCautions(const CautionRing& ring, char* out, size_t out_size);
 
     /* Comma-separated slugs, plus the special tokens "ALL" and "NONE".
        Unknown tokens warn on stderr and contribute nothing to the mask. */
@@ -136,17 +159,9 @@ namespace Log {
     bool IsEmergencyActive();
     void Emergency(const char* fmt, ...);
     void EmergencyWriteBytes(const char* buf, size_t len);
-    void EmergencyPrintNativeStack(const char* tag);
     void EmergencyDumpAllThreadStacks();
 
-    /* Installs a top-level SEH filter that runs the Emergency* crash dump for
-       exceptions outside any CerfFatalExit / JIT __except - e.g. an access
-       violation during service teardown, which otherwise terminates the
-       process with no cerf.crash.log. Call once, early in main. */
     void InstallCrashHandler();
-
-    using CrashPresenter = void (*)(const char* log_file);
-    void SetCrashPresenter(CrashPresenter presenter);
 
 }  // namespace Log
 
@@ -160,13 +175,9 @@ namespace Log {
 } while (0)
 
 inline constexpr int CERF_FATAL_RUNTIME_ERROR = 1;
-/* User/environment condition (unsupported board, no ROM installed), not a
-   CERF bug: CerfFatalExit skips the crash-dump path for this code. */
 inline constexpr int CERF_FATAL_USER_ERROR    = 2;
 inline constexpr int CERF_FATAL_NORMAL_EXIT   = 0;
 /* GNU coreutils timeout(1), EXIT STATUS: 124 if the command times out. */
 inline constexpr int CERF_FATAL_TIMEOUT       = 124;
-
-[[noreturn]] void CerfFatalExit(int code = CERF_FATAL_RUNTIME_ERROR);
 
 }

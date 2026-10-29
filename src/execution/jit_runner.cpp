@@ -2,6 +2,7 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include "../core/rate_probe.h"
 #include "../core/timestamp_counter.h"
@@ -32,8 +33,10 @@ JitRunner::~JitRunner() {
 void JitRunner::Start() {
     if (started_) return;
     for (auto& h : pre_start_hooks_) h();
-    started_ = true;
-    thread_ = std::thread([this] { RunLoop(); });
+    started_     = true;
+    Fatal& fatal = emu_.Get<Fatal>();
+    thread_      = emu_.Get<InstanceThreads>().Start([this, &fatal] { RunGuest(fatal); },
+                                                     [this, &fatal] { FinishRun(fatal); });
 }
 
 void JitRunner::RegisterPreStartHook(std::function<void()> fn) {
@@ -56,7 +59,7 @@ void JitRunner::RequestStop() {
     {
         std::unique_lock<std::mutex> lk(pause_mutex_);
         stop_requested_.store(true, std::memory_order_release);
-        PublishHostChainExit(lk);
+        if (started_.load(std::memory_order_acquire)) PublishHostChainExit(lk);
     }
     pause_cv_.notify_all();
 }
@@ -80,11 +83,17 @@ void JitRunner::Resume() {
     pause_cv_.notify_all();
 }
 
-void JitRunner::RunLoop() {
-    LOG(Jit, "JitRunner::RunLoop: entered, resolving engine\n");
+void JitRunner::FinishRun(Fatal& fatal) {
+    fatal.SetLiveEngine(nullptr);
+    LOG(Boot, "JitRunner: stop requested; thread exiting\n");
+    stopped_.store(true, std::memory_order_release);
+    { std::lock_guard<std::mutex> lk(pause_mutex_); }
+    pause_cv_.notify_all();
+}
+
+void JitRunner::RunGuest(Fatal& fatal) {
     auto& bridge = emu_.Get<EngineBridge>();
     auto& engine = bridge.Guest();
-    auto& fatal  = emu_.Get<Fatal>();
     fatal.SetLiveEngine(&engine);
     LOG(Jit, "JitRunner::RunLoop: engine resolved, entering loop\n");
 
@@ -155,12 +164,6 @@ void JitRunner::RunLoop() {
                 engine.Pc());
         }
     }
-
-    fatal.SetLiveEngine(nullptr);
-    LOG(Boot, "JitRunner: stop requested; thread exiting\n");
-    stopped_.store(true, std::memory_order_release);
-    { std::lock_guard<std::mutex> lk(pause_mutex_); }
-    pause_cv_.notify_all();
 }
 
 }

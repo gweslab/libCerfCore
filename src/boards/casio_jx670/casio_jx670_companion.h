@@ -57,10 +57,10 @@ private:
     void WriteSysCtrl(uint32_t off, uint32_t value, uint32_t keep_mask);
     void UpdateIrqLine();
 
-    CasioJx670Audio audio_;
+    CasioJx670Audio audio_{emu_};
     CasioJx670Display display_;
     CasioJx670Eeprom eeprom_;
-    CasioJx670Modem modem_;
+    CasioJx670Modem* modem_ = nullptr;
     CasioJx670Touch touch_;
 
     /* nk_main_kernel.exe sub_9F03C104 @0x9F03C120, sub_9F03C140 @0x9F03C160,

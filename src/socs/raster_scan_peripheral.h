@@ -60,7 +60,7 @@ private:
 
     GuestCycleClock*          clock_ = nullptr;
     GuestCycleClock::Event*   event_ = nullptr;
-    RasterScanClock           scan_;
+    RasterScanClock           scan_{emu_};
     RasterScanClock::Position held_at_;
     uint64_t edges_done_  = 0;
     State    state_       = State::Stopped;

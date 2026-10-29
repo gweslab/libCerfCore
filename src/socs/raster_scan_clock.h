@@ -4,6 +4,7 @@
 #include "rated_tick_count.h"
 
 #include <cstdint>
+#include <type_traits>
 
 namespace cerfcore {
 
@@ -20,6 +21,11 @@ class BasicRasterScanClock {
 public:
     using Frame    = RasterFrame;
     using Position = TickPosition;
+
+    BasicRasterScanClock() = default;
+    explicit BasicRasterScanClock(CerfEmulator& emu)
+        requires std::is_constructible_v<Units, CerfEmulator&>
+        : ticks_(emu) {}
 
     bool Start(uint64_t cycle, GuestCycleClock::Rate core, GuestCycleClock::Rate tick,
                const Frame& frame);

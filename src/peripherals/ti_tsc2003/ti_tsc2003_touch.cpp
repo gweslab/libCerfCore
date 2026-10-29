@@ -3,6 +3,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/ford_sync_gen2/ford_sync_gen2_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 
 #include <utility>
@@ -62,16 +63,14 @@ void Tsc2003Touch::WriteCommand(uint8_t cmd) {
     default:
         /* touch_tsc2003.dll issues only C in {0x0,0xA,0xC,0xD}; a temp/batt/aux/Z
            conversion is unmodeled - fail loud so it self-reveals. */
-        LOG(Caution, "Tsc2003Touch: unmodeled command 0x%02X (C=0x%X)\n", cmd, c);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Tsc2003Touch: unmodeled command 0x%02X (C=0x%X)", cmd, c);
     }
     UpdatePenIrq();
 }
 
 uint8_t Tsc2003Touch::ReadResultByte() {
     if (!result_valid_) {
-        LOG(Caution, "Tsc2003Touch: read with no pending X/Y conversion\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Tsc2003Touch: read with no pending X/Y conversion");
     }
     /* 12-bit result, MSB-first; the driver recombines (byte0<<4)|(byte1>>4)
        (sub_C1471EA0): byte0 = D[11:4], byte1 = D[3:0] in the top nibble. */
@@ -81,8 +80,7 @@ uint8_t Tsc2003Touch::ReadResultByte() {
     } else if (read_idx_ == 1u) {
         out = static_cast<uint8_t>((result_ & 0x0Fu) << 4);
     } else {
-        LOG(Caution, "Tsc2003Touch: read byte %u beyond the 2-byte result\n", read_idx_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Tsc2003Touch: read byte %u beyond the 2-byte result", read_idx_);
     }
     ++read_idx_;
     return out;

@@ -1,6 +1,7 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../cpu/vr5500/vr5500_id.h"
@@ -85,9 +86,8 @@ private:
         }
         const char* which = nullptr;
         if (IsActiveBlock(off, &which)) {
-            LOG(Caution, "Vrc5477SysCon: %s read off=0x%03X not implemented "
-                "(must be a full peripheral)\n", which, off);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Vrc5477SysCon: %s read off=0x%03X not implemented "
+                                  "(must be a full peripheral)", which, off);
         }
         T v{};
         std::memcpy(&v, &regs_[off], sizeof(T));
@@ -113,10 +113,9 @@ private:
         }
         const char* which = nullptr;
         if (IsActiveBlock(off, &which)) {
-            LOG(Caution, "Vrc5477SysCon: %s write off=0x%03X val=0x%08X not "
-                "implemented (must be a full peripheral)\n", which, off,
-                static_cast<uint32_t>(v));
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Vrc5477SysCon: %s write off=0x%03X val=0x%08X not "
+                                  "implemented (must be a full peripheral)", which, off,
+                                  static_cast<uint32_t>(v));
         }
         std::memcpy(&regs_[off], &v, sizeof(T));
     }

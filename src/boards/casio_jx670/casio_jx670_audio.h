@@ -21,6 +21,8 @@ class StateReader;
    0x0A000000). */
 class CasioJx670Audio {
 public:
+    explicit CasioJx670Audio(CerfEmulator& emu) : frames_(emu) {}
+
     void Init(CerfEmulator& emu, std::function<void()> on_irq_change);
 
     bool TryReadHalf (uint32_t off, uint16_t& out);

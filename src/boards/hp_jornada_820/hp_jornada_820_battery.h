@@ -34,7 +34,7 @@ private:
     GuestCycleClock::Event* packet_event_  = nullptr;
     Sa11xxIntc*             intc_          = nullptr;
     Sa11xxSp1Uart*          sp1_           = nullptr;
-    RatedTickCount          packets_;
+    RatedTickCount          packets_{emu_};
     uint64_t                next_packet_   = 0;
 };
 

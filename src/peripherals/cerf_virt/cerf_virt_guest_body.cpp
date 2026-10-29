@@ -8,6 +8,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
@@ -61,22 +62,20 @@ private:
     void LoadBody() {
         const std::string path = emu_.Get<GuestAdditionsBinaries>().BodyPath();
         if (!TryReadHostFileBytes(path, body_)) {
-            LOG(Caution, "guest body: cannot open %s - cerf_guest.dll must be "
-                    "built and staged before boot\n", path.c_str());
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("guest body: cannot open %s - cerf_guest.dll must be "
+                                  "built and staged before boot", path.c_str());
         }
 
         emu_.Get<GuestAdditionsBinaries>().StampWindowBase(body_);
 
         const uint32_t need = MmioSize();
         if (need > CerfVirt::kGuestBodyMaxSize) {
-            LOG(Caution, "guest body: %s needs 0x%X bytes but the body window "
-                    "is only 0x%X (0x%08X..0x%08X) - raise kDmaArenaOffset "
-                    "in cerf_virt_addr_map.h\n",
-                path.c_str(), need, CerfVirt::kGuestBodyMaxSize,
-                MmioBase(),
-                MmioBase() + CerfVirt::kGuestBodyMaxSize);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("guest body: %s needs 0x%X bytes but the body window "
+                                  "is only 0x%X (0x%08X..0x%08X) - raise kDmaArenaOffset "
+                                  "in cerf_virt_addr_map.h",
+                                  path.c_str(), need, CerfVirt::kGuestBodyMaxSize,
+                                  MmioBase(),
+                                  MmioBase() + CerfVirt::kGuestBodyMaxSize);
         }
         LOG(GuestAdditions, "guest body: serving %s (%zu bytes) at PA 0x%08X\n",
             path.c_str(), body_.size(), MmioBase());

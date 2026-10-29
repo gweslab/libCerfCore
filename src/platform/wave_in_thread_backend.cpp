@@ -1,8 +1,10 @@
 #include "wave_in_thread_backend.h"
 
+#include <cerfcore/core/instance_threads.h>
+
 namespace cerfcore {
 
-void WaveInThreadBackend::Begin() { thread_ = std::thread([this] { ThreadMain(); }); }
+void WaveInThreadBackend::Begin() { thread_ = threads_->Start([this] { ThreadMain(); }); }
 
 void WaveInThreadBackend::Stop() {
     {

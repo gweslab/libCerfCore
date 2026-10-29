@@ -12,6 +12,7 @@
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 
@@ -64,9 +65,8 @@ private:
         uint8_t* p = emu_.Get<CerfVirtDmaArena>().At(
             off, (uint32_t)sizeof(CerfVirt::CerfBltDescriptor));
         if (!p) {
-            LOG(Cerf, "[CerfVirtGpeCmd] blit descriptor offset 0x%X outside arena\n",
-                off);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[CerfVirtGpeCmd] blit descriptor offset 0x%X outside arena",
+                                  off);
         }
         const CerfVirt::CerfBltDescriptor& d =
             *reinterpret_cast<const CerfVirt::CerfBltDescriptor*>(p);
@@ -82,9 +82,8 @@ private:
         uint8_t* p = emu_.Get<CerfVirtDmaArena>().At(
             off, (uint32_t)sizeof(CerfVirt::CerfGradDescriptor));
         if (!p) {
-            LOG(Cerf, "[CerfVirtGpeCmd] gradient descriptor offset 0x%X outside arena\n",
-                off);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[CerfVirtGpeCmd] gradient descriptor offset 0x%X outside arena",
+                                  off);
         }
         const CerfVirt::CerfGradDescriptor& d =
             *reinterpret_cast<const CerfVirt::CerfGradDescriptor*>(p);
@@ -100,9 +99,8 @@ private:
         uint8_t* p = emu_.Get<CerfVirtDmaArena>().At(
             off, (uint32_t)sizeof(CerfVirt::CerfLineDescriptor));
         if (!p) {
-            LOG(Cerf, "[CerfVirtGpeCmd] line descriptor offset 0x%X outside arena\n",
-                off);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[CerfVirtGpeCmd] line descriptor offset 0x%X outside arena",
+                                  off);
         }
         const CerfVirt::CerfLineDescriptor& d =
             *reinterpret_cast<const CerfVirt::CerfLineDescriptor*>(p);

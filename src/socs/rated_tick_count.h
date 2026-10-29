@@ -4,6 +4,7 @@
 #include "cycle_anchored_counter.h"
 
 #include <cstdint>
+#include <type_traits>
 
 namespace cerfcore {
 
@@ -17,6 +18,11 @@ template <class Units>
 class BasicRatedTickCount {
 public:
     using Position = TickPosition;
+
+    BasicRatedTickCount() = default;
+    explicit BasicRatedTickCount(CerfEmulator& emu)
+        requires std::is_constructible_v<Units, CerfEmulator&>
+        : ctr_(emu) {}
 
     bool SetRate(GuestCycleClock::Rate core, GuestCycleClock::Rate tick);
     void Start(uint64_t cycle);

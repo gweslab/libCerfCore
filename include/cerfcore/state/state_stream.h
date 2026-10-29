@@ -51,9 +51,11 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+class CerfEmulator;
+
 class StateWriter {
 public:
-    explicit StateWriter(const std::string& path);
+    StateWriter(CerfEmulator& emu, const std::string& path);
     ~StateWriter();
 
     StateWriter(const StateWriter&)            = delete;
@@ -93,6 +95,7 @@ private:
     void PatchAt(uint64_t offset, const void* src, size_t n);
     void Fail(const char* what, uint32_t gle);
 
+    CerfEmulator&           emu_;
     std::string             final_path_;
     std::string             temp_path_;
     host_platform::HostFile file_;
@@ -105,7 +108,7 @@ private:
 
 class StateReader {
 public:
-    explicit StateReader(const std::string& path);
+    StateReader(CerfEmulator& emu, const std::string& path);
 
     StateReader(const StateReader&)            = delete;
     StateReader& operator=(const StateReader&) = delete;
@@ -152,6 +155,7 @@ private:
     void ExpectTag(uint8_t kind, const char* name, uint64_t size);
     void SeekTo(uint64_t offset);
 
+    CerfEmulator&           emu_;
     host_platform::HostFile file_;
     uint64_t           pos_        = 0;
     uint64_t           file_size_  = 0;

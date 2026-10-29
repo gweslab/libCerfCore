@@ -10,9 +10,9 @@ WaveOutSink::WaveOutSink() : backend_(WaveOutBackend::Create()) {}
 
 WaveOutSink::~WaveOutSink() { backend_->Stop(); }
 
-void WaveOutSink::Start(StartHandler on_start, CommandHandler on_command, DoneHandler on_done,
-                        const char* log_tag) {
-    backend_->Start(std::move(on_start), std::move(on_command), std::move(on_done), log_tag);
+void WaveOutSink::Start(Fatal& fatal, InstanceThreads& threads, StartHandler on_start,
+                        CommandHandler on_command, DoneHandler on_done, const char* log_tag) {
+    backend_->Start(fatal, threads, std::move(on_start), std::move(on_command), std::move(on_done), log_tag);
 }
 
 void WaveOutSink::Stop() { backend_->Stop(); }

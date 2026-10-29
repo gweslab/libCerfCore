@@ -6,7 +6,8 @@ namespace cerfcore {
 
 void WaveOutQueuedBackend::Begin(StartHandler on_start, CommandHandler on_command, DoneHandler on_done) {
     StartWorker();
-    callbacks_.Start(std::move(on_start), std::move(on_command), std::move(on_done), [this] { RetryOpen(); });
+    callbacks_.Start(*fatal_, *threads_, std::move(on_start), std::move(on_command), std::move(on_done),
+                     [this] { RetryOpen(); });
 }
 
 void WaveOutQueuedBackend::PostCommand(uint32_t command) { callbacks_.PostCommand(command); }

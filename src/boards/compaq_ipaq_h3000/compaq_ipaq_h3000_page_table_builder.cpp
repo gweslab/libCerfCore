@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "compaq_ipaq_h3000_family_id.h"
@@ -75,9 +76,8 @@ uint32_t CompaqIpaqH3000PageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "CompaqIpaqH3000PageTableBuilder::VaToPa: VA 0x%08X outside "
-            "every OAT band (nk.exe + 0x13F4)\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("CompaqIpaqH3000PageTableBuilder::VaToPa: VA 0x%08X outside "
+                          "every OAT band (nk.exe + 0x13F4)", va);
 }
 
 std::vector<DramRegion> CompaqIpaqH3000PageTableBuilder::CachedDramRegions() const {

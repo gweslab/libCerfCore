@@ -312,7 +312,7 @@ private:
 
     const FreescaleTimerClocks* clocks_        = nullptr;
     GuestCycleClock::Event*     timeout_event_ = nullptr;
-    CycleAnchoredCounter        ckil_;
+    CycleAnchoredCounter        ckil_{emu_};
     bool                        service_armed_  = false;
     bool                        suspended_      = false;
     uint32_t                    suspend_count_  = 0u;

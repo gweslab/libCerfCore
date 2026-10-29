@@ -9,11 +9,13 @@
 #include "silent_block_pacer.h"
 #include "wave_winmm_format.h"
 
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <mutex>
 
@@ -87,14 +89,14 @@ WinmmWaveOutBackend::~WinmmWaveOutBackend() {
 }
 
 void WinmmWaveOutBackend::Begin(StartHandler on_start, CommandHandler on_command, DoneHandler on_done) {
-    thread_.Start([this] { return CreateSilentTimer(); }, on_start, [this, on_done] { DeliverDueSilent(on_done); },
+    thread_.Start(*threads_, [this] { return CreateSilentTimer(); }, on_start,
+                  [this, on_done] { DeliverDueSilent(on_done); },
                   [this, on_command, on_done](const MSG& msg) { OnThreadMessage(msg, on_command, on_done); });
 }
 
 HANDLE WinmmWaveOutBackend::CreateSilentTimer() {
     if (!silent_timer_.Create()) {
-        LOG(Caution, "%s: CreateWaitableTimer failed; block pacing has no clock\n", log_tag_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal_->Die("%s: CreateWaitableTimer failed; block pacing has no clock", log_tag_);
     }
     return static_cast<HANDLE>(silent_timer_.NativeHandle());
 }
@@ -125,18 +127,16 @@ void WinmmWaveOutBackend::OnDone(WAVEHDR* hdr, const DoneHandler& on_done) {
 void WinmmWaveOutBackend::ArmSilentTimer(Clock::duration delay) {
     const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(delay).count();
     if (!silent_timer_.Arm(ns)) {
-        LOG(Caution, "%s: SetWaitableTimer failed; a block would never be reported\n", log_tag_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal_->Die("%s: SetWaitableTimer failed; a block would never be reported", log_tag_);
     }
 }
 
 void WinmmWaveOutBackend::QueueSilentLocked(WAVEHDR* hdr) {
     if (!hdr) {
-        LOG(Caution, "%s: silent completion for a null header\n", log_tag_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal_->Die("%s: silent completion for a null header", log_tag_);
     }
     const WaveOutFormat& format = policy_.Requested();
-    if (silent_.Queue(reinterpret_cast<uintptr_t>(hdr), hdr->dwBufferLength, format.rate_hz,
+    if (silent_.Queue(*fatal_, reinterpret_cast<uintptr_t>(hdr), hdr->dwBufferLength, format.rate_hz,
                       format.channels, format.bits, log_tag_)) {
         ArmSilentTimer(silent_.NextDue() - Clock::now());
     }
@@ -269,8 +269,7 @@ void WinmmWaveOutBackend::PlayHeader(WAVEHDR* hdr) {
             waveOutUnprepareHeader(out_device_, hdr, sizeof(WAVEHDR));
         }
         if (r != MMSYSERR_NODRIVER) {
-            LOG(Caution, "%s: %s failed mmresult=%u\n", log_tag_, call, r);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            fatal_->Die("%s: %s failed mmresult=%u", log_tag_, call, r);
         }
         LoseDeviceLocked(call, r);
     }

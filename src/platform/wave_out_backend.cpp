@@ -4,8 +4,10 @@
 
 namespace cerfcore {
 
-void WaveOutBackend::Start(StartHandler on_start, CommandHandler on_command, DoneHandler on_done,
-                           const char* log_tag) {
+void WaveOutBackend::Start(Fatal& fatal, InstanceThreads& threads, StartHandler on_start,
+                           CommandHandler on_command, DoneHandler on_done, const char* log_tag) {
+    fatal_   = &fatal;
+    threads_ = &threads;
     log_tag_ = log_tag;
     Begin(std::move(on_start), std::move(on_command), std::move(on_done));
 }

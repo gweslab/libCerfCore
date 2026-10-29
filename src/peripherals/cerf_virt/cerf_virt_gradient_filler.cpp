@@ -21,6 +21,7 @@ bool CerfVirtGradientFiller::ShouldRegister() {
 void CerfVirtGradientFiller::OnReady() {
     fb_  = &emu_.Get<CerfVirtFramebuffer>();
     arena_  = &emu_.Get<CerfVirtDmaArena>();
+    fatal_  = &emu_.Get<Fatal>();
 }
 
 namespace {
@@ -34,23 +35,20 @@ int64_t GradFloorDiv(int64_t num, int64_t span) {
 
 bool CerfVirtGradientFiller::Execute(const CerfGradDescriptor& g) {
     if (g.magic != kCerfGradMagic) {
-        LOG(Cerf, "[CerfVirtGradientFiller] corrupt gradient magic 0x%08X\n", g.magic);
-        CerfFatalExit();
+        fatal_->Die("[CerfVirtGradientFiller] corrupt gradient magic 0x%08X", g.magic);
     }
     const int32_t span = g.end_coord - g.start_coord;
     if (span <= 0) return true;
 
     const uint32_t d_bits = BltPixelOps::FormatBits(g.dst.format);
     if (d_bits <= 8u) {
-        LOG(Cerf, "[CerfVirtGradientFiller] UNIMPLEMENTED indexed/sub-byte dst "
-                  "format %u (%u bpp)\n", g.dst.format, d_bits);
-        CerfFatalExit();
+        fatal_->Die("[CerfVirtGradientFiller] UNIMPLEMENTED indexed/sub-byte dst "
+                    "format %u (%u bpp)", g.dst.format, d_bits);
     }
     uint32_t d_masks[3], d_bpp = 0, d_shift[3];
     if (!ResolveMasks(g.dst, d_masks, &d_bpp)) {
-        LOG(Cerf, "[CerfVirtGradientFiller] UNIMPLEMENTED dst format %u (%u bpp)\n",
-            g.dst.format, d_bits);
-        CerfFatalExit();
+        fatal_->Die("[CerfVirtGradientFiller] UNIMPLEMENTED dst format %u (%u bpp)",
+                    g.dst.format, d_bits);
     }
     for (int i = 0; i < 3; ++i) d_shift[i] = 32u - BltPixelOps::HighBitPos(d_masks[i]);
 
@@ -59,11 +57,10 @@ bool CerfVirtGradientFiller::Execute(const CerfGradDescriptor& g) {
 
     Surface dst;
     if (!ResolveSurface(g.dst, d_bpp, &dst)) {
-        LOG(Cerf, "[CerfVirtGradientFiller] dst surface unresolvable: buffer=0x%08X "
-                  "is_fb_pa=%u fmt=%u stride=%d stage_off=0x%08X stage_len=%u\n",
-            g.dst.buffer, g.dst.is_fb_pa, g.dst.format, g.dst.stride,
-            g.dst.stage_off, g.dst.stage_len);
-        CerfFatalExit();
+        fatal_->Die("[CerfVirtGradientFiller] dst surface unresolvable: buffer=0x%08X "
+                    "is_fb_pa=%u fmt=%u stride=%d stage_off=0x%08X stage_len=%u",
+                    g.dst.buffer, g.dst.is_fb_pa, g.dst.format, g.dst.stride,
+                    g.dst.stage_off, g.dst.stage_len);
     }
 
     int64_t base[4], step[4];
@@ -104,10 +101,10 @@ bool CerfVirtGradientFiller::Execute(const CerfGradDescriptor& g) {
             uint32_t run = 0;
             uint8_t* dp = PixelPtr(dst, x, y, d_bpp, &run);
             if (!dp) {
-                LOG(Cerf, "[CerfVirtGradientFiller] dst pixel unaddressable at x=%d y=%d: "
-                          "buffer=0x%08X is_fb_pa=%u stage_off=0x%08X stage_len=%u\n",
-                    x, y, g.dst.buffer, g.dst.is_fb_pa, g.dst.stage_off, g.dst.stage_len);
-                CerfFatalExit();
+                fatal_->Die("[CerfVirtGradientFiller] dst pixel unaddressable at x=%d y=%d: "
+                            "buffer=0x%08X is_fb_pa=%u stage_off=0x%08X stage_len=%u",
+                            x, y, g.dst.buffer, g.dst.is_fb_pa, g.dst.stage_off,
+                            g.dst.stage_len);
             }
             if (run >= d_bpp) BltPixelOps::WritePixel(dp, d_bpp, px);
             else              WriteStraddlePixel(dst, x, y, d_bpp, px);

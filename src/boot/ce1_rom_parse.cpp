@@ -5,9 +5,9 @@
 #include "rom_image_parse.h"
 
 #include <cerfcore/core/byte_order.h>
-#include <cerfcore/core/log.h>
 
 #include <algorithm>
+#include <string>
 
 namespace cerfcore {
 
@@ -86,17 +86,18 @@ bool ValidateCe1Xip(std::span<const uint8_t> flat,
     return true;
 }
 
-void ParseCe1ModulesAndFiles(std::span<const uint8_t> flat,
+bool ParseCe1ModulesAndFiles(std::span<const uint8_t> flat,
                              size_t                   romhdr_off,
                              const ParsedROMHDR&      romhdr,
-                             ParsedTOC&               toc) {
+                             ParsedTOC&               toc,
+                             std::string&             error) {
     size_t off = romhdr_off + kRomHdrSize;
 
     toc.modules.reserve(romhdr.nummods);
     for (uint32_t i = 0; i < romhdr.nummods; ++i, off += kCe1TocEntrySize) {
         if (off + kCe1TocEntrySize > flat.size()) {
-            LOG(Caution, "CE1 TOCentry %u runs past the ROM image\n", i);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            error = "CE1 TOCentry " + std::to_string(i) + " runs past the ROM image";
+            return false;
         }
         const uint8_t* p = flat.data() + off;
 
@@ -115,8 +116,8 @@ void ParseCe1ModulesAndFiles(std::span<const uint8_t> flat,
     toc.files.reserve(romhdr.numfiles);
     for (uint32_t i = 0; i < romhdr.numfiles; ++i, off += kCe1FileEntrySize) {
         if (off + kCe1FileEntrySize > flat.size()) {
-            LOG(Caution, "CE1 FILESentry %u runs past the ROM image\n", i);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            error = "CE1 FILESentry " + std::to_string(i) + " runs past the ROM image";
+            return false;
         }
         const uint8_t* p = flat.data() + off;
 
@@ -130,11 +131,13 @@ void ParseCe1ModulesAndFiles(std::span<const uint8_t> flat,
         ReadInlineName(flat, off + kCe1FileOffName, f.lpszFileName);
         toc.files.push_back(std::move(f));
     }
+    return true;
 }
 
 bool ResolveCe1Xips(std::span<const uint8_t>      flat,
                     std::vector<ParsedXipRegion>& out_xips,
-                    uint32_t&                     out_base_va) {
+                    uint32_t&                     out_base_va,
+                    std::string&                  error) {
     const std::vector<Ce1RomhdrHit> cands = FindAllCe1Romhdrs(flat);
 
     uint32_t base_va   = 0;
@@ -153,7 +156,7 @@ bool ResolveCe1Xips(std::span<const uint8_t>      flat,
         xip.toc.romhdr    = c.hdr;
         xip.toc.romhdr_va = base_va + uint32_t(c.off);
         xip.load_offset   = base_va;
-        ParseCe1ModulesAndFiles(flat, c.off, c.hdr, xip.toc);
+        if (!ParseCe1ModulesAndFiles(flat, c.off, c.hdr, xip.toc, error)) return false;
         out_xips.push_back(std::move(xip));
     }
     if (out_xips.empty()) return false;

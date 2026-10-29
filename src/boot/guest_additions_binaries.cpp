@@ -3,6 +3,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../cpu/arm_processor_config.h"
 #include <cerfcore/boards/board_context.h>
@@ -48,10 +49,9 @@ void GuestAdditionsBinaries::StampWindowBase(std::vector<uint8_t>& image) {
         }
     }
     if (hits != 1) {
-        LOG(Caution, "GuestAdditions: base sentinel 0x%08X found %zu time(s) in the "
-                "guest image (expected exactly 1) - magic collided or g_CerfVirtBase "
-                "is absent\n", magic, hits);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("GuestAdditions: base sentinel 0x%08X found %zu time(s) in the "
+                              "guest image (expected exactly 1) - magic collided or g_CerfVirtBase "
+                              "is absent", magic, hits);
     }
     cerf::le::Put32(image.data() + at, base);
     LOG(GuestAdditions, "base sentinel stamped -> 0x%08X at image offset 0x%zX\n",

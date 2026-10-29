@@ -1,5 +1,7 @@
 #include <cerfcore/state/state_stream.h>
 
+#include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/platform/host_error.h>
 
@@ -21,8 +23,8 @@ const char* FieldKindName(uint8_t kind) {
 }
 }
 
-StateWriter::StateWriter(const std::string& path)
-    : final_path_(path), temp_path_(path + ".tmp") {
+StateWriter::StateWriter(CerfEmulator& emu, const std::string& path)
+    : emu_(emu), final_path_(path), temp_path_(path + ".tmp") {
     if (!file_.Open(temp_path_, host_platform::FileMode::kWriteNew)) {
         const uint32_t gle = host_platform::LastErrorCode();
         LOG(Caution, "StateWriter: CreateFile('%s') failed gle=%u\n",
@@ -83,8 +85,7 @@ void StateWriter::BeginFrame(uint32_t id) {
 
 void StateWriter::EndFrame() {
     if (frames_.empty()) {
-        LOG(Caution, "StateWriter: EndFrame with no open frame\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("StateWriter: EndFrame with no open frame");
     }
     const uint64_t header_off = frames_.back();
     frames_.pop_back();
@@ -116,8 +117,7 @@ void StateWriter::PatchAt(uint64_t offset, const void* src, size_t n) {
 
 bool StateWriter::Commit() {
     if (!frames_.empty()) {
-        LOG(Caution, "StateWriter: Commit with %zu open frames\n", frames_.size());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("StateWriter: Commit with %zu open frames", frames_.size());
     }
     uint32_t ignored = 0;
     if (!ok_) {
@@ -138,7 +138,7 @@ bool StateWriter::Commit() {
     return true;
 }
 
-StateReader::StateReader(const std::string& path) {
+StateReader::StateReader(CerfEmulator& emu, const std::string& path) : emu_(emu) {
     if (!file_.Open(path, host_platform::FileMode::kReadExisting)) {
         error_ = "the state file cannot be opened: " + host_platform::ErrorText(host_platform::LastErrorCode());
         return;
@@ -222,8 +222,7 @@ uint32_t StateReader::EnterFrame() {
 
 void StateReader::LeaveFrame() {
     if (frames_.empty()) {
-        LOG(Caution, "StateReader: LeaveFrame with no open frame\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("StateReader: LeaveFrame with no open frame");
     }
     if (Remaining() != 0)
         Reject("this build leaves %llu saved bytes unread",
@@ -235,8 +234,7 @@ void StateReader::LeaveFrame() {
 
 void StateReader::SkipFrame() {
     if (frames_.empty()) {
-        LOG(Caution, "StateReader: SkipFrame with no open frame\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("StateReader: SkipFrame with no open frame");
     }
     SeekTo(frames_.back().end);
     fields_     = frames_.back().parent_fields;

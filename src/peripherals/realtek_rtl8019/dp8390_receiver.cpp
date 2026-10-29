@@ -1,6 +1,7 @@
 #include "dp8390_receiver.h"
 
 #include <cerfcore/core/byte_order.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../net/ipv4_packet.h"
 
@@ -85,10 +86,9 @@ bool Dp8390Receiver::OnFrameLocked(const uint8_t* frame, std::size_t len) {
         nic_.pstop_  < kPageMin || nic_.pstop_  >  kPageMax ||
         nic_.pstart_ >= nic_.pstop_ ||
         nic_.curr_   < nic_.pstart_ || nic_.curr_ >= nic_.pstop_) {
-        LOG(Caution, "[NE2000] RX with inconsistent ring geometry "
-                "PSTART=0x%02X PSTOP=0x%02X CURR=0x%02X; halting\n",
-            nic_.pstart_, nic_.pstop_, nic_.curr_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        nic_.OwnerFatal().Die("[NE2000] RX with inconsistent ring geometry "
+                              "PSTART=0x%02X PSTOP=0x%02X CURR=0x%02X; halting",
+                              nic_.pstart_, nic_.pstop_, nic_.curr_);
     }
 
     /* DP8390D datasheet, 1992 National LAN databook, storage format

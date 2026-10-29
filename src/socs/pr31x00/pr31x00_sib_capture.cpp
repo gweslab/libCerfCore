@@ -3,6 +3,7 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/instance_threads.h>
 #include "../../host/audio_activity_widget.h"
 #include "pr31x00_sib_codec.h"
 #include "pr31500_id.h"
@@ -27,7 +28,7 @@ bool Pr31x00SibCapture::ShouldRegister() {
 
 void Pr31x00SibCapture::OnReady() {
     codec_ = &emu_.Get<Pr31x00SibCodec>();
-    mic_.Start("SibCapture", kMicFifoBytes);
+    mic_.Start(emu_.Get<InstanceThreads>(), "SibCapture", kMicFifoBytes);
 }
 
 void Pr31x00SibCapture::OnShutdown() {

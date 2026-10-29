@@ -2,6 +2,7 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/toshiba_gigabeat_s/toshiba_gigabeat_s_family_id.h"
@@ -244,11 +245,10 @@ uint32_t SpansionS29AL016J::ReadWord(uint32_t addr) {
 }
 
 void SpansionS29AL016J::WriteByte(uint32_t addr, uint8_t value) {
-    LOG(Periph, "[S29AL016J] WriteByte off=0x%05X val=0x%02X - S29AL016J "
-                "Table 13 lists only word-mode and byte-mode bus cycles "
-                "(BYTE# pin), not partial-byte writes on a x16 bus\n",
-        addr - kNorBase, value);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("[S29AL016J] WriteByte off=0x%05X val=0x%02X - S29AL016J "
+                          "Table 13 lists only word-mode and byte-mode bus cycles "
+                          "(BYTE# pin), not partial-byte writes on a x16 bus",
+                          addr - kNorBase, value);
 }
 
 void SpansionS29AL016J::WriteHalf(uint32_t addr, uint16_t value) {
@@ -281,11 +281,10 @@ void SpansionS29AL016J::HandleHalfCommand(uint32_t off, uint16_t cmd) {
             stage_ = Stage::Unlock1;
             return;
         }
-        LOG(Periph, "[S29AL016J] unexpected Idle write off=0x%05X word=0x%03X "
-                    "cmd=0x%02X (expected reset 0xF0 any addr, unlock-1 word=0x555 "
-                    "val=0xAA, or CFI 0x98 any addr)\n",
-            off, word, cmd);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[S29AL016J] unexpected Idle write off=0x%05X word=0x%03X "
+                              "cmd=0x%02X (expected reset 0xF0 any addr, unlock-1 word=0x555 "
+                              "val=0xAA, or CFI 0x98 any addr)",
+                              off, word, cmd);
         return;
     }
 
@@ -294,9 +293,8 @@ void SpansionS29AL016J::HandleHalfCommand(uint32_t off, uint16_t cmd) {
             stage_ = Stage::Unlock2;
             return;
         }
-        LOG(Periph, "[S29AL016J] Unlock1 expected word=0x2AA val=0x55, "
-                    "got off=0x%05X word=0x%03X cmd=0x%02X\n", off, word, cmd);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[S29AL016J] Unlock1 expected word=0x2AA val=0x55, "
+                              "got off=0x%05X word=0x%03X cmd=0x%02X", off, word, cmd);
         return;
     }
 
@@ -319,9 +317,8 @@ void SpansionS29AL016J::HandleHalfCommand(uint32_t off, uint16_t cmd) {
                 return;
             }
         }
-        LOG(Periph, "[S29AL016J] Unlock2 expected cmd cycle at word=0x555, "
-                    "got off=0x%05X word=0x%03X cmd=0x%02X\n", off, word, cmd);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[S29AL016J] Unlock2 expected cmd cycle at word=0x555, "
+                              "got off=0x%05X word=0x%03X cmd=0x%02X", off, word, cmd);
         return;
     }
 
@@ -337,9 +334,8 @@ void SpansionS29AL016J::HandleHalfCommand(uint32_t off, uint16_t cmd) {
             stage_ = Stage::EraseUnlock2;
             return;
         }
-        LOG(Periph, "[S29AL016J] EraseUnlock1 expected word=0x555 val=0xAA, "
-                    "got off=0x%05X word=0x%03X cmd=0x%02X\n", off, word, cmd);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[S29AL016J] EraseUnlock1 expected word=0x555 val=0xAA, "
+                              "got off=0x%05X word=0x%03X cmd=0x%02X", off, word, cmd);
         return;
     }
 
@@ -348,9 +344,8 @@ void SpansionS29AL016J::HandleHalfCommand(uint32_t off, uint16_t cmd) {
             stage_ = Stage::EraseConfirm;
             return;
         }
-        LOG(Periph, "[S29AL016J] EraseUnlock2 expected word=0x2AA val=0x55, "
-                    "got off=0x%05X word=0x%03X cmd=0x%02X\n", off, word, cmd);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[S29AL016J] EraseUnlock2 expected word=0x2AA val=0x55, "
+                              "got off=0x%05X word=0x%03X cmd=0x%02X", off, word, cmd);
         return;
     }
 
@@ -367,10 +362,9 @@ void SpansionS29AL016J::HandleHalfCommand(uint32_t off, uint16_t cmd) {
             mode_  = Mode::ReadArray;
             return;
         }
-        LOG(Periph, "[S29AL016J] EraseConfirm expected chip-erase 0x10 at "
-                    "word=0x555 or sector-erase 0x30 at sector word, got "
-                    "off=0x%05X word=0x%03X cmd=0x%02X\n", off, word, cmd);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[S29AL016J] EraseConfirm expected chip-erase 0x10 at "
+                              "word=0x555 or sector-erase 0x30 at sector word, got "
+                              "off=0x%05X word=0x%03X cmd=0x%02X", off, word, cmd);
     }
 }
 

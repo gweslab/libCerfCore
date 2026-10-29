@@ -41,9 +41,8 @@ void CasioPocketpostpetAsic::RunFillLocked() {
                           static_cast<uint64_t>(fill_height_ - 1u) * kPitchBytes +
                           static_cast<uint64_t>(fill_width_) * 2u;
     if (last > kFbSize) {
-        LOG(Caution, "CasioPocketpostpetAsic: fill dst=0x%X w=%u h=%u exceeds framebuffer\n",
-            dst, fill_width_, fill_height_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CasioPocketpostpetAsic: fill dst=0x%X w=%u h=%u exceeds framebuffer",
+                              dst, fill_width_, fill_height_);
     }
     for (uint32_t y = 0; y < fill_height_; ++y) {
         uint8_t* row = fb_.data() + dst + static_cast<size_t>(y) * kPitchBytes;
@@ -68,9 +67,8 @@ void CasioPocketpostpetAsic::RunBlitLocked() {
        MSB-first walker at 128>>(srcX&7); set bit = 0x202 colour, clear bit leaves dest. */
     const int32_t src_bit = static_cast<int16_t>(blit_src_bit_);
     if (src_bit < 0 || src_bit > 7) {
-        LOG(Caution, "CasioPocketpostpetAsic: text blit source bit offset %d not modeled\n",
-            src_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CasioPocketpostpetAsic: text blit source bit offset %d not modeled",
+                              src_bit);
     }
     if (fill_width_ == 0 || fill_height_ == 0) return;
     const uint32_t dst = static_cast<uint32_t>(fill_dst_lo_) |
@@ -88,14 +86,12 @@ void CasioPocketpostpetAsic::RunBlitLocked() {
     const uint64_t src_span = static_cast<uint64_t>(max_stage) + mask_bytes;
     if (static_cast<uint64_t>(dst) + dst_span > kFbSize ||
         static_cast<uint64_t>(src) + src_span > kFbSize) {
-        LOG(Caution, "CasioPocketpostpetAsic: text blit dst=0x%X src=0x%X w=%u h=%u exceeds framebuffer\n",
-            dst, src, fill_width_, fill_height_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CasioPocketpostpetAsic: text blit dst=0x%X src=0x%X w=%u h=%u exceeds framebuffer",
+                              dst, src, fill_width_, fill_height_);
     }
     if (src < dst + dst_span && dst < src + src_span) {
-        LOG(Caution, "CasioPocketpostpetAsic: text blit overlapping dst=0x%X src=0x%X w=%u h=%u\n",
-            dst, src, fill_width_, fill_height_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CasioPocketpostpetAsic: text blit overlapping dst=0x%X src=0x%X w=%u h=%u",
+                              dst, src, fill_width_, fill_height_);
     }
     const uint16_t fg = fill_value_;
     for (uint32_t y = 0; y < fill_height_; ++y) {
@@ -117,9 +113,8 @@ void CasioPocketpostpetAsic::RunBlit7Locked() {
     if (blit7_width_ == 0 || blit7_height_ == 0) return;
     /* ddi.dll sub_13812F8 writes 0x706=1 and stages one source row per trigger. */
     if (blit7_height_ != 1u) {
-        LOG(Caution, "CasioPocketpostpetAsic: 0x700 blit height=%u (only 1 grounded)\n",
-            blit7_height_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CasioPocketpostpetAsic: 0x700 blit height=%u (only 1 grounded)",
+                              blit7_height_);
     }
     const uint32_t src_pa = cerfengine::MipsSeg::UnmappedPa(static_cast<uint32_t>(blit7_src_lo_) |
                                                 (static_cast<uint32_t>(blit7_src_hi_) << 16));
@@ -127,14 +122,12 @@ void CasioPocketpostpetAsic::RunBlit7Locked() {
                          (static_cast<uint32_t>(blit7_dst_hi_) << 16);
     const uint32_t row_bytes = static_cast<uint32_t>(blit7_width_) * 2u;
     if (static_cast<uint64_t>(dst) + row_bytes > kFbSize) {
-        LOG(Caution, "CasioPocketpostpetAsic: 0x700 blit dst=0x%X w=%u exceeds framebuffer\n",
-            dst, blit7_width_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CasioPocketpostpetAsic: 0x700 blit dst=0x%X w=%u exceeds framebuffer",
+                              dst, blit7_width_);
     }
     uint8_t* host_src = emu_.Get<EmulatedMemory>().TryTranslate(src_pa);
     if (!host_src) {
-        LOG(Caution, "CasioPocketpostpetAsic: 0x700 blit src_pa=0x%X unbacked\n", src_pa);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CasioPocketpostpetAsic: 0x700 blit src_pa=0x%X unbacked", src_pa);
     }
     std::memcpy(fb_.data() + dst, host_src, row_bytes);
 }

@@ -7,6 +7,7 @@
 #include "ford_sync_gen2_family_id.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -243,8 +244,7 @@ void FordSyncGen2IlpSignals::RegisterComposite(std::initializer_list<uint32_t> i
     for (const auto id : ids) {
         const auto index = IndexOf(id);
         if (index == kSignalCount || groups_[index] != 0) {
-            LOG(Caution, "[VMCU] invalid ILP composite registration\n");
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[VMCU] invalid ILP composite registration");
         }
     }
     ++group_count_;

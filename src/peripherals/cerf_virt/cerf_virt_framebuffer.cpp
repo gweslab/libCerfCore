@@ -59,10 +59,10 @@ uint64_t CerfVirtFramebuffer::PrimaryBytesAt(uint32_t bpp) const {
 
 void CerfVirtFramebuffer::ReservePrimary() {
     if (PrimaryBytesAt(bpp_) > region_bytes_) {
-        LOG(Caution, "[CerfVirtFramebuffer] %ux%u at %ubpp needs %llu B, the FB "
-                     "region of this board holds %u B\n",
-            width_, height_, bpp_, (unsigned long long)PrimaryBytesAt(bpp_), region_bytes_);
-        CerfFatalExit(CERF_FATAL_USER_ERROR);
+        emu_.Get<Fatal>().UserError("[CerfVirtFramebuffer] %ux%u at %ubpp needs %llu B, the FB "
+                                    "region of this board holds %u B",
+                                    width_, height_, bpp_,
+                                    (unsigned long long)PrimaryBytesAt(bpp_), region_bytes_);
     }
     const uint32_t max_primary = MaxPrimaryBytes();
     if (max_primary > region_bytes_) {

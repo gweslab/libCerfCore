@@ -1,6 +1,7 @@
 #include "nec_mobilepro_700_pcic.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/host/host_widget_registry.h>
 #include "../../socs/vr41xx/vr41xx_giu.h"
@@ -72,8 +73,7 @@ void NecMobilePro700Pcic::WritePcicByte(uint32_t port, uint8_t value) {
 uint8_t NecMobilePro700Pcic::ReadDataLocked() {
     const int bank = index_ >> 6;
     if (bank >= 2) {
-        LOG(Caution, "[MP700-PCIC] read of INDEX 0x%02X: only 2 sockets\n", index_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[MP700-PCIC] read of INDEX 0x%02X: only 2 sockets", index_);
     }
     const uint8_t sub = index_ & 0x3Fu;
     if (Pcic82365::Owns(sub)) {
@@ -81,16 +81,14 @@ uint8_t NecMobilePro700Pcic::ReadDataLocked() {
         return Exca(bank).ReadReg(sub);
     }
     if (sub == kRegVoltageSelect) return voltage_select_[bank];
-    LOG(Caution, "[MP700-PCIC] read of unowned INDEX 0x%02X (socket %d reg 0x%02X)\n",
-        index_, bank, sub);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("[MP700-PCIC] read of unowned INDEX 0x%02X (socket %d reg 0x%02X)",
+                          index_, bank, sub);
 }
 
 bool NecMobilePro700Pcic::WriteDataLocked(uint8_t value, int* bank, bool* power_on) {
     const int b = index_ >> 6;
     if (b >= 2) {
-        LOG(Caution, "[MP700-PCIC] write of INDEX 0x%02X: only 2 sockets\n", index_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[MP700-PCIC] write of INDEX 0x%02X: only 2 sockets", index_);
     }
     const uint8_t sub = index_ & 0x3Fu;
     if (Pcic82365::Owns(sub)) {
@@ -98,9 +96,8 @@ bool NecMobilePro700Pcic::WriteDataLocked(uint8_t value, int* bank, bool* power_
         return Exca(b).WriteReg(sub, value, power_on);
     }
     if (sub == kRegVoltageSelect) { voltage_select_[b] = value; return false; }
-    LOG(Caution, "[MP700-PCIC] write of unowned INDEX 0x%02X (socket %d reg 0x%02X) "
-        "value 0x%02X\n", index_, b, sub, value);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("[MP700-PCIC] write of unowned INDEX 0x%02X (socket %d reg 0x%02X) "
+                          "value 0x%02X", index_, b, sub, value);
 }
 
 bool NecMobilePro700Pcic::DecodeMem(uint32_t off, int* bank, uint32_t* card_addr,

@@ -31,9 +31,8 @@ void EmulatedMemory::AddRegion(uint32_t base, uint32_t size,
     if (size == 0 || span < size || uint64_t(base) + span > (uint64_t{1} << 32) ||
         span % size != 0 ||
         (span != size && (size & (size - 1u)) != 0)) {
-        LOG(Caution, "EmulatedMemory::AddRegion invalid region: base=0x%08X "
-                "size=0x%X span=0x%X\n", base, size, span);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("EmulatedMemory::AddRegion invalid region: base=0x%08X "
+                              "size=0x%X span=0x%X", base, size, span);
     }
     if (emu_.Get<PeripheralDispatcher>().OverlapsDataInversion(base, span)) {
         emu_.Get<Fatal>().Die("EmulatedMemory::AddRegion [0x%08X..0x%llX) overlaps a bus "
@@ -51,20 +50,18 @@ void EmulatedMemory::AddRegion(uint32_t base, uint32_t size,
         const Region& r = regions_[i];
         if (uint64_t(base) < uint64_t(r.base) + r.span &&
             uint64_t(r.base) < uint64_t(base) + span) {
-            LOG(Caution, "EmulatedMemory::AddRegion overlap: new "
-                    "[0x%08X..0x%llX) vs existing [0x%08X..0x%llX)\n",
-                    base, static_cast<unsigned long long>(base) + span,
-                    r.base, static_cast<unsigned long long>(r.base) + r.span);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("EmulatedMemory::AddRegion overlap: new "
+                                  "[0x%08X..0x%llX) vs existing [0x%08X..0x%llX)",
+                                  base, static_cast<unsigned long long>(base) + span,
+                                  r.base, static_cast<unsigned long long>(r.base) + r.span);
         }
     }
 
     if (n >= kMaxRegions) {
-        LOG(Caution, "EmulatedMemory::AddRegion: kMaxRegions=%zu exceeded "
-                "(new [0x%08X..0x%08X)). Bump kMaxRegions in "
-                "emulated_memory.h.\n",
-                kMaxRegions, base, base + size);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("EmulatedMemory::AddRegion: kMaxRegions=%zu exceeded "
+                              "(new [0x%08X..0x%08X)). Bump kMaxRegions in "
+                              "emulated_memory.h.",
+                              kMaxRegions, base, base + size);
     }
 
     regions_[n].base         = base;
@@ -117,9 +114,8 @@ uint8_t* EmulatedMemory::EnsureBacked(Region* r) {
 
     uint8_t* allocated = host_platform::AllocateZeroed(r->size);
     if (!allocated) {
-        LOG(Caution, "EmulatedMemory::EnsureBacked allocation failed "
-                "region 0x%08X size 0x%X\n", r->base, r->size);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("EmulatedMemory::EnsureBacked allocation failed "
+                              "region 0x%08X size 0x%X", r->base, r->size);
     }
 
     uint8_t* expected = nullptr;
@@ -291,14 +287,12 @@ EmulatedMemory::Region* EmulatedMemory::BulkRegionFor(uint32_t vaddr,
     if (Region* ok = BulkRegion(vaddr, size)) return ok;
     Region* r = FindRegion(vaddr);
     if (!r) {
-        LOG(Caution, "EmulatedMemory::%s unmapped address "
-                "0x%08X size 0x%zX\n", op, vaddr, size);
-    } else {
-        LOG(Caution, "EmulatedMemory::%s crosses region boundary at "
-                "0x%08X size 0x%zX (region 0x%08X size 0x%X)\n",
-                op, vaddr, size, r->base, r->size);
+        emu_.Get<Fatal>().Die("EmulatedMemory::%s unmapped address "
+                              "0x%08X size 0x%zX", op, vaddr, size);
     }
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("EmulatedMemory::%s crosses region boundary at "
+                          "0x%08X size 0x%zX (region 0x%08X size 0x%X)",
+                          op, vaddr, size, r->base, r->size);
 }
 
 void EmulatedMemory::CopyIn(uint32_t vaddr, const void* host_src, size_t size) {

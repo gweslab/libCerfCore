@@ -1,4 +1,5 @@
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/execution/jit_runner.h>
 
@@ -12,22 +13,19 @@ CerfEmulator::CerfEmulator(const CerfConfig& config, int argc, char** argv)
 }
 
 CerfEmulator::~CerfEmulator() {
+    teardown_fatal_ = &Get<Fatal>();
     TearDown();
-}
-
-void CerfEmulator::OnLocatorError(const char* message) {
-    LOG(Caution, "%s\n", message);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
 }
 
 void CerfEmulator::OnServiceDestroy(const servicelocator::Service& service) {
     LOG(Boot, "[TEARDOWN] destroying %s\n", typeid(service).name());
 }
 
-void CerfEmulator::Boot() {
-    Bootstrap();
-    StartGuest();
+void CerfEmulator::ShutDownService(servicelocator::Service& service) {
+    teardown_fatal_->GuardTeardown([&service] { service.OnShutdown(); });
 }
+
+void CerfEmulator::RaiseLocatorError(const std::string& message) { Fatal::LocatorFailure(message.c_str()); }
 
 void CerfEmulator::StartGuest() {
     LOG(Boot, "services up; starting jit...\n");

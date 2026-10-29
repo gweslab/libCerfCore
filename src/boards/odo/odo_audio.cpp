@@ -7,6 +7,7 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "odo_family_id.h"
@@ -151,7 +152,8 @@ void OdoAudioPlayer::OnReady() {
     event_ = clock_->Add([this] { OnPageEnd(); });
     clock_->RegisterRateListener([this] { OnRateChange(); });
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetLine(); });
-    out_.Start("OdoAudio", static_cast<uint32_t>(kSampleRate), kChannels, kBitsPerSample);
+    out_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), "OdoAudio", static_cast<uint32_t>(kSampleRate), kChannels,
+               kBitsPerSample);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }
 

@@ -98,7 +98,7 @@ private:
         return &hit;
     }
 
-    [[noreturn]] static void HaltBadWidth(uint32_t width);
+    [[noreturn]] void HaltBadWidth(uint32_t width);
 
     friend bool CERFENGINE_FASTCALL cerfengine::host::MmioFindRoute(
         void* context, uint32_t pa, cerfengine::MmioRoute& route);

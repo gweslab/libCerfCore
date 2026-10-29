@@ -4,6 +4,7 @@
 #include "s3c2410_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include "../../host/audio_activity_widget.h"
 #include "../../host/paced_wave_out.h"
@@ -72,7 +73,7 @@ public:
             [this](ResetLineKind) { Reset(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
         emu_.Get<S3C2410Dma>().RegisterRequester(S3C2410DmaSource::kI2sSdo, this);
-        audio_out_.Start("S3C2410Iis", 0, 0, 0);
+        audio_out_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), "S3C2410Iis", 0, 0, 0);
         emu_.Get<AudioActivityWidget>().NotePresent();
     }
 

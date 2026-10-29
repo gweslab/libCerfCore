@@ -5,18 +5,13 @@
 #include <cerfcore/boards/board_context.h>
 #include "sharp_mobilon_hc_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
-#include <cerfcore/core/log.h>
+#include <cerfcore/core/fatal.h>
 
 #include <cstdint>
 
 namespace cerfcore {
 
 namespace {
-
-[[noreturn]] void Unwired(const char* what) {
-    LOG(Caution, "SharpMobilonHcUcbBoard: %s not yet grounded\n", what);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
-}
 
 uint16_t Clamp10(int v) { return static_cast<uint16_t>(v < 0 ? 0 : (v > 1023 ? 1023 : v)); }
 
@@ -58,7 +53,7 @@ public:
             case 3:
                 return kBackupAdcHealthy;
             default:
-                Unwired("AuxAdc");
+                emu_.Get<Fatal>().Die("SharpMobilonHcUcbBoard: AuxAdc not yet grounded");
         }
     }
     uint16_t TouchAdcX() override { return PixelToAdc(emu_.Get<Ucb1x00TouchPanel>().X()); }

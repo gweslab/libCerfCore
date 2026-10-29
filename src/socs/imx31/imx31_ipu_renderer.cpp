@@ -6,6 +6,7 @@
 #include "imx31_id.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/host/panel_frame_renderer.h>
@@ -83,12 +84,11 @@ public:
         if (!src_base) return;
 
         if (!IsRgb565(fmt)) {
-            LOG(Periph, "[IPU] unsupported SDC bg format pfs=%u bpp=%u "
-                        "wid=%u/%u/%u/%u ofs=%u/%u/%u/%u - renderer halt\n",
-                (unsigned)fmt.pfs, fmt.bpp_bits,
-                fmt.wid[0], fmt.wid[1], fmt.wid[2], fmt.wid[3],
-                fmt.ofs[0], fmt.ofs[1], fmt.ofs[2], fmt.ofs[3]);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[IPU] unsupported SDC bg format pfs=%u bpp=%u "
+                                  "wid=%u/%u/%u/%u ofs=%u/%u/%u/%u - renderer halt",
+                                  (unsigned)fmt.pfs, fmt.bpp_bits,
+                                  fmt.wid[0], fmt.wid[1], fmt.wid[2], fmt.wid[3],
+                                  fmt.ofs[0], fmt.ofs[1], fmt.ofs[2], fmt.ofs[3]);
         }
 
         for (uint32_t y = 0; y < copy_h; ++y) {

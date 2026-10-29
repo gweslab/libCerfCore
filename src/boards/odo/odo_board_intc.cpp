@@ -1,6 +1,7 @@
 #include "odo_board_intc.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/arm/arm_jit.h>
@@ -61,10 +62,9 @@ void OdoBoardIntc::SetTimerIrqLevel(bool level) {
 
 void OdoBoardIntc::AssertIrq(int source_bit) {
     if (source_bit < 0 || source_bit >= 32) {
-        LOG(Caution, "OdoBoardIntc::AssertIrq: source_bit %d "
-                "out of range - cpuIsr/cpuMr are 32-bit registers\n",
-                source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("OdoBoardIntc::AssertIrq: source_bit %d "
+                              "out of range - cpuIsr/cpuMr are 32-bit registers",
+                              source_bit);
     }
     {
         std::lock_guard<std::mutex> lk(state_mutex_);
@@ -75,9 +75,8 @@ void OdoBoardIntc::AssertIrq(int source_bit) {
 
 void OdoBoardIntc::DeAssertIrq(int source_bit) {
     if (source_bit < 0 || source_bit >= 32) {
-        LOG(Caution, "OdoBoardIntc::DeAssertIrq: source_bit "
-                "%d out of range\n", source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("OdoBoardIntc::DeAssertIrq: source_bit "
+                              "%d out of range", source_bit);
     }
     {
         std::lock_guard<std::mutex> lk(state_mutex_);
@@ -87,19 +86,17 @@ void OdoBoardIntc::DeAssertIrq(int source_bit) {
 }
 
 void OdoBoardIntc::AssertSubIrq(int main_source_bit, int sub_source_bit) {
-    LOG(Caution, "OdoBoardIntc::AssertSubIrq: Odo board "
-            "INTC has no sub-interrupt register (main=%d, sub=%d) "
-            "- caller is targeting the wrong SoC\n",
-            main_source_bit, sub_source_bit);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("OdoBoardIntc::AssertSubIrq: Odo board "
+                          "INTC has no sub-interrupt register (main=%d, sub=%d) "
+                          "- caller is targeting the wrong SoC",
+                          main_source_bit, sub_source_bit);
 }
 
 uint32_t OdoBoardIntc::ReadReg32(uint32_t offset) {
     if (offset != kSlotCpuIsr && offset != kSlotCpuMr) {
-        LOG(Caution, "OdoBoardIntc::ReadReg32: offset 0x%X "
-                "out of range - only 0x00 (cpuIsr) and 0x04 (cpuMr) "
-                "are modeled\n", offset);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("OdoBoardIntc::ReadReg32: offset 0x%X "
+                              "out of range - only 0x00 (cpuIsr) and 0x04 (cpuMr) "
+                              "are modeled", offset);
     }
     uint32_t value;
     {
@@ -116,9 +113,8 @@ uint32_t OdoBoardIntc::ReadReg32(uint32_t offset) {
 uint16_t OdoBoardIntc::ReadReg16(uint32_t offset) {
     const uint32_t slot_offset = offset & ~0x2u;     /* round down to 4-byte slot */
     if (slot_offset != kSlotCpuIsr && slot_offset != kSlotCpuMr) {
-        LOG(Caution, "OdoBoardIntc::ReadReg16: offset 0x%X "
-                "out of range\n", offset);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("OdoBoardIntc::ReadReg16: offset 0x%X "
+                              "out of range", offset);
     }
     uint32_t slot_value;
     {
@@ -137,20 +133,18 @@ uint16_t OdoBoardIntc::ReadReg16(uint32_t offset) {
 
 void OdoBoardIntc::WriteReg32(uint32_t offset, uint32_t value) {
     if (offset != kSlotCpuIsr && offset != kSlotCpuMr) {
-        LOG(Caution, "OdoBoardIntc::WriteReg32: offset 0x%X "
-                "out of range\n", offset);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("OdoBoardIntc::WriteReg32: offset 0x%X "
+                              "out of range", offset);
     }
 #if CERF_DEV_MODE
     LOG(SocIntc, "Odo BoardIntc write32 +0x%02X = 0x%08X\n",
         offset, value);
 #endif
     if (offset == kSlotCpuIsr) {
-        LOG(Caution, "OdoBoardIntc::WriteReg32 cpuIsr=0x%08X "
-                "- no modeled write semantic for cpuIsr; scope must be "
-                "extended with the right semantic before continuing\n",
-                value);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("OdoBoardIntc::WriteReg32 cpuIsr=0x%08X "
+                              "- no modeled write semantic for cpuIsr; scope must be "
+                              "extended with the right semantic before continuing",
+                              value);
     }
     {
         std::lock_guard<std::mutex> lk(state_mutex_);
@@ -162,21 +156,19 @@ void OdoBoardIntc::WriteReg32(uint32_t offset, uint32_t value) {
 void OdoBoardIntc::WriteReg16(uint32_t offset, uint16_t value) {
     const uint32_t slot_offset = offset & ~0x2u;
     if (slot_offset != kSlotCpuIsr && slot_offset != kSlotCpuMr) {
-        LOG(Caution, "OdoBoardIntc::WriteReg16: offset 0x%X "
-                "out of range\n", offset);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("OdoBoardIntc::WriteReg16: offset 0x%X "
+                              "out of range", offset);
     }
 #if CERF_DEV_MODE
     LOG(SocIntc, "Odo BoardIntc write16 +0x%02X = 0x%04X\n",
         offset, value);
 #endif
     if (slot_offset == kSlotCpuIsr) {
-        LOG(Caution, "OdoBoardIntc::WriteReg16 cpuIsr offset=0x%X "
-                "value=0x%04X - no modeled write semantic for cpuIsr; "
-                "scope must be extended with the right semantic before "
-                "continuing\n",
-                offset, value);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("OdoBoardIntc::WriteReg16 cpuIsr offset=0x%X "
+                              "value=0x%04X - no modeled write semantic for cpuIsr; "
+                              "scope must be extended with the right semantic before "
+                              "continuing",
+                              offset, value);
     }
     {
         std::lock_guard<std::mutex> lk(state_mutex_);

@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "toshiba_gigabeat_s_family_id.h"
@@ -69,9 +70,8 @@ uint32_t ToshibaGigabeatSPageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "ToshibaGigabeatSPageTableBuilder::VaToPa: VA 0x%08X outside "
-            "every OAT band (nk.exe + 0x1A74)\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("ToshibaGigabeatSPageTableBuilder::VaToPa: VA 0x%08X outside "
+                          "every OAT band (nk.exe + 0x1A74)", va);
 }
 
 std::vector<DramRegion> ToshibaGigabeatSPageTableBuilder::CachedDramRegions() const {

@@ -4,6 +4,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
+#include <cerfcore/core/config_reader.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/device_config_keys.h>
 #include <cerfcore/core/log.h>
@@ -26,11 +27,12 @@ void CpuConfig::OnReady() {
 
 void CpuConfig::ApplyUserOverrides() {
     const std::string path = UserConfigPath(emu_.Get<DeviceConfig>().device_name);
-    const nlohmann::json root = CfgReadJsonFile(path, CfgBrokenFile::kSkip);
+    auto&                reader = emu_.Get<ConfigReader>();
+    const nlohmann::json root   = reader.ReadJsonFile(path, CfgBrokenFile::kSkip);
     if (root.is_null() || !root.contains(config_key::kCpuConfig)) return;
     const auto& overrides = root[config_key::kCpuConfig];
     if (!overrides.is_object())
-        CfgFatal(path, std::string("'") + config_key::kCpuConfig + "' must be an object");
+        reader.Fail(path, std::string("'") + config_key::kCpuConfig + "' must be an object");
 
     const auto& db   = emu_.Get<CpuConfigDatabase>();
     const auto  arch = emu_.Get<BoardContext>().GetCpuArch();

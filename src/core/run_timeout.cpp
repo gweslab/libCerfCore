@@ -1,5 +1,6 @@
 #include <cerfcore/core/run_timeout.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/platform/host_process.h>
 
 #include <atomic>
 #include <chrono>
@@ -18,7 +19,9 @@ void RunTimeout::Start(int seconds) {
     std::thread([seconds] {
         std::this_thread::sleep_for(std::chrono::seconds(seconds));
         LOG(Cerf, "run timeout expired after %d s\n", seconds);
-        CerfFatalExit(CERF_FATAL_TIMEOUT);
+        LOG(Cerf, "CERF is exiting (code = %d)\n", CERF_FATAL_TIMEOUT);
+        Log::Close();
+        host_platform::ExitProcessNow(CERF_FATAL_TIMEOUT);
     }).detach();
 }
 

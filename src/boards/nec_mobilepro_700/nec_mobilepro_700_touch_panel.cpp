@@ -1,6 +1,7 @@
 #include "../../socs/vr41xx/vr41xx_piu_panel.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "nec_mobilepro_700_battery.h"
@@ -53,18 +54,16 @@ public:
             case kAdcmdAdin1: return kBackupCellHealthy;
             case kAdcmdAdin2: return kAdin2Reference;
             default:
-                LOG(Caution, "NecMobilePro700TouchPanel: PIUCMDREG ADCMD=0x%X selects an "
-                        "A/D port this board's panel does not drive\n", adcmd);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("NecMobilePro700TouchPanel: PIUCMDREG ADCMD=0x%X selects an "
+                                      "A/D port this board's panel does not drive", adcmd);
         }
     }
 
     std::optional<uint16_t> PressureSample() override { return kPressureContact; }
 
     std::optional<uint16_t> AdPortScanSample(uint16_t port) override {
-        LOG(Caution, "NecMobilePro700TouchPanel: ADPortScan A/D port 0x%X is not modeled on "
-                "this board\n", port);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("NecMobilePro700TouchPanel: ADPortScan A/D port 0x%X is not modeled on "
+                              "this board", port);
     }
 
 private:

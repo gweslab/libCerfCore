@@ -6,6 +6,7 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/nec_sg2_vr5500/nec_sg2_vr5500_family_id.h"
@@ -317,9 +318,8 @@ private:
     }
 
     [[noreturn]] void ExCaFatal(const char* op, uint32_t exca_off, uint32_t value, unsigned size) {
-        LOG(Caution, "TiCardbusBridge: unimplemented ExCA register %s off=0x%02X "
-            "value=0x%08X size=%u\n", op, exca_off, value, size);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("TiCardbusBridge: unimplemented ExCA register %s off=0x%02X "
+                              "value=0x%08X size=%u", op, exca_off, value, size);
     }
 
     PcmciaSlot slot_;

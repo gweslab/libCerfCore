@@ -1,20 +1,21 @@
 #define NOMINMAX
 #include "host_message_thread.h"
 
+#include <cerfcore/core/instance_threads.h>
+
 namespace cerfcore::host_platform {
 
 HostMessageThread::~HostMessageThread() {
     if (ready_event_) CloseHandle(ready_event_);
 }
 
-void HostMessageThread::Start(PrepareHandler prepare, StartHandler on_start, SignalHandler on_signal,
-                              MessageHandler on_message) {
+void HostMessageThread::Start(InstanceThreads& threads, PrepareHandler prepare, StartHandler on_start,
+                              SignalHandler on_signal, MessageHandler on_message) {
     shutdown_.store(false, std::memory_order_release);
     if (ready_event_) ResetEvent(ready_event_);
     else              ready_event_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    thread_ = std::thread([this, prepare, on_start, on_signal, on_message] {
-        Run(prepare, on_start, on_signal, on_message);
-    });
+    thread_ = threads.Start([this, prepare, on_start, on_signal, on_message] { Run(prepare, on_start, on_signal, on_message); },
+                            [this] { SetEvent(ready_event_); });
     WaitForSingleObject(ready_event_, INFINITE);
 }
 

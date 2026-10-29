@@ -60,7 +60,7 @@ private:
     std::function<void(uint64_t)>       before_ = [](uint64_t) {};
     std::function<void(uint64_t, bool)> after_  = [](uint64_t, bool) {};
 
-    RatedTickCount           bits_;
+    RatedTickCount           bits_{emu_};
     RatedTickCount::Position held_;
     GuestCycleClock::Rate    rate_{0u, 1u};
     bool                     running_ = false;

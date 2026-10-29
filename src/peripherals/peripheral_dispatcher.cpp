@@ -25,15 +25,13 @@ std::vector<Peripheral*> PeripheralDispatcher::RegisteredPeripherals() const {
 
 void PeripheralDispatcher::Register(Peripheral* p) {
     if (!p) {
-        LOG(Caution, "PeripheralDispatcher::Register called with null\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("PeripheralDispatcher::Register called with null");
     }
     const uint32_t base = p->MmioBase();
     const uint32_t size = p->MmioSize();
     if (size == 0) {
-        LOG(Caution, "PeripheralDispatcher::Register peripheral has "
-                "zero-size MMIO range (base 0x%08X)\n", base);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("PeripheralDispatcher::Register peripheral has "
+                              "zero-size MMIO range (base 0x%08X)", base);
     }
     if (size - 1u > 0xFFFFFFFFu - base) {
         emu_.Get<Fatal>().Die("PeripheralDispatcher::Register %s at 0x%08X size 0x%08X runs "
@@ -44,10 +42,9 @@ void PeripheralDispatcher::Register(Peripheral* p) {
     std::lock_guard<std::mutex> lock(table_mutex_);
     for (const auto& e : entries_) {
         if (base <= e.last && e.base <= last) {
-            LOG(Caution, "PeripheralDispatcher::Register overlap: "
-                    "new [0x%08X..0x%08X] vs existing [0x%08X..0x%08X]\n",
-                    base, last, e.base, e.last);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("PeripheralDispatcher::Register overlap: "
+                                  "new [0x%08X..0x%08X] vs existing [0x%08X..0x%08X]",
+                                  base, last, e.base, e.last);
         }
     }
 
@@ -196,13 +193,12 @@ void PeripheralDispatcher::ValidatePhysReachable(uint32_t phys_addr_mask) const 
     if (!t) return;
     for (const auto& e : *t) {
         if (e.last > phys_addr_mask) {
-            LOG(Caution, "PeripheralDispatcher: %s at [0x%08X..0x%08X] is above "
-                    "the SoC physical space (mask 0x%08X); it aliases to "
-                    "0x%08X and is unreachable/shadowed - relocate it into the "
-                    "addressable range\n",
-                    typeid(*e.p).name(), e.base, e.last, phys_addr_mask,
-                    e.base & phys_addr_mask);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("PeripheralDispatcher: %s at [0x%08X..0x%08X] is above "
+                                  "the SoC physical space (mask 0x%08X); it aliases to "
+                                  "0x%08X and is unreachable/shadowed - relocate it into the "
+                                  "addressable range",
+                                  typeid(*e.p).name(), e.base, e.last, phys_addr_mask,
+                                  e.base & phys_addr_mask);
         }
     }
 }
@@ -300,8 +296,7 @@ void PeripheralDispatcher::WriteSlow(uint32_t addr, uint32_t value, MmioWidth wi
 }
 
 void PeripheralDispatcher::HaltBadWidth(uint32_t width) {
-    LOG(Caution, "PeripheralDispatcher: unmodeled MMIO width %u\n", width);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("PeripheralDispatcher: unmodeled MMIO width %u", width);
 }
 
 uint8_t PeripheralDispatcher::ReadByte(uint32_t addr) {

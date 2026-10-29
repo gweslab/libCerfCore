@@ -1,6 +1,7 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "odo_family_id.h"
@@ -127,12 +128,11 @@ void OdoKeyboard::WriteHalf(uint32_t addr, uint16_t value) {
                 (value   & kKbCsrRwMask));
         } else if (off == kSlotKbIsr) {
             if ((value & ~kKbRdrf) != 0) {
-                LOG(Caution, "Odo KB: KB_ISR write value=0x%04X has "
-                        "bits other than KB_RDRF (0x0001) set; only "
-                        "KB_RDRF has a modeled W1C semantic. Halt "
-                        "rather than guess behavior for other "
-                        "bits.\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("Odo KB: KB_ISR write value=0x%04X has "
+                                      "bits other than KB_RDRF (0x0001) set; only "
+                                      "KB_RDRF has a modeled W1C semantic. Halt "
+                                      "rather than guess behavior for other "
+                                      "bits.", value);
             }
             const bool was_set = (kb_isr_ & kKbRdrf) != 0;
             kb_isr_ &= static_cast<uint16_t>(~(value & kKbRdrf));

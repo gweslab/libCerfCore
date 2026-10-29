@@ -3,6 +3,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/ti_omap35x_evm/ti_omap35x_evm_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
@@ -264,17 +265,16 @@ void Twl4030::PostRestore() {
     emu_.Get<Tps65950Interrupts>().PostRestore();
 }
 
-int Twl4030::AddrIndex(uint8_t slave_addr) {
+int Twl4030::AddrIndex(uint8_t slave_addr) const {
     switch (slave_addr) {
     case kTwlAddr_USB:         return 0;
     case kTwlAddr_AUDIO_INTBR: return 1;
     case kTwlAddr_BCI_MADC:    return 2;
     case kTwlAddr_PWR_RTC:     return 3;
     }
-    LOG(Caution, "Twl4030: AddrIndex called with unknown slave_addr "
-            "0x%02X - bus dispatch should have rejected this\n",
-            slave_addr);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("Twl4030: AddrIndex called with unknown slave_addr "
+                          "0x%02X - bus dispatch should have rejected this",
+                          slave_addr);
 }
 
 REGISTER_SERVICE(Twl4030);

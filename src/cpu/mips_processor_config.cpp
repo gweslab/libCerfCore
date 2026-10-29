@@ -3,6 +3,7 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/config_json.h>
+#include <cerfcore/core/config_reader.h>
 #include <cerfcore/core/device_config_keys.h>
 #include "../core/cpu_config.h"
 
@@ -44,8 +45,9 @@ void MipsProcessorConfig::OnReady() {
     device_ip_mask_ = c.Number("device_ip_mask");
 
     if (tlb_size_ == 0u || tlb_size_ > cerfengine::kMipsTlbMax)
-        CfgFatal(c.Origin(kTlbSize), "'" + CfgKeyPath({config_key::kCpuConfig, kTlbSize}) + "' must be between 1 and " +
-                                         std::to_string(cerfengine::kMipsTlbMax));
+        emu_.Get<ConfigReader>().Fail(c.Origin(kTlbSize), "'" + CfgKeyPath({config_key::kCpuConfig, kTlbSize}) +
+                                                              "' must be between 1 and " +
+                                                              std::to_string(cerfengine::kMipsTlbMax));
 
     fpu_                = c.Boolean("fpu");
     llsc_               = c.Boolean("llsc");

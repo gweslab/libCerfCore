@@ -2,6 +2,7 @@
 #include "imx51_gpu2d_image_paint.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
@@ -55,9 +56,8 @@ bool Imx51Gpu2dImagePaint::ShouldRegister() {
 
 void Imx51Gpu2dImagePaint::Halt(const uint32_t (&regs)[0x100], const char* why,
                                 uint32_t addr, uint32_t data) const {
-    LOG(Caution, "[GPU2D-IMGPAINT] %s at 0x%08X (value 0x%08X)\n", why, addr, data);
     (void)regs;
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("[GPU2D-IMGPAINT] %s at 0x%08X (value 0x%08X)", why, addr, data);
 }
 
 void Imx51Gpu2dImagePaint::CheckGates(const uint32_t (&regs)[0x100]) const {
@@ -154,8 +154,8 @@ void Imx51Gpu2dImagePaint::Composite(const uint32_t (&regs)[0x100]) {
                                                  + static_cast<uint32_t>(px)) * 4u;
             uint8_t* dhp = mem.TryTranslateWrite(dpa);
             if (!dhp) {
-                LOG(Caution, "[GPU2D-IMGPAINT] dest unbacked pa=0x%08X (x=%d y=%d)\n", dpa, px, py);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("[GPU2D-IMGPAINT] dest unbacked pa=0x%08X (x=%d y=%d)",
+                                      dpa, px, py);
             }
             uint32_t* dp = reinterpret_cast<uint32_t*>(dhp);
             *dp = BlendMultiPass(regs, src, *dp);

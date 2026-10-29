@@ -15,6 +15,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../boards/page_table_builder.h"
@@ -132,7 +133,7 @@ bool ImgfsInjector::ReplaceVictim(const char* victim_name,
         victim->file_size);
     auto rc = emu_.Get<ImgfsVictimRecomposer>().Recompose(
         orig_hdr, victim->sections.size(), source_path);
-    if (!rc) CerfFatalExit();
+    if (!rc) emu_.Get<Fatal>().Die("[ImgfsInjector] %s: the stub cannot be recomposed", victim_name);
     const std::vector<uint8_t>& new_hdr = rc->new_hdr;
     const auto& slots = rc->slots;
 
@@ -143,10 +144,9 @@ bool ImgfsInjector::ReplaceVictim(const char* victim_name,
     auto allocate_pages = [&](uint32_t count, const char* what)
         -> std::vector<std::pair<uint32_t /*new_ls*/, uint32_t /*phys_pa*/>> {
         if (free_ftl_slots_.size() < count) {
-            LOG(Caution, "[ImgfsInjector] %s %s out of free FTL pages: "
-                    "need %u, have %zu\n",
-                    victim_name, what, count, free_ftl_slots_.size());
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("[ImgfsInjector] %s %s out of free FTL pages: "
+                                  "need %u, have %zu",
+                                  victim_name, what, count, free_ftl_slots_.size());
         }
         std::vector<std::pair<uint32_t, uint32_t>> out;
         out.reserve(count);
@@ -177,15 +177,13 @@ bool ImgfsInjector::ReplaceVictim(const char* victim_name,
                 map_entry_pa, pre_ls, pre_fl, post_ls, post_fl,
                 slot.phys_page_idx, new_ls);
             if (post_ls != new_ls || post_fl != kValidFlags) {
-                LOG(Caution, "[ImgfsInjector] FTL write VERIFY FAIL\n");
-                CerfFatalExit();
+                emu_.Get<Fatal>().Die("[ImgfsInjector] FTL write VERIFY FAIL");
             }
             const uint32_t phys_page_pa = flash_pa_base_
                 + uint32_t(rom.imgfs_file_off + slot.phys_page_idx * kImgfsPageSize);
             if (new_ls < base_sector) {
-                LOG(Caution, "[ImgfsInjector] new_ls=0x%X < base_sector=0x%X\n",
-                    new_ls, base_sector);
-                CerfFatalExit();
+                emu_.Get<Fatal>().Die("[ImgfsInjector] new_ls=0x%X < base_sector=0x%X",
+                                      new_ls, base_sector);
             }
             out.push_back({new_ls - base_sector, phys_page_pa});
         }
@@ -218,10 +216,9 @@ bool ImgfsInjector::ReplaceVictim(const char* victim_name,
     const uint32_t expected_vbase = U32(new_hdr.data(), kE32OffVbase);
     const uint32_t verify_vbase   = mem.ReadWord(hdr_pa + kE32OffVbase);
     if (verify_vbase != expected_vbase) {
-        LOG(Caution, "[ImgfsInjector] %s VERIFY FAIL: hdr e32_vbase "
-                "expected 0x%08X got 0x%08X\n",
-                victim_name, expected_vbase, verify_vbase);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[ImgfsInjector] %s VERIFY FAIL: hdr e32_vbase "
+                              "expected 0x%08X got 0x%08X",
+                              victim_name, expected_vbase, verify_vbase);
     }
 
     std::vector<cerf::ce_imgfs_patcher::IndexRec> mod_recs = {{kImgfsPageSize, hdr_la}};

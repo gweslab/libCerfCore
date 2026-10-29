@@ -23,24 +23,23 @@ bool CerfVirtBlitter::ShouldRegister() {
 void CerfVirtBlitter::OnReady() {
     fb_  = &emu_.Get<CerfVirtFramebuffer>();
     arena_  = &emu_.Get<CerfVirtDmaArena>();
+    fatal_  = &emu_.Get<Fatal>();
+}
+
+void CerfVirtBlitter::FatalSurface(const char* what, const CerfBltSurface& s) {
+    fatal_->Die("[CerfVirtBlitter] %s surface unresolvable: buffer=0x%08X is_fb_pa=%u fmt=%u "
+                "stride=%d stage_off=0x%08X stage_len=%u",
+                what, s.buffer, s.is_fb_pa, s.format, s.stride, s.stage_off, s.stage_len);
+}
+
+void CerfVirtBlitter::FatalPixel(const char* what, const CerfBltSurface& s,
+                                 int32_t x, int32_t y) {
+    fatal_->Die("[CerfVirtBlitter] %s pixel unaddressable at x=%d y=%d: buffer=0x%08X "
+                "is_fb_pa=%u fmt=%u stride=%d stage_off=0x%08X stage_len=%u",
+                what, x, y, s.buffer, s.is_fb_pa, s.format, s.stride, s.stage_off, s.stage_len);
 }
 
 namespace {
-
-[[noreturn]] void FatalSurface(const char* what, const CerfBltSurface& s) {
-    LOG(Cerf, "[CerfVirtBlitter] %s surface unresolvable: buffer=0x%08X is_fb_pa=%u fmt=%u "
-              "stride=%d stage_off=0x%08X stage_len=%u\n",
-        what, s.buffer, s.is_fb_pa, s.format, s.stride, s.stage_off, s.stage_len);
-    CerfFatalExit();
-}
-
-[[noreturn]] void FatalPixel(const char* what, const CerfBltSurface& s,
-                             int32_t x, int32_t y) {
-    LOG(Cerf, "[CerfVirtBlitter] %s pixel unaddressable at x=%d y=%d: buffer=0x%08X "
-              "is_fb_pa=%u fmt=%u stride=%d stage_off=0x%08X stage_len=%u\n",
-        what, x, y, s.buffer, s.is_fb_pa, s.format, s.stride, s.stage_off, s.stage_len);
-    CerfFatalExit();
-}
 
 void FillAxis(std::vector<int32_t>& lut, int32_t dst_len, int32_t src_len) {
     lut.resize((size_t)dst_len);
@@ -76,8 +75,7 @@ void FillAxis(std::vector<int32_t>& lut, int32_t dst_len, int32_t src_len) {
 
 bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
     if (d.magic != kCerfBltMagic) {
-        LOG(Cerf, "[CerfVirtBlitter] corrupt descriptor magic 0x%08X\n", d.magic);
-        CerfFatalExit();
+        fatal_->Die("[CerfVirtBlitter] corrupt descriptor magic 0x%08X", d.magic);
     }
 
     const uint8_t fg_rop3   = (uint8_t)d.rop4;
@@ -96,10 +94,9 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
 
     const uint32_t d_bits = BltPixelOps::FormatBits(d.dst.format);
     if (d_bits == 0u) {
-        LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED dst format %u, rop4=0x%04X "
-                  "has_src=%u has_mask=%u has_brush=%u\n",
-            d.dst.format, d.rop4, d.has_src, d.has_mask, d.has_brush);
-        CerfFatalExit();
+        fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED dst format %u, rop4=0x%04X "
+                    "has_src=%u has_mask=%u has_brush=%u",
+                    d.dst.format, d.rop4, d.has_src, d.has_mask, d.has_brush);
     }
     const bool d_indexed = (d_bits <= 8u);
     const bool d_subbyte = (d_bits < 8u);
@@ -108,24 +105,21 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
     uint32_t d_bpp = d_bits / 8u;
     if (!d_indexed) {
         if (!ResolveMasks(d.dst, d_masks, &d_bpp)) {
-            LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED dst format %u (%u bpp), "
-                      "pal_entries=%u rop4=0x%04X has_src=%u has_mask=%u has_brush=%u\n",
-                d.dst.format, d_bits, d.dst.pal_entries,
-                d.rop4, d.has_src, d.has_mask, d.has_brush);
-            CerfFatalExit();
+            fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED dst format %u (%u bpp), "
+                        "pal_entries=%u rop4=0x%04X has_src=%u has_mask=%u has_brush=%u",
+                        d.dst.format, d_bits, d.dst.pal_entries,
+                        d.rop4, d.has_src, d.has_mask, d.has_brush);
         }
         for (int i = 0; i < 3; ++i) d_shift[i] = 32u - BltPixelOps::HighBitPos(d_masks[i]);
     }
     if (d_indexed && alpha_blend) {
-        LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED alpha blend to indexed dst "
-                  "format %u (%u bpp), rop4=0x%04X\n", d.dst.format, d_bits, d.rop4);
-        CerfFatalExit();
+        fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED alpha blend to indexed dst "
+                    "format %u (%u bpp), rop4=0x%04X", d.dst.format, d_bits, d.rop4);
     }
     if (d_indexed && d.convert_active != 0u) {
-        LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED channel conversion to indexed dst "
-                  "format %u (%u bpp), src format %u\n",
-            d.dst.format, d_bits, d.src.format);
-        CerfFatalExit();
+        fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED channel conversion to indexed dst "
+                    "format %u (%u bpp), src format %u",
+                    d.dst.format, d_bits, d.src.format);
     }
     Surface dst;
     if (!ResolveSurface(d.dst, d_subbyte ? 1u : d_bpp, &dst)) FatalSurface("dst", d.dst);
@@ -133,9 +127,8 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
     if ((d.rop4 & 0xFFFFu) == 0xAAF0u && d.has_mask != 0u &&
         (d.mask.format == kCerfFmt4Bpp || d.mask.format == kCerfFmt8Bpp)) {
         if (d_indexed) {
-            LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED AA text to indexed dst "
-                      "format %u (%u bpp)\n", d.dst.format, d_bits);
-            CerfFatalExit();
+            fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED AA text to indexed dst "
+                        "format %u (%u bpp)", d.dst.format, d_bits);
         }
         return BlendAAText(d, dst, d_masks, d_bpp);
     }
@@ -149,8 +142,7 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
     if (has_src) {
         if (src_pal) {
             if (src_bits == 0u) {
-                LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED src format %u\n", d.src.format);
-                CerfFatalExit();
+                fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED src format %u", d.src.format);
             }
             if (!ResolveSurface(d.src, 1u, &src)) FatalSurface("src", d.src);
             const uint32_t count = 1u << src_bits;
@@ -158,27 +150,24 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
                 const uint8_t* lp = arena_->At(d.lookup_off,
                                                count * (uint32_t)sizeof(uint32_t));
                 if (!lp) {
-                    LOG(Cerf, "[CerfVirtBlitter] XLATEOBJ pLookup outside arena "
-                              "off=0x%X entries=%u\n", d.lookup_off, count);
-                    CerfFatalExit();
+                    fatal_->Die("[CerfVirtBlitter] XLATEOBJ pLookup outside arena "
+                                "off=0x%X entries=%u", d.lookup_off, count);
                 }
                 for (uint32_t i = 0; i < count; ++i)
                     pal_lut[i] = reinterpret_cast<const uint32_t*>(lp)[i];
             } else {
                 if (!d_indexed) {
-                    LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED indexed src format %u (%u bpp) "
-                              "with no XLATEOBJ lookup to non-indexed dst format %u (%u bpp)\n",
-                        d.src.format, src_bits, d.dst.format, d_bits);
-                    CerfFatalExit();
+                    fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED indexed src format %u (%u bpp) "
+                                "with no XLATEOBJ lookup to non-indexed dst format %u (%u bpp)",
+                                d.src.format, src_bits, d.dst.format, d_bits);
                 }
                 for (uint32_t i = 0; i < count; ++i) pal_lut[i] = i;
             }
         } else {
             if (!ResolveMasks(d.src, s_masks, &s_bpp)) {
-                LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED src format %u (%u bpp) with no "
-                          "XLATEOBJ lookup; dst fmt %u rop4=0x%04X\n",
-                    d.src.format, src_bits, d.dst.format, d.rop4);
-                CerfFatalExit();
+                fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED src format %u (%u bpp) with no "
+                            "XLATEOBJ lookup; dst fmt %u rop4=0x%04X",
+                            d.src.format, src_bits, d.dst.format, d.rop4);
             }
             if (!ResolveSurface(d.src, s_bpp, &src)) FatalSurface("src", d.src);
             for (int i = 0; i < 3; ++i) {
@@ -206,18 +195,16 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
     const bool b_subbyte  = has_brush && (b_bits < 8u);
     if (has_brush) {
         if (b_bits == 0u || (b_indexed != d_indexed)) {
-            LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED brush format %u (%u bpp); "
-                      "dst fmt %u (%u bpp) rop4=0x%04X\n",
-                d.brush.format, b_bits, d.dst.format, d_bits, d.rop4);
-            CerfFatalExit();
+            fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED brush format %u (%u bpp); "
+                        "dst fmt %u (%u bpp) rop4=0x%04X",
+                        d.brush.format, b_bits, d.dst.format, d_bits, d.rop4);
         }
         if (b_indexed) {
             b_bpp = b_bits / 8u;
         } else if (!BltPixelOps::FormatMasks(d.brush.format, b_masks, &b_bpp)) {
-            LOG(Cerf, "[CerfVirtBlitter] UNIMPLEMENTED brush format %u (%u bpp); "
-                      "dst fmt %u rop4=0x%04X\n",
-                d.brush.format, b_bits, d.dst.format, d.rop4);
-            CerfFatalExit();
+            fatal_->Die("[CerfVirtBlitter] UNIMPLEMENTED brush format %u (%u bpp); "
+                        "dst fmt %u rop4=0x%04X",
+                        d.brush.format, b_bits, d.dst.format, d.rop4);
         }
         if (!ResolveSurface(d.brush, b_subbyte ? 1u : b_bpp, &brush))
             FatalSurface("brush", d.brush);

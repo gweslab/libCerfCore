@@ -26,7 +26,7 @@ public:
     void Restore(StateReader& r, uint64_t now);
 
 private:
-    CycleAnchoredCounter frames_;
+    CycleAnchoredCounter frames_{emu_};
     uint64_t cpu_hz_  = 0;
     uint64_t fs_num_  = 0;
     uint64_t fs_den_  = 0;

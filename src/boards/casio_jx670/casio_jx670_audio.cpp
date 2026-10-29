@@ -159,9 +159,8 @@ bool CasioJx670Audio::TryWriteWord(uint32_t off, uint32_t value) {
                gated on 0x0884 bit0 @0xF62380; loc_F61EAC @0xF61EF8 lw / @0xF61EFA
                li $a2,2 / @0xF61EFC neg / @0xF61EFE and / @0xF61F00 sw. */
             if (value > 1u) {
-                LOG(Caution, "EM-500 audio 0x0898 write 0x%08X outside the "
-                             "loc_F618CC / dword_F622D4 / loc_F61EAC set\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_->Get<Fatal>().Die("EM-500 audio 0x0898 write 0x%08X outside the "
+                                       "loc_F618CC / dword_F622D4 / loc_F61EAC set", value);
             }
             reg_898_ = value;
             return true;
@@ -319,9 +318,8 @@ void CasioJx670Audio::QueueDescriptor(uint32_t start_index) {
     const uint64_t span = static_cast<uint64_t>(end_va) -
                           static_cast<uint64_t>(start_va) + 1ull;
     if (end_va < start_va || span > PacedWaveOut::kMaxBlock) {
-        LOG(Caution, "EM-500 audio DMA descriptor 0x%08X..0x%08X is not a block of "
-                     "at most %u bytes\n", start_va, end_va, PacedWaveOut::kMaxBlock);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_->Get<Fatal>().Die("EM-500 audio DMA descriptor 0x%08X..0x%08X is not a block of "
+                               "at most %u bytes", start_va, end_va, PacedWaveOut::kMaxBlock);
     }
     const uint32_t length = static_cast<uint32_t>(span);
     if (length % frame_bytes != 0u) {

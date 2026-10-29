@@ -2,6 +2,7 @@
 #include "imx51_gpu2d_direct2d.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
@@ -33,9 +34,8 @@ bool Imx51Gpu2dDirect2d::ShouldRegister() {
 
 void Imx51Gpu2dDirect2d::Halt(const uint32_t (&regs)[0x100], const char* why,
                               uint32_t addr, uint32_t data) const {
-    LOG(Caution, "[GPU2D-D2D] %s at 0x%08X (value 0x%08X)\n", why, addr, data);
     (void)regs;
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("[GPU2D-D2D] %s at 0x%08X (value 0x%08X)", why, addr, data);
 }
 
 /* Admit ALPHABLEND's two ambient defaults: OBS_ENABLE[8] (surface-init) and
@@ -153,17 +153,15 @@ void Imx51Gpu2dDirect2d::CopyRect(const Gpu2dCopySpec& c) {
                                                                    + sx) * 4);
             const uint8_t* shp = mem.TryTranslate(spa);
             if (!shp) {
-                LOG(Caution, "[GPU2D-D2D] copy source pixel unbacked pa=0x%08X (x=%d y=%d)\n",
-                    spa, sx, sy);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("[GPU2D-D2D] copy source pixel unbacked pa=0x%08X (x=%d y=%d)",
+                                      spa, sx, sy);
             }
             const uint32_t dpa = c.dst_pa + static_cast<uint32_t>((dy * c.dst_stride_dw
                                                                    + dx) * 4);
             uint8_t* dhp = mem.TryTranslateWrite(dpa);
             if (!dhp) {
-                LOG(Caution, "[GPU2D-D2D] copy dest pixel unbacked pa=0x%08X (x=%d y=%d)\n",
-                    dpa, dx, dy);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("[GPU2D-D2D] copy dest pixel unbacked pa=0x%08X (x=%d y=%d)",
+                                      dpa, dx, dy);
             }
             *reinterpret_cast<uint32_t*>(dhp) = *reinterpret_cast<const uint32_t*>(shp);
         }
@@ -182,9 +180,8 @@ void Imx51Gpu2dDirect2d::UnpremultiplyRect(const Gpu2dCopySpec& c) {
                                                                    + dx) * 4);
             uint8_t* dhp = mem.TryTranslateWrite(dpa);
             if (!dhp) {
-                LOG(Caution, "[GPU2D-D2D] un-premultiply dest pixel unbacked pa=0x%08X (x=%d y=%d)\n",
-                    dpa, dx, dy);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("[GPU2D-D2D] un-premultiply dest pixel unbacked pa=0x%08X (x=%d y=%d)",
+                                      dpa, dx, dy);
             }
             auto* pixel = reinterpret_cast<uint32_t*>(dhp);
             const uint32_t alpha = *pixel >> 24;

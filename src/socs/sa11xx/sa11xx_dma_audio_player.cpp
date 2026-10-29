@@ -3,6 +3,8 @@
 #include "sa11xx_dma_audio_player.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../host/audio_activity_widget.h"
 #include "sa11xx_dma.h"
@@ -13,7 +15,7 @@ namespace cerfcore {
 
 void Sa11xxDmaAudioPlayer::OnReady() {
     cfg_ = AudioConfig();
-    out_.Start(cfg_.log_tag, 0u, cfg_.channels, cfg_.bits_per_sample);
+    out_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), cfg_.log_tag, 0u, cfg_.channels, cfg_.bits_per_sample);
     emu_.Get<Sa11xxDma>().RegisterTransmitObserver(this);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }

@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boot/rom_parser_service.h>
 #include "../execution/engine_bridge.h"
@@ -81,11 +82,10 @@ void TraceManager::RegisterForBundle(
 
 void TraceManager::GuardUnique(uint32_t runtime_va) {
     if (pc_traces_.count(runtime_va) == 0) return;
-    LOG(Caution, "TraceManager duplicate registration at runtime_va=0x%08X - a "
-                 "trace handler is already bound at this guest PC. A VA may be "
-                 "hooked exactly once, by OnPc or OnPcFiltered (not both, not "
-                 "twice).\n", runtime_va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("TraceManager duplicate registration at runtime_va=0x%08X - a "
+                          "trace handler is already bound at this guest PC. A VA may be "
+                          "hooked exactly once, by OnPc or OnPcFiltered (not both, not "
+                          "twice).", runtime_va);
 }
 
 void TraceManager::NoteTracedPc(uint32_t runtime_va) {

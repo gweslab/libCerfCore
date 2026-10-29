@@ -5,6 +5,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/cerf_paths.h>
@@ -71,9 +72,8 @@ public:
                   "(MBR + 2 empty FAT32 partitions) at '%s'\n", path.c_str());
         DiskImage img;
         if (!img.Open(path, kCapacityBytes)) {
-            LOG(Caution, "[ZUNE-HDD] FATAL: cannot create disk image '%s'\n",
-                path.c_str());
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[ZUNE-HDD] FATAL: cannot create disk image '%s'",
+                                  path.c_str());
         }
         WriteMbr(img);
         FormatFat32(img, kP1);

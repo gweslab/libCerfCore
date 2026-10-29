@@ -1,10 +1,12 @@
 #include "slirp_reply_workers.h"
 
+#include <cerfcore/core/instance_threads.h>
+
 namespace cerfcore {
 
 SlirpReplyWorkers::~SlirpReplyWorkers() { Stop(); }
 
-void SlirpReplyWorkers::Start(Work work) {
+void SlirpReplyWorkers::Start(InstanceThreads& threads, Work work) {
     auto done = std::make_shared<std::atomic<bool>>(false);
     std::lock_guard<std::mutex> lk(mutex_);
     if (stopping_) return;
@@ -16,11 +18,8 @@ void SlirpReplyWorkers::Start(Work work) {
             ++it;
         }
     }
-    std::thread thread([work = std::move(work), done] {
-        work();
-        done->store(true, std::memory_order_release);
-    });
-    workers_.push_back({std::move(thread), std::move(done)});
+    workers_.push_back(
+        {threads.Start(std::move(work), [done] { done->store(true, std::memory_order_release); }), done});
 }
 
 void SlirpReplyWorkers::Stop() {

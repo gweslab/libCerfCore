@@ -29,7 +29,7 @@ public:
     WaveInSink(const WaveInSink&)            = delete;
     WaveInSink& operator=(const WaveInSink&) = delete;
 
-    void Start(MessageHandler on_message, const char* log_tag);
+    void Start(InstanceThreads& threads, MessageHandler on_message, const char* log_tag);
     void Stop() { thread_.Stop(); }
 
     void Post(UINT message) const { thread_.Post(message); }
@@ -64,9 +64,9 @@ WaveInSink::~WaveInSink() {
     CloseDevice();
 }
 
-void WaveInSink::Start(MessageHandler on_message, const char* log_tag) {
+void WaveInSink::Start(InstanceThreads& threads, MessageHandler on_message, const char* log_tag) {
     log_tag_ = log_tag;
-    thread_.Start(nullptr, nullptr, nullptr, on_message);
+    thread_.Start(threads, nullptr, nullptr, nullptr, on_message);
 }
 
 void WaveInSink::CloseDevice() {
@@ -148,7 +148,7 @@ private:
 };
 
 void WinmmWaveInBackend::Begin() {
-    sink_.Start([this](const MSG& msg) { OnThreadMessage(msg); }, log_tag_);
+    sink_.Start(*threads_, [this](const MSG& msg) { OnThreadMessage(msg); }, log_tag_);
 }
 
 void WinmmWaveInBackend::OnThreadMessage(const MSG& msg) {

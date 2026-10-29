@@ -3,6 +3,7 @@
 #include "sa11xx_dma_capture.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../host/audio_activity_widget.h"
 #include "sa11xx_dma.h"
@@ -13,7 +14,7 @@ namespace cerfcore {
 
 void Sa11xxDmaCapture::OnReady() {
     cfg_ = AudioConfig();
-    mic_.Start(cfg_.log_tag, static_cast<size_t>(cfg_.max_page_bytes) * 4u);
+    mic_.Start(emu_.Get<InstanceThreads>(), cfg_.log_tag, static_cast<size_t>(cfg_.max_page_bytes) * 4u);
     emu_.Get<Sa11xxDma>().RegisterReceiveSource(this);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }

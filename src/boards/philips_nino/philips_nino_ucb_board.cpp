@@ -5,18 +5,13 @@
 #include <cerfcore/boards/board_context.h>
 #include "philips_nino_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
-#include <cerfcore/core/log.h>
+#include <cerfcore/core/fatal.h>
 
 #include <cstdint>
 
 namespace cerfcore {
 
 namespace {
-
-[[noreturn]] void Unwired(const char* what) {
-    LOG(Caution, "PhilipsNinoUcbBoard: %s is not wired to the codec\n", what);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
-}
 
 /* philips_nino_300 gwes.exe sub_82C18 issues SIB1 IOCTL 1 with nInBufSize 0 (main
    battery), 2 (backup cell) and 3 (battery-type sense). */
@@ -70,7 +65,8 @@ public:
                 return MainBatteryAdc(emu_.Get<PhilipsNinoBattery>().FillPercent());
             case kAuxBackup:    return kBackupAdcHealthy;
             case kAuxChemistry: return kChemistryAlkalineAdc;
-            default:            Unwired("an auxiliary ADC channel");
+            default:
+                emu_.Get<Fatal>().Die("PhilipsNinoUcbBoard: an auxiliary ADC channel is not wired to the codec");
         }
     }
 

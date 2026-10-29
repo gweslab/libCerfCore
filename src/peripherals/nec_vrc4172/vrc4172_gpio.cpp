@@ -2,6 +2,7 @@
 #include "vrc4172_gpio_config.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../peripheral_dispatcher.h"
 #include "../../socs/vr41xx/vr41xx_giu.h"
@@ -103,9 +104,8 @@ uint16_t Vrc4172Gpio::ReadReg16Locked(uint32_t off) {
 
 void Vrc4172Gpio::SetPinLevel(int pin, bool level) {
     if (pin < 0 || pin > 15) {
-        LOG(Caution, "Vrc4172Gpio::SetPinLevel: pin %d outside modeled bank-0 "
-                     "[15:0] (bank-1 pins 16-23 not modeled)\n", pin);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Vrc4172Gpio::SetPinLevel: pin %d outside modeled bank-0 "
+                              "[15:0] (bank-1 pins 16-23 not modeled)", pin);
     }
     std::lock_guard<std::mutex> lk(mtx_);
 

@@ -2,6 +2,7 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "ford_sync_gen2_family_id.h"
@@ -80,12 +81,11 @@ private:
                 o += std::snprintf(chain + o, sizeof(chain) - o, "%08X ", w);
             ++logged;
         }
-        LOG(Caution,
+        emu_.Get<Fatal>().Die(
             "[HIC1] unmodelled I2C slave=0x%02X rw=%u pc=0x%08X lr=0x%08X "
-            "sp=0x%08X chain: %s\n",
+            "sp=0x%08X chain: %s",
             addr_, static_cast<unsigned>(rw_), st->gprs[cerfengine::ArmGpr::kR15],
             st->gprs[cerfengine::ArmGpr::kR14], sp, chain);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
     }
 
     void OnByteReceived(uint8_t b) {

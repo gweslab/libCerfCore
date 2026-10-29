@@ -8,7 +8,9 @@ WaveInFifo::WaveInFifo() : backend_(WaveInBackend::Create()) {}
 
 WaveInFifo::~WaveInFifo() { backend_->Stop(); }
 
-void WaveInFifo::Start(const char* log_tag, size_t cap_bytes) { backend_->Start(log_tag, cap_bytes); }
+void WaveInFifo::Start(InstanceThreads& threads, const char* log_tag, size_t cap_bytes) {
+    backend_->Start(threads, log_tag, cap_bytes);
+}
 
 void WaveInFifo::Stop() { backend_->Stop(); }
 

@@ -7,6 +7,7 @@
 #include "compaq_ipaq_h3000_panel.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/host/panel_frame_renderer.h>
@@ -129,10 +130,9 @@ private:
         /* PBS=10 bypasses the palette with 12-bit RGB pixels (p.11-19) -
            contradicts CMS=1's 4-bit gray palette path; PBS=11 reserved.
            Neither has defined mono behavior. */
-        LOG(Lcd, "CompaqIpaqH3000LcdRenderer: FATAL mono frame with PBS=%u "
-                 "(palette entry0=0x%04X) - undefined combination\n",
-            pbs, entry0);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CompaqIpaqH3000LcdRenderer: FATAL mono frame with PBS=%u "
+                              "(palette entry0=0x%04X) - undefined combination",
+                              pbs, entry0);
     }
 
     template <typename Fetch>

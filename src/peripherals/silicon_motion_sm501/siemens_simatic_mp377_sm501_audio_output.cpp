@@ -3,6 +3,8 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/siemens_simatic_mp377/siemens_simatic_mp377_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include "../../host/audio_activity_widget.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
@@ -19,7 +21,7 @@ bool SiemensSimaticMp377Sm501AudioOutput::ShouldRegister() {
 
 void SiemensSimaticMp377Sm501AudioOutput::OnReady() {
     widget_ = &emu_.Get<AudioActivityWidget>();
-    output_.Start("MP377SM501Audio", 0, 2, 16);
+    output_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), "MP377SM501Audio", 0, 2, 16);
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
         if (emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) return;
         ResetDevice();

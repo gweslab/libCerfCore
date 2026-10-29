@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cerfcore/core/service.h>
 #include "../../peripherals/serial/serial_16550.h"
 
 #include <cstdint>
@@ -13,9 +14,12 @@ class StateReader;
 /* EM-500 companion serial/modem port: PC16550D modem UART (serial.dll ser16550
    PDD; companion 0x8680 stride 4, base GetVMem 0xAA008000 via serial.dll mapper
    0xF56CEC) + its modem-block/socket control latches + INTR line. */
-class CasioJx670Modem {
+class CasioJx670Modem : public Service {
 public:
-    void Init();
+    using Service::Service;
+
+    bool ShouldRegister() override;
+    void OnReady() override;
 
     bool TryReadByte (uint32_t off, uint8_t&  out);
     bool TryWriteByte(uint32_t off, uint8_t   value);

@@ -102,7 +102,7 @@ private:
     Ac97Codec*              codec_     = nullptr;
     Pxa2xxAc97BitClock*     bit_clock_ = nullptr;
     std::vector<Pxa2xxAc97LinkListener*> listeners_;
-    RatedTickCount          bits_;
+    RatedTickCount          bits_{emu_};
     GuestCycleClock::Rate   bits_rate_;
 
     bool     cold_released_ = false;

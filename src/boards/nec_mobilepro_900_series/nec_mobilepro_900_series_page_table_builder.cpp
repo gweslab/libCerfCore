@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "nec_mobilepro_900_series_family_id.h"
@@ -95,9 +96,8 @@ uint32_t NecMobilepro900SeriesPageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "NecMobilepro900SeriesPageTableBuilder::VaToPa: VA 0x%08X outside "
-            "every OAT band (nk.exe OEMAddressTable @ 0x90201E38)\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("NecMobilepro900SeriesPageTableBuilder::VaToPa: VA 0x%08X outside "
+                          "every OAT band (nk.exe OEMAddressTable @ 0x90201E38)", va);
 }
 
 std::vector<DramRegion>

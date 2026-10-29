@@ -19,7 +19,8 @@ public:
 
     virtual ~WaveOutBackend() = default;
 
-    void Start(StartHandler on_start, CommandHandler on_command, DoneHandler on_done, const char* log_tag);
+    void Start(Fatal& fatal, InstanceThreads& threads, StartHandler on_start, CommandHandler on_command,
+               DoneHandler on_done, const char* log_tag);
     virtual void Stop()                          = 0;
     virtual void PostCommand(uint32_t command)   = 0;
 
@@ -39,6 +40,8 @@ protected:
     mutable std::mutex  mtx_;
     WaveOutReopenPolicy policy_;
     uint32_t            generation_ = 0;
+    Fatal*              fatal_      = nullptr;
+    InstanceThreads*    threads_    = nullptr;
     const char*         log_tag_    = "WaveOutSink";
 };
 

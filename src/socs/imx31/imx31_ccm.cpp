@@ -332,11 +332,10 @@ void Imx31Ccm::WriteWord(uint32_t addr, uint32_t value) {
     }
     if (slot == kPmcr0Slot) {
         if ((value & kPmcr0DptenBit) != 0 || (value & kPmcr0DvfenBit) != 0) {
-            LOG(SocClkpwr, "[CCM] PMCR0 write 0x%08X enables DPTC/DVFS state "
-                        "machine; CERF does not simulate workload counters, "
-                        "comparator crossings, or interrupt event generation\n",
-                value);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[CCM] PMCR0 write 0x%08X enables DPTC/DVFS state "
+                                  "machine; CERF does not simulate workload counters, "
+                                  "comparator crossings, or interrupt event generation",
+                                  value);
         }
         constexpr uint32_t kLbflBit = 1u << 20;
         const uint32_t preserved = regs_[slot] & kLbflBit & value;

@@ -68,7 +68,7 @@ private:
     GuestCycleClock*        clock_         = nullptr;
     GuestCycleClock::Event* sample_event_  = nullptr;
     cerfengine::HostRequestChannel*     host_requests_ = nullptr;
-    RatedTickCount          samples_;
+    RatedTickCount          samples_{emu_};
     GuestCycleClock::Rate   rate_{};
     uint64_t                next_sample_ = 0;
     bool                    sampling_    = false;

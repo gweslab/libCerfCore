@@ -5,6 +5,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include "../../host/audio_activity_widget.h"
 #include "../../platform/wave_pcm_format.h"
@@ -71,7 +72,7 @@ void Tps65950AudioInterface::OnReady() {
     downlink_   = &emu_.Get<Tps65950AudioDownlink>();
     hfclkin_hz_ = emu_.Get<Tps65950Board>().HfclkinHz();
     clock_->RegisterRateListener([this] { OnCpuRate(); });
-    host_.Start("Tps65950Audio", 0u, kChannels, kBits);
+    host_.Start(emu_.Get<Fatal>(), emu_.Get<InstanceThreads>(), "Tps65950Audio", 0u, kChannels, kBits);
     emu_.Get<AudioActivityWidget>().NotePresent();
 }
 

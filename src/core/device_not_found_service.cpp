@@ -2,7 +2,7 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
-#include <cerfcore/core/log.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/cerf_paths.h>
 
 #include "../boot/sec_flash.h"
@@ -29,13 +29,12 @@ bool DeviceNotFoundService::IsDevicePresent() {
 
 void DeviceNotFoundService::EnsureFound() {
     const auto& cfg = emu_.Get<DeviceConfig>();
-    LOG(Caution, "device '%s' has no ROM on disk\n", cfg.device_name.c_str());
 
 #if !CERF_DEV_MODE
     emu_.Get<ConfigurationProblem>().DeviceRomMissing(cfg.device_name);
 #endif
 
-    CerfFatalExit(CERF_FATAL_USER_ERROR);
+    emu_.Get<Fatal>().UserError("device '%s' has no ROM on disk", cfg.device_name.c_str());
 }
 
 }

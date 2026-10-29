@@ -1,5 +1,6 @@
 #include "mediaq_ge.h"
 
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -66,9 +67,8 @@ void MediaQGe::Execute() {
             break;
     }
 
-    LOG(Caution, "MediaQ GE: unimplemented command 0x%08X (type=%u rop=0x%02X)\n",
-        cmd, (cmd >> kCmdTypeShift) & kCmdTypeMask, cmd & kCmdRopMask);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    OwnerFatal().Die("MediaQ GE: unimplemented command 0x%08X (type=%u rop=0x%02X)",
+                     cmd, (cmd >> kCmdTypeShift) & kCmdTypeMask, cmd & kCmdRopMask);
 }
 
 MediaQGe::CommandPath MediaQGe::PathOf(uint32_t cmd) const {

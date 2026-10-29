@@ -6,6 +6,8 @@
 
 namespace cerfcore {
 
+class Fatal;
+class InstanceThreads;
 class WaveOutBackend;
 
 class WaveOutSink {
@@ -22,8 +24,8 @@ public:
     WaveOutSink(const WaveOutSink&)            = delete;
     WaveOutSink& operator=(const WaveOutSink&) = delete;
 
-    void Start(StartHandler on_start, CommandHandler on_command, DoneHandler on_done,
-               const char* log_tag);
+    void Start(Fatal& fatal, InstanceThreads& threads, StartHandler on_start, CommandHandler on_command,
+               DoneHandler on_done, const char* log_tag);
     void Stop();
     void PostCommand(uint32_t command);
 

@@ -1,5 +1,6 @@
 #include "mediaq_mq1188_ge.h"
 
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 
 namespace cerfcore {
@@ -48,8 +49,7 @@ uint32_t MediaQMq1188Ge::LineColor(uint32_t cmd) const {
        textured from the Source FIFO / pattern bitmap never occurs. */
     if (cmd & kCmdSolidSrc) return reg_[kGe07FgColor];
     if (cmd & kCmdSolidPat) return reg_[kGe12PatFg];
-    LOG(Caution, "MediaQ MQ1188 GE: non-solid line source (cmd=0x%08X)\n", cmd);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    OwnerFatal().Die("MediaQ MQ1188 GE: non-solid line source (cmd=0x%08X)", cmd);
 }
 
 /* Source dwords the latched system-source blit streams: contiguous 1-bpp bits

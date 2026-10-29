@@ -3,6 +3,8 @@
 #include <cerfcore/core/emulation_multiplier.h>
 #include <cerfcore/core/service.h>
 
+#include <nlohmann/json_fwd.hpp>
+
 #include <cstdint>
 #include <string>
 
@@ -22,7 +24,9 @@ public:
     Multiplier CpuRate() const { return cpu_rate_; }
 
 private:
-    void Load(const std::string& path, CfgBrokenFile broken);
+    void       Load(const std::string& path, CfgBrokenFile broken);
+    Multiplier ReadMultiplier(const nlohmann::json& root, const char* key, bool zero_allowed,
+                              const std::string& path, Multiplier current);
 
     Multiplier throttle_;
     Multiplier cpu_rate_;

@@ -5,6 +5,7 @@
 #include "../../boards/philips_velo_1/philips_velo_1_family_id.h"
 #include "../../boards/sharp_mobilon_hc/sharp_mobilon_hc_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/state_stream.h>
 #include "../pcmcia/pcmcia_slot.h"
@@ -167,8 +168,7 @@ void IteIt8368::UpdateIntLocked() {
     if (level == int_asserted_) return;
 
     if (!int_sink_) {
-        LOG(Caution, "IteIt8368: INT pin has no board wiring\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("IteIt8368: INT pin has no board wiring");
     }
     int_asserted_ = level;
     int_sink_->OnIt8368IntLevel(level);
@@ -182,12 +182,10 @@ IteIt8368::BusOps IteIt8368::ApplyOutputsLocked() {
        and both together tri-state Vpp (it8368reg.h:108). Only Vcc reaches the socket,
        so only the 12 V rail is an unmodeled power state. */
     if (driven & kPinCrdVppOn1) {
-        LOG(Caution, "IteIt8368: CRDVPPON1 (Vpp 12 V) unmodeled\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("IteIt8368: CRDVPPON1 (Vpp 12 V) unmodeled");
     }
     if ((driven & kPinCrdVccMask) == kPinCrdVccMask) {
-        LOG(Caution, "IteIt8368: CRDVCCON1 and CRDVCCON0 both driven\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("IteIt8368: CRDVCCON1 and CRDVCCON0 both driven");
     }
 
     BusOps ops;
@@ -275,8 +273,7 @@ uint16_t IteIt8368::ReadReg(uint32_t off) {
         case kRegMfioNegIntEn:   return 0;
 
         default:
-            LOG(Caution, "IteIt8368::ReadReg unmodeled register $%02X\n", off);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("IteIt8368::ReadReg unmodeled register $%02X", off);
     }
 }
 
@@ -299,40 +296,35 @@ IteIt8368::BusOps IteIt8368::WriteRegLocked(uint32_t off, uint16_t value) {
     switch (off) {
         case kRegGpioDataOut:
             if (value & ~kOutputCapablePins) {
-                LOG(Caution, "IteIt8368: GPIODATAOUT 0x%04X drives an input "
-                        "pin\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: GPIODATAOUT 0x%04X drives an input "
+                                      "pin", value);
             }
             gpio_dataout_ = value;
             return ApplyOutputsLocked();
 
         case kRegGpioDir:
             if (value & ~kOutputCapablePins) {
-                LOG(Caution, "IteIt8368: GPIODIR 0x%04X enables an output on a "
-                        "card status pin\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: GPIODIR 0x%04X enables an output on a "
+                                      "card status pin", value);
             }
             gpio_dir_ = value;
             return ApplyOutputsLocked();
 
         case kRegMfioSel:
             if (value & ~static_cast<uint16_t>(kMfioMask | kMfioSelVgaEn)) {
-                LOG(Caution, "IteIt8368: MFIOSEL 0x%04X sets a reserved bit\n",
-                    value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: MFIOSEL 0x%04X sets a reserved bit",
+                                      value);
             }
             if (value & kMfioSelVgaEn) {
-                LOG(Caution, "IteIt8368: MFIOSEL 0x%04X enables VGA\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: MFIOSEL 0x%04X enables VGA", value);
             }
             mfio_sel_ = value;
             return {};
 
         case kRegGpioPosIntEn:
             if (value & ~kGpioMask) {
-                LOG(Caution, "IteIt8368: GPIOPOSINTEN 0x%04X enables a pin the "
-                        "chip does not have\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: GPIOPOSINTEN 0x%04X enables a pin the "
+                                      "chip does not have", value);
             }
             gpio_posinten_ = value;
             UpdateIntLocked();
@@ -340,9 +332,8 @@ IteIt8368::BusOps IteIt8368::WriteRegLocked(uint32_t off, uint16_t value) {
 
         case kRegGpioNegIntEn:
             if (value & ~kGpioMask) {
-                LOG(Caution, "IteIt8368: GPIONEGINTEN 0x%04X enables a pin the "
-                        "chip does not have\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: GPIONEGINTEN 0x%04X enables a pin the "
+                                      "chip does not have", value);
             }
             gpio_neginten_ = value;
             UpdateIntLocked();
@@ -351,9 +342,8 @@ IteIt8368::BusOps IteIt8368::WriteRegLocked(uint32_t off, uint16_t value) {
         case kRegMfioPosIntEn:
         case kRegMfioNegIntEn:
             if (value != 0u) {
-                LOG(Caution, "IteIt8368: MFIO interrupt enable $%02X = 0x%04X on a "
-                        "pin held at its reset function\n", off, value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: MFIO interrupt enable $%02X = 0x%04X on a "
+                                      "pin held at its reset function", off, value);
             }
             return {};
 
@@ -378,21 +368,18 @@ IteIt8368::BusOps IteIt8368::WriteRegLocked(uint32_t off, uint16_t value) {
         case kRegCtrl:
             if (value & kCtrlSoftReset) {
                 if (value != kCtrlSoftReset) {
-                    LOG(Caution, "IteIt8368: CTRL 0x%04X combines soft reset with "
-                            "other bits\n", value);
-                    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                    emu_.Get<Fatal>().Die("IteIt8368: CTRL 0x%04X combines soft reset with "
+                                          "other bits", value);
                 }
                 return SoftResetLocked();
             }
             if (value & ~kCtrlKnown) {
-                LOG(Caution, "IteIt8368: CTRL 0x%04X sets a reserved bit\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: CTRL 0x%04X sets a reserved bit", value);
             }
             /* ADDRSEL remaps LHA[14:13] onto the card window (it8368.c:238-241
                clears it), which would move every card offset the decoder derives. */
             if (value & kCtrlAddrSel) {
-                LOG(Caution, "IteIt8368: CTRL ADDRSEL unmodeled\n");
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: CTRL ADDRSEL unmodeled");
             }
             /* HC-4100 pcmcia.dll enables the card with BYTESWAP clear:
                sub_1491BF8 sets CARDEN, sub_14918E4 sets GLOBALEN, and BYTESWAP
@@ -404,31 +391,27 @@ IteIt8368::BusOps IteIt8368::WriteRegLocked(uint32_t off, uint16_t value) {
 
         case kRegGpioDataIn:
         case kRegMfioDataIn:
-            LOG(Caution, "IteIt8368: write to input register $%02X\n", off);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("IteIt8368: write to input register $%02X", off);
 
         case kRegMfioDataOut:
             if (value & ~kMfioMask) {
-                LOG(Caution, "IteIt8368: MFIODATAOUT 0x%04X sets a reserved "
-                        "bit\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: MFIODATAOUT 0x%04X sets a reserved "
+                                      "bit", value);
             }
             mfio_dataout_ = value;
             return {};
 
         case kRegMfioDir:
             if (value & ~kMfioMask) {
-                LOG(Caution, "IteIt8368: MFIODIR 0x%04X sets a reserved bit\n",
-                    value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("IteIt8368: MFIODIR 0x%04X sets a reserved bit",
+                                      value);
             }
             mfio_dir_ = value;
             return {};
 
         default:
-            LOG(Caution, "IteIt8368::WriteReg unmodeled register $%02X = 0x%04X\n",
-                off, value);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("IteIt8368::WriteReg unmodeled register $%02X = 0x%04X",
+                                  off, value);
     }
 }
 

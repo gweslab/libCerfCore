@@ -1,6 +1,7 @@
 #include "host_serial_forward.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/product_name.h>
 #include <cerfcore/host/user_alert.h>
@@ -87,9 +88,10 @@ void HostSerialForward::OnOpen() {
         uart_->SetLineConfigCallback(
             [this](const SerialLine::LineConfig& c) { ApplyLineConfig(c); });
 
+    InstanceThreads& threads = emu_.Get<InstanceThreads>();
     running_ = true;
-    reader_  = std::thread([this] { ReaderLoop(); });
-    writer_  = std::thread([this] { WriterLoop(); });
+    reader_  = threads.Start([this] { ReaderLoop(); });
+    writer_  = threads.Start([this] { WriterLoop(); });
     LOG(Periph, "[SerialFwd] bridging guest COM <-> host %s\n", port_name_.c_str());
 }
 

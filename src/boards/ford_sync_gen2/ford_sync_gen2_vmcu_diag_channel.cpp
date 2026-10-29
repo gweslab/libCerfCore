@@ -2,6 +2,7 @@
 
 #include "ford_sync_gen2_vmcu_peer.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "ford_sync_gen2_family_id.h"
@@ -57,10 +58,9 @@ void FordSyncGen2VmcuDiagChannel::HandleInbound(uint8_t cid, const uint8_t* msg,
             break;
         }
         default:
-            LOG(Caution,
-                "[VMCU] unmodelled inbound ISO15765 diag cid=%u type=0x%02X len=%zu\n",
+            emu_.Get<Fatal>().Die(
+                "[VMCU] unmodelled inbound ISO15765 diag cid=%u type=0x%02X len=%zu",
                 static_cast<unsigned>(cid), static_cast<unsigned>(msg[0]), n);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
     }
     tx_seq_[idx] = static_cast<uint8_t>((tx_seq_[idx] + 1u) & 0x7Fu);
 }

@@ -9,6 +9,7 @@
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/host/emulation_pause.h>
@@ -49,7 +50,7 @@ void Hibernation::RegisterPreSaveListener(std::function<void()> fn) {
 
 void Hibernation::SaveAsync(const std::string& path, std::function<void(bool)> on_done) {
     JoinWorker();
-    worker_ = std::thread([this, path, on_done = std::move(on_done)] {
+    worker_ = emu_.Get<InstanceThreads>().Start([this, path, on_done = std::move(on_done)] {
         const bool saved = Save(path);
         if (on_done) on_done(saved);
     });
@@ -57,7 +58,7 @@ void Hibernation::SaveAsync(const std::string& path, std::function<void(bool)> o
 
 void Hibernation::RestoreAsync(const std::string& path, bool ram_only) {
     JoinWorker();
-    worker_ = std::thread([this, path, ram_only] { Restore(path, ram_only); });
+    worker_ = emu_.Get<InstanceThreads>().Start([this, path, ram_only] { Restore(path, ram_only); });
 }
 
 void Hibernation::OnShutdown() {
@@ -108,7 +109,7 @@ StateImageHeader Hibernation::LiveHeader() const {
 
 bool Hibernation::WriteImage(const std::string& path, std::string& error) {
     for (auto& fn : pre_save_listeners_) fn();
-    StateWriter w(path);
+    StateWriter w(emu_, path);
     if (!w.Ok()) {
         error = w.Error();
         return false;
@@ -284,7 +285,7 @@ void Hibernation::RestoreSection(StateReader& r, StateSection section) {
 }
 
 void Hibernation::RollBack(const std::string& rollback_path) {
-    StateReader r(rollback_path);
+    StateReader r(emu_, rollback_path);
     try {
         if (!r.Ok()) throw StateImageRejected("the rollback image cannot be opened: " + r.Error());
         ReadHeader(r);
@@ -305,7 +306,7 @@ bool Hibernation::Restore(const std::string& path_in, bool ram_only) {
 
     bool ok = false;
     std::string reason;
-    StateReader r(path);
+    StateReader r(emu_, path);
     if (r.Ok()) {
         ok = ApplyStateFile(r, ram_only, reason);
     } else {

@@ -9,11 +9,15 @@
 
 namespace cerfcore {
 
+class Fatal;
+class InstanceThreads;
+
 class PacedWaveOut {
 public:
     static constexpr uint32_t kMaxBlock = 0x2000u;
 
-    void Start(const char* log_tag, uint32_t rate_hz, uint16_t channels, uint16_t bits);
+    void Start(Fatal& fatal, InstanceThreads& threads, const char* log_tag, uint32_t rate_hz, uint16_t channels,
+               uint16_t bits);
     void Stop();
     void SetFormat(uint32_t rate_hz, uint16_t channels, uint16_t bits);
 
@@ -49,6 +53,7 @@ private:
     static constexpr uint32_t kSlots = WaveOutSink::kSlots;
 
     WaveOutSink           sink_;
+    Fatal*                fatal_   = nullptr;
     const char*           log_tag_ = "PacedWaveOut";
     uint8_t               buffers_[kSlots][kMaxBlock] = {};
     uint32_t              slot_length_[kSlots] = {};

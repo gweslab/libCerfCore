@@ -2,6 +2,7 @@
 
 #include "../platform/wave_pcm_format.h"
 
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 
 #include <algorithm>
@@ -10,12 +11,15 @@
 
 namespace cerfcore {
 
-void PacedWaveOut::Start(const char* log_tag, uint32_t rate_hz, uint16_t channels, uint16_t bits) {
+void PacedWaveOut::Start(Fatal& fatal, InstanceThreads& threads, const char* log_tag, uint32_t rate_hz,
+                         uint16_t channels, uint16_t bits) {
+    fatal_   = &fatal;
     log_tag_ = log_tag;
     fmt_rate_.store(rate_hz, std::memory_order_release);
     fmt_channels_.store(channels, std::memory_order_release);
     fmt_bits_.store(bits, std::memory_order_release);
     sink_.Start(
+        fatal, threads,
         [this] {
             std::lock_guard<std::mutex> lk(audio_mutex_);
             ApplyFormatLocked();
@@ -87,8 +91,7 @@ void PacedWaveOut::PlayLocked(const uint8_t* bytes, uint32_t length) {
     for (uint32_t i = 0; i < kSlots; ++i)
         if (!slot_busy_[i] && slot_stale_[i] == 0u) { slot = i; break; }
     if (slot == kSlots) {
-        LOG(Caution, "[%s] no free slot with %u outstanding\n", log_tag_, outstanding_);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal_->Die("[%s] no free slot with %u outstanding", log_tag_, outstanding_);
     }
 
     std::memcpy(buffers_[slot], bytes, length);
@@ -216,9 +219,8 @@ uint32_t PacedWaveOut::RateMatchLocked(const uint8_t* bytes, uint32_t length) {
     const uint32_t bits  = fmt_bits_.load(std::memory_order_relaxed);
     const uint32_t chans = fmt_channels_.load(std::memory_order_relaxed);
     if (bits != 16 || chans == 0 || chans > DynamicRateResampler::kMaxChannels) {
-        LOG(Caution, "[%s] rate match on an unmodeled stream: %u ch x %u bit\n",
-            log_tag_, chans, bits);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal_->Die("[%s] rate match on an unmodeled stream: %u ch x %u bit",
+                    log_tag_, chans, bits);
     }
     const uint32_t frame     = chans * 2u;
     const uint32_t in_frames = length / frame;
@@ -232,9 +234,8 @@ uint32_t PacedWaveOut::RateMatchLocked(const uint8_t* bytes, uint32_t length) {
     const uint32_t produced = rate_match_.Process(rate_in_, in_frames, chans, fill, capacity,
                                                   rate_out_, kMaxBlock / frame);
     if (produced == UINT32_MAX) {
-        LOG(Caution, "[%s] rate match output of a %u-frame block overflows %u frames\n",
-            log_tag_, in_frames, kMaxBlock / frame);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal_->Die("[%s] rate match output of a %u-frame block overflows %u frames",
+                    log_tag_, in_frames, kMaxBlock / frame);
     }
     double ratio = 0.0;
     if (rate_match_.TakeEstimate(&ratio)) {
@@ -279,9 +280,8 @@ void PacedWaveOut::QueueOutputInHostBlocks(const void* host_bytes, uint32_t leng
     const uint32_t frame = PcmFrameBytes(fmt_channels_.load(std::memory_order_acquire),
                                          fmt_bits_.load(std::memory_order_acquire));
     if (rate == 0u || frame == 0u || length % frame != 0u) {
-        LOG(Caution, "[%s] %u bytes queued in host blocks of a %u Hz, %u-byte-frame format\n",
-            log_tag_, length, rate, frame);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        fatal_->Die("[%s] %u bytes queued in host blocks of a %u Hz, %u-byte-frame format",
+                    log_tag_, length, rate, frame);
     }
     const uint32_t block_frames = HostBlockFrames();
     const uint32_t frames = length / frame;

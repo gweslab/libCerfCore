@@ -2,6 +2,7 @@
 #include "imx51_gpu2d_vg_fill.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
@@ -30,9 +31,8 @@ bool Imx51Gpu2dVgFill::ShouldRegister() {
 
 void Imx51Gpu2dVgFill::Halt(const uint32_t (&regs)[0x100], const char* why,
                             uint32_t addr, uint32_t data) const {
-    LOG(Caution, "[GPU2D-VGFILL] %s at 0x%08X (value 0x%08X)\n", why, addr, data);
     (void)regs;
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("[GPU2D-VGFILL] %s at 0x%08X (value 0x%08X)", why, addr, data);
 }
 
 /* Every un-modeled paint/blend/dest mode halts (FATAL-first). */

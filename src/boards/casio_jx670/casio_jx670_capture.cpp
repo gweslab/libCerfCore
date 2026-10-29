@@ -2,6 +2,7 @@
 
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../host/audio_activity_widget.h"
 #include <cerfengine/mips/mips_mmu.h>
@@ -28,7 +29,7 @@ bool CasioJx670Capture::ShouldRegister() {
 void CasioJx670Capture::OnReady() {
     mem_      = &emu_.Get<EmulatedMemory>();
     activity_ = &emu_.Get<AudioActivityWidget>();
-    mic_.Start("Em500Capture", kMicFifoBytes);
+    mic_.Start(emu_.Get<InstanceThreads>(), "Em500Capture", kMicFifoBytes);
 }
 
 void CasioJx670Capture::OnShutdown() { mic_.Stop(); }

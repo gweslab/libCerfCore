@@ -11,6 +11,8 @@
 
 namespace cerfcore {
 
+class Fatal;
+
 class JitRunner : public Service {
 public:
     using Service::Service;
@@ -36,7 +38,8 @@ public:
 private:
     void PublishHostChainExit(const std::unique_lock<std::mutex>&);
 
-    void RunLoop();
+    void FinishRun(Fatal& fatal);
+    void RunGuest(Fatal& fatal);
 
     std::thread             thread_;
     std::atomic<bool>       stop_requested_{false};

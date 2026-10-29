@@ -6,6 +6,7 @@
 #include "omap3530_id.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/host/panel_frame_renderer.h>
@@ -56,10 +57,9 @@ public:
         auto& dss = emu_.Get<Omap3530Dss>();
         const uint32_t format = dss.GetGfxFormat();
         if (format != kFmtRgb16) {
-            LOG(Caution, "Omap3530DssRenderer: GFXFORMAT=0x%X not "
-                    "modelled (only RGB16=0x6 verified from BSP). "
-                    "Halting.\n", format);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Omap3530DssRenderer: GFXFORMAT=0x%X not "
+                                  "modelled (only RGB16=0x6 verified from BSP). "
+                                  "Halting.", format);
         }
 
         const uint32_t fb_pa   = dss.GetFbPa();

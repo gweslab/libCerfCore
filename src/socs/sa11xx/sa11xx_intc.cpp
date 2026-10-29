@@ -3,6 +3,7 @@
 #include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../core/rate_probe.h"
 #include <cerfcore/boards/board_context.h>
@@ -35,9 +36,8 @@ void Sa11xxIntc::OnReady() {
 
 void Sa11xxIntc::NotifyLocked() {
     if (IcFpLocked() != 0) {
-        LOG(SocIntc, "FIQ asserted (ICFP=0x%08X) - FIQ delivery not "
-                     "wired through ArmJit\n", IcFpLocked());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("FIQ asserted (ICFP=0x%08X) - FIQ delivery not "
+                              "wired through ArmJit", IcFpLocked());
     }
     cerfengine::ArmJit& jit = *jit_;
     if (IcIpLocked() != 0) {

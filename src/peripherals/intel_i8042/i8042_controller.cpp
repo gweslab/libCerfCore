@@ -1,6 +1,7 @@
 #include "i8042_controller.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/nec_sg2_vr5500/nec_sg2_vr5500_family_id.h"
@@ -148,8 +149,7 @@ void I8042Controller::WriteCommand(uint8_t v) {
             case kCmdKbdIfaceTest:   ctrl_resp_.push_back(static_cast<uint8_t>(0x00)); break;
             case kCmdAuxDeviceWrite: pending_ = Pending::kAuxWrite;                    break;
             default:
-                LOG(Caution, "I8042Controller: unimplemented 8042 command 0x%02X\n", v);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("I8042Controller: unimplemented 8042 command 0x%02X", v);
         }
         which = LoadOutputLocked();
     }

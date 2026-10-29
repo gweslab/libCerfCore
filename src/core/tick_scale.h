@@ -54,8 +54,12 @@ inline bool NarrowCeilFits(const WideUint<2>& num, const WideUint<2>& den) {
     return num.FitsU64() && den.FitsU64() && ScaleCeilFitsU64(num.w[0], den.w[0]);
 }
 
+class CerfEmulator;
+
 class ExactScale {
 public:
+    explicit ExactScale(CerfEmulator& emu) : emu_(&emu) {}
+
     void Set(const WideUint<2>& num, const WideUint<2>& den);
 
     uint64_t Floor(uint64_t value) const {
@@ -87,10 +91,11 @@ private:
     uint64_t WideRemainderU64(uint64_t value) const;
     uint64_t RequireDenU64() const;
 
-    WideUint<2> num_          = WideUint<2>::Of(1u);
-    WideUint<2> den_          = WideUint<2>::Of(1u);
-    bool        narrow_floor_ = true;
-    bool        narrow_ceil_  = true;
+    WideUint<2>   num_          = WideUint<2>::Of(1u);
+    WideUint<2>   den_          = WideUint<2>::Of(1u);
+    bool          narrow_floor_ = true;
+    bool          narrow_ceil_  = true;
+    CerfEmulator* emu_;
 };
 
 }

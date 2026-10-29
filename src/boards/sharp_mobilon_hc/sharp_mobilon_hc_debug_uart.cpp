@@ -1,6 +1,7 @@
 #include "../../peripherals/uart16550/uart16550.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "sharp_mobilon_hc_family_id.h"
@@ -68,8 +69,7 @@ protected:
     /* OAL leaves IER 0, port is polled (sub_9102151C @0x9102151C). */
     void SetInterruptLine(bool pending) override {
         if (!pending) return;
-        LOG(Caution, "CS3 debug UART raised an interrupt; no INTC routing modeled\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("CS3 debug UART raised an interrupt; no INTC routing modeled");
     }
 
 private:

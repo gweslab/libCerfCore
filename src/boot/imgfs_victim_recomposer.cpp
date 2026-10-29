@@ -10,6 +10,7 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 
@@ -50,13 +51,11 @@ ImgfsVictimRecomposer::Recompose(std::span<const uint8_t> orig_hdr,
 
     std::vector<uint8_t> pe_bytes;
     if (!TryReadHostFileBytes(stub_path, pe_bytes)) {
-        LOG(Caution, "[GA recompose] cannot open stub %s\n", stub_path.c_str());
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[GA recompose] cannot open stub %s", stub_path.c_str());
     }
     PeImage pe(std::move(pe_bytes));
     if (!pe.Parsed()) {
-        LOG(Caution, "[GA recompose] stub PE parse failed (%s)\n", stub_path.c_str());
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[GA recompose] stub PE parse failed (%s)", stub_path.c_str());
     }
 
     std::vector<uint32_t> section_realaddr(pe.Sections().size());
@@ -69,8 +68,7 @@ ImgfsVictimRecomposer::Recompose(std::span<const uint8_t> orig_hdr,
     cerf::ce_image_relocator::ApplyRelocations(
         reloc_bytes, pe, section_realaddr, code_delta, reloc_count, unhandled);
     if (unhandled > 0) {
-        LOG(Caution, "[GA recompose] %u unhandled relocations in stub\n", unhandled);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("[GA recompose] %u unhandled relocations in stub", unhandled);
     }
 
     emu_.Get<GuestAdditionsBinaries>().StampWindowBase(reloc_bytes);

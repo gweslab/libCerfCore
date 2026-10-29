@@ -17,16 +17,14 @@ bool S3C2410EintSource::ShouldRegister() {
 
 void S3C2410EintSource::SetSink(S3C2410EintSink* sink) {
     if (sink_ && sink_ != sink) {
-        LOG(Caution, "S3C2410EintSource::SetSink: a second sink registered\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("S3C2410EintSource::SetSink: a second sink registered");
     }
     sink_ = sink;
 }
 
 void S3C2410EintSource::DriveEintPin(int eint, bool level) {
     if (!sink_) {
-        LOG(Caution, "S3C2410EintSource::DriveEintPin: EINT%d with no sink\n", eint);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("S3C2410EintSource::DriveEintPin: EINT%d with no sink", eint);
     }
     sink_->DriveEintPin(eint, level);
 }

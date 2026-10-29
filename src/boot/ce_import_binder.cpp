@@ -7,6 +7,7 @@
 #include "../core/ascii_z.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../boards/page_table_builder.h"
@@ -64,8 +65,7 @@ void CeImportBinder::BindImports(std::vector<uint8_t>& bytes, const PeImage& pe,
     for (uint32_t d = imp_rva; ; d += kImportDescSize) {
         const uint32_t doff = pe.RvaToFileOff(d);
         if (doff == kNoFileOff || size_t(doff) + kImportDescSize > src.size()) {
-            LOG(Caution, "CeImportBinder: import descriptor rva 0x%X out of image\n", d);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("CeImportBinder: import descriptor rva 0x%X out of image", d);
         }
         const uint32_t oft_rva  = U32(src.data(),doff + kImpOffOft);
         const uint32_t name_rva = U32(src.data(),doff + kImpOffName);
@@ -74,8 +74,7 @@ void CeImportBinder::BindImports(std::vector<uint8_t>& bytes, const PeImage& pe,
 
         const uint32_t noff = pe.RvaToFileOff(name_rva);
         if (noff == kNoFileOff) {
-            LOG(Caution, "CeImportBinder: import DLL-name rva 0x%X out of image\n", name_rva);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("CeImportBinder: import DLL-name rva 0x%X out of image", name_rva);
         }
         const std::string dll = cerf::ReadAsciiZ(src,noff);
         const GuestExportDir ed = LocateModuleExports(dll.c_str(), layout);
@@ -86,8 +85,7 @@ void CeImportBinder::BindImports(std::vector<uint8_t>& bytes, const PeImage& pe,
             const uint32_t foff = pe.RvaToFileOff(ft_rva + i * 4u);
             if (toff == kNoFileOff || size_t(toff) + 4 > src.size()
                 || foff == kNoFileOff || size_t(foff) + 4 > bytes.size()) {
-                LOG(Caution, "CeImportBinder: thunk rva out of image (%s)\n", dll.c_str());
-                CerfFatalExit();
+                emu_.Get<Fatal>().Die("CeImportBinder: thunk rva out of image (%s)", dll.c_str());
             }
             const uint32_t orig = U32(src.data(),toff);
             if (orig == 0) break;   /* end of this DLL's thunk list */
@@ -98,8 +96,7 @@ void CeImportBinder::BindImports(std::vector<uint8_t>& bytes, const PeImage& pe,
             } else {
                 const uint32_t inoff = pe.RvaToFileOff(orig + 2u);
                 if (inoff == kNoFileOff) {
-                    LOG(Caution, "CeImportBinder: import-by-name rva 0x%X out of image\n", orig);
-                    CerfFatalExit();
+                    emu_.Get<Fatal>().Die("CeImportBinder: import-by-name rva 0x%X out of image", orig);
                 }
                 resolved = ResolveName(ed, cerf::ReadAsciiZ(src,inoff).c_str(), dll.c_str());
             }
@@ -115,8 +112,7 @@ CeImportBinder::LocateModuleExports(const char* dll, const E32RomLayout& layout)
     const ParsedTOCentry* m =
         FindRomModule(emu_.Get<RomParserService>().Primary(), dll);
     if (!m) {
-        LOG(Caution, "CeImportBinder: imported DLL '%s' not in ROM TOC\n", dll);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("CeImportBinder: imported DLL '%s' not in ROM TOC", dll);
     }
     auto& pt  = emu_.Get<PageTableBuilder>();
     auto& mem = emu_.Get<EmulatedMemory>();
@@ -129,8 +125,7 @@ CeImportBinder::LocateModuleExports(const char* dll, const E32RomLayout& layout)
     ed.objcnt   = mem.ReadHalf(e32_pa + layout.off_objcnt);
     ed.o32_pa   = pt.VaToPa(m->ulO32Offset);
     if (ed.exp_rva == 0) {
-        LOG(Caution, "CeImportBinder: '%s' has no export directory\n", dll);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("CeImportBinder: '%s' has no export directory", dll);
     }
     return ed;
 }
@@ -147,8 +142,7 @@ uint32_t CeImportBinder::MapRvaToPa(const GuestExportDir& ed, uint32_t rva) {
             return pt.VaToPa(dataptr + (rva - srva));
         }
     }
-    LOG(Caution, "CeImportBinder: rva 0x%X not in any section\n", rva);
-    CerfFatalExit();
+    emu_.Get<Fatal>().Die("CeImportBinder: rva 0x%X not in any section", rva);
 }
 
 uint32_t CeImportBinder::ResolveOrdinal(const GuestExportDir& ed, uint32_t ordinal,
@@ -159,19 +153,16 @@ uint32_t CeImportBinder::ResolveOrdinal(const GuestExportDir& ed, uint32_t ordin
     const uint32_t nfuncs  = mem.ReadWord(exp_pa + kExpOffNumFuncs);
     const uint32_t af_rva  = mem.ReadWord(exp_pa + kExpOffAddrFuncs);
     if (ordinal < base || (ordinal - base) >= nfuncs) {
-        LOG(Caution, "CeImportBinder: %s ordinal %u outside export range [%u,%u)\n",
-            dll, ordinal, base, base + nfuncs);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("CeImportBinder: %s ordinal %u outside export range [%u,%u)",
+                              dll, ordinal, base, base + nfuncs);
     }
     const uint32_t func_rva = mem.ReadWord(MapRvaToPa(ed, af_rva + (ordinal - base) * 4u));
     if (func_rva == 0) {
-        LOG(Caution, "CeImportBinder: %s ordinal %u not present\n", dll, ordinal);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("CeImportBinder: %s ordinal %u not present", dll, ordinal);
     }
     if (func_rva >= ed.exp_rva && func_rva < ed.exp_rva + ed.exp_size) {
-        LOG(Caution, "CeImportBinder: %s ordinal %u is a forwarder (unsupported)\n",
-            dll, ordinal);
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("CeImportBinder: %s ordinal %u is a forwarder (unsupported)",
+                              dll, ordinal);
     }
     return ed.vbase + func_rva;
 }
@@ -190,13 +181,11 @@ uint32_t CeImportBinder::ResolveName(const GuestExportDir& ed, const char* fn,
         const uint16_t fidx = mem.ReadHalf(MapRvaToPa(ed, ords_rva + i * 2u));
         const uint32_t func_rva = mem.ReadWord(MapRvaToPa(ed, af_rva + uint32_t(fidx) * 4u));
         if (func_rva >= ed.exp_rva && func_rva < ed.exp_rva + ed.exp_size) {
-            LOG(Caution, "CeImportBinder: %s!%s is a forwarder (unsupported)\n", dll, fn);
-            CerfFatalExit();
+            emu_.Get<Fatal>().Die("CeImportBinder: %s!%s is a forwarder (unsupported)", dll, fn);
         }
         return ed.vbase + func_rva;
     }
-    LOG(Caution, "CeImportBinder: %s does not export '%s'\n", dll, fn);
-    CerfFatalExit();
+    emu_.Get<Fatal>().Die("CeImportBinder: %s does not export '%s'", dll, fn);
 }
 
 bool CeImportBinder::GuestAsciiEquals(const GuestExportDir& ed, uint32_t name_rva,

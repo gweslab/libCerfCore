@@ -9,6 +9,8 @@
 
 namespace cerfcore {
 
+class InstanceThreads;
+
 class SlirpReplyWorkers {
 public:
     using Work = std::function<void()>;
@@ -18,7 +20,7 @@ public:
     SlirpReplyWorkers(const SlirpReplyWorkers&)            = delete;
     SlirpReplyWorkers& operator=(const SlirpReplyWorkers&) = delete;
 
-    void Start(Work work);
+    void Start(InstanceThreads& threads, Work work);
     void Stop();
 
 private:

@@ -13,6 +13,7 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/board_database.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/service.h>
@@ -121,9 +122,8 @@ private:
         size_t next = 0;
         auto take = [&](uint32_t count) -> std::vector<uint32_t> {
             if (next + count > pool.size()) {
-                LOG(Caution, "[NandGA] victim footprint too small: need %u, have %zu\n",
-                    count, pool.size() - next);
-                CerfFatalExit();
+                emu_.Get<Fatal>().Die("[NandGA] victim footprint too small: need %u, have %zu",
+                                      count, pool.size() - next);
             }
             std::vector<uint32_t> out(pool.begin() + next, pool.begin() + next + count);
             next += count;

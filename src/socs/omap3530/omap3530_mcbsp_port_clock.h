@@ -128,7 +128,7 @@ private:
     const char*        rx_source_error_ = nullptr;
     Derived            d_[2];
     Srg                srg_;
-    RatedTickCount     clkg_;
+    RatedTickCount     clkg_{emu_};
     TickPosition       restored_clkg_;
 };
 

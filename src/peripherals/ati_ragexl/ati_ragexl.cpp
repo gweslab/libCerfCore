@@ -4,6 +4,7 @@
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/nec_sg2_vr5500/nec_sg2_vr5500_family_id.h"
@@ -118,14 +119,14 @@ public:
     uint32_t MemRead(uint32_t addr, unsigned size) override {
         if (FbHit(addr)) return FbRead(addr - bars_[0].base, size);
         if (MmioHit(addr)) return MmioRead(addr - bars_[2].base, size);
-        LogMmio("read", addr, 0);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("AtiRageXl: Mach64 MMIO read reg+0x%03X val=0x%08X out of BAR",
+                              addr - bars_[2].base, 0u);
     }
     void MemWrite(uint32_t addr, uint32_t value, unsigned size) override {
         if (FbHit(addr)) { FbWrite(addr - bars_[0].base, value, size); return; }
         if (MmioHit(addr)) { MmioWrite(addr - bars_[2].base, value, size); return; }
-        LogMmio("write", addr, value);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("AtiRageXl: Mach64 MMIO write reg+0x%03X val=0x%08X out of BAR",
+                              addr - bars_[2].base, value);
     }
 
     void SaveState(StateWriter& w) override {
@@ -283,9 +284,8 @@ private:
         }
     }
     [[noreturn]] void EngineOob(const char* what, uint32_t addr) const {
-        LOG(Caution, "AtiRageXl: 2D engine %s out of framebuffer (addr=0x%X fb_size=0x%zX)\n",
-            what, addr, fb_.size());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("AtiRageXl: 2D engine %s out of framebuffer (addr=0x%X fb_size=0x%zX)",
+                              what, addr, fb_.size());
     }
     uint32_t FbPixel(uint32_t addr, uint32_t bytespp) const {
         if (addr + bytespp > fb_.size()) EngineOob("read", addr);
@@ -338,14 +338,13 @@ private:
             return;
         }
 
-        LOG(Caution, "AtiRageXl: Mach64 2D engine op NOT IMPLEMENTED - launch reg+0x%03X dims=0x%08X "
+        emu_.Get<Fatal>().Die("AtiRageXl: Mach64 2D engine op NOT IMPLEMENTED - launch reg+0x%03X dims=0x%08X "
             "DP_SRC=0x%08X DP_MIX=0x%08X DP_PIX_WIDTH=0x%08X DST_OFF_PITCH=0x%08X DST_Y_X=0x%08X "
-            "DST_CNTL=0x%08X DP_FRGD_CLR=0x%08X SRC_OFF_PITCH=0x%08X DP_WRITE_MASK=0x%08X CLR_CMP_CNTL=0x%08X\n",
+            "DST_CNTL=0x%08X DP_FRGD_CLR=0x%08X SRC_OFF_PITCH=0x%08X DP_WRITE_MASK=0x%08X CLR_CMP_CNTL=0x%08X",
             launch_off, launch_val,
             RegOut(kRegDpSrc, 4), RegOut(kRegDpMix, 4), RegOut(kRegDpPixWidth, 4),
             RegOut(kRegDstOffPitch, 4), RegOut(kRegDstYX, 4), RegOut(kRegDstCntl, 4),
             RegOut(kRegDpFrgdClr, 4), RegOut(kRegSrcOffPitch, 4), wmask, RegOut(kRegClrCmpCntl, 4));
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
     }
 
     bool MemEnabled() const { return (command_ & kCmdMemEnable) != 0; }
@@ -363,11 +362,6 @@ private:
     void FbWrite(uint32_t off, uint32_t value, unsigned size) {
         for (unsigned i = 0; i < size && off + i < fb_.size(); ++i) fb_[off + i] = uint8_t(value >> (i * 8));
     }
-    void LogMmio(const char* op, uint32_t addr, uint32_t value) {
-        LOG(Caution, "AtiRageXl: Mach64 MMIO %s reg+0x%03X val=0x%08X out of BAR\n",
-            op, addr - bars_[2].base, value);
-    }
-
     uint32_t command_ = 0;
     Bar bars_[3];
     std::vector<uint8_t> fb_;

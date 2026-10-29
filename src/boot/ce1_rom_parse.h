@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace cerfcore {
@@ -40,14 +41,16 @@ bool ValidateCe1Xip(std::span<const uint8_t> flat,
                     uint32_t                 base_va,
                     const ParsedROMHDR&      romhdr);
 
-void ParseCe1ModulesAndFiles(std::span<const uint8_t> flat,
+bool ParseCe1ModulesAndFiles(std::span<const uint8_t> flat,
                              size_t                   romhdr_off,
                              const ParsedROMHDR&      romhdr,
-                             ParsedTOC&               toc);
+                             ParsedTOC&               toc,
+                             std::string&             error);
 
 bool ResolveCe1Xips(std::span<const uint8_t>      flat,
                     std::vector<ParsedXipRegion>& out_xips,
-                    uint32_t&                     out_base_va);
+                    uint32_t&                     out_base_va,
+                    std::string&                  error);
 
 }  /* namespace cerf::ce1_rom_parse */
 

@@ -5,6 +5,7 @@
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
@@ -35,8 +36,7 @@ void CerfVirtColorScheme::ApplyFromConfig() {
 
     const GuestColorScheme* scheme = FindGuestColorScheme(key);
     if (!scheme) {
-        LOG(GuestAdditions, "unknown --ga-color-scheme key '%s'", key.c_str());
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("unknown --ga-color-scheme key '%s'", key.c_str());
     }
     count_ = scheme->count;
     for (uint32_t i = 0; i < count_ && i < CerfVirt::kColorSchemeMax; ++i)

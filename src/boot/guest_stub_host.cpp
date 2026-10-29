@@ -7,6 +7,7 @@
 #include "../boards/page_table_builder.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 
@@ -82,10 +83,9 @@ GuestStubHostSpan GuestStubHost::Pick(const char* victim_name, uint32_t o32_pa,
         victim_name, reject, sq_va, sq_size, foot_bytes);
     auto& region = emu_.Get<CerfInjectionRegion>();
     if (uint64_t(band_next_) + foot_bytes > region.BandSize()) {
-        LOG(Caution, "%s stub needs 0x%X bytes at band offset 0x%X; band 0x%X - "
-                "raise kInjectionBandSize in cerf_virt_addr_map.h\n",
-            victim_name, foot_bytes, band_next_, region.BandSize());
-        CerfFatalExit();
+        emu_.Get<Fatal>().Die("%s stub needs 0x%X bytes at band offset 0x%X; band 0x%X - "
+                              "raise kInjectionBandSize in cerf_virt_addr_map.h",
+                              victim_name, foot_bytes, band_next_, region.BandSize());
     }
     GuestStubHostSpan span{region.BandVaBase() + band_next_,
                            region.BandPaBase() + band_next_,

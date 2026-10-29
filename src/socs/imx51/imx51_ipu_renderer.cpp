@@ -7,6 +7,7 @@
 #include "../../boards/ford_sync_gen2/ford_sync_gen2_family_id.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/host/panel_frame_renderer.h>
@@ -78,9 +79,9 @@ public:
         const auto bg = ActiveDisplay();
         if (!bg.valid) return;   /* no display channel programmed yet - not an error */
         if (bg.bpp != kBppRgb565) {
-            LOG(Caution, "Imx51IpuRenderer: unimplemented BG scanout format eba=0x%08X "
-                "%ux%u sl=%u bpp_code=%u pfs=%u\n", bg.eba, bg.fw, bg.fh, bg.sl, bg.bpp, bg.pfs);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Imx51IpuRenderer: unimplemented BG scanout format eba=0x%08X "
+                                  "%ux%u sl=%u bpp_code=%u pfs=%u",
+                                  bg.eba, bg.fw, bg.fh, bg.sl, bg.bpp, bg.pfs);
         }
 
         Imx51IpuChannelDesc fg;
@@ -104,11 +105,11 @@ public:
             CompositeFgOpaque(dib_bgra32, host_w, host_h, fg);
             return;
         }
-        LOG(Caution, "Imx51IpuRenderer: unmodeled DP composition COM_CONF=0x%08X "
-            "GWCTRL=0x%08X FG_POS=0x%08X | FG eba1=0x%08X %ux%u bpp=%u pfs=%u alu=%u | BG %ux%u\n",
-            comconf, srm.DpGraphWindCtrlSync(), fgpos, fg.eba1, fg.fw, fg.fh,
-            fg.bpp, fg.pfs, fg.alu, bg.fw, bg.fh);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Imx51IpuRenderer: unmodeled DP composition COM_CONF=0x%08X "
+                              "GWCTRL=0x%08X FG_POS=0x%08X | FG eba1=0x%08X %ux%u bpp=%u "
+                              "pfs=%u alu=%u | BG %ux%u",
+                              comconf, srm.DpGraphWindCtrlSync(), fgpos, fg.eba1, fg.fw, fg.fh,
+                              fg.bpp, fg.pfs, fg.alu, bg.fw, bg.fh);
     }
 
 private:

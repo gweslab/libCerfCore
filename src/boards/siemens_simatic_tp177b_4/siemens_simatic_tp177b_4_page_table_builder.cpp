@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "siemens_simatic_tp177b_4_family_id.h"
@@ -77,9 +78,8 @@ public:
                 return e.pa_base + (va - e.va_base);
             }
         }
-        LOG(Caution, "SiemensSimaticTp177b4PageTableBuilder::VaToPa: VA 0x%08X outside "
-                     "every P177 OAT band\n", va);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("SiemensSimaticTp177b4PageTableBuilder::VaToPa: VA 0x%08X outside "
+                              "every P177 OAT band", va);
     }
 
     std::vector<DramRegion> CachedDramRegions() const override {

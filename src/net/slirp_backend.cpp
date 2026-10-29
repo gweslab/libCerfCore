@@ -17,6 +17,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include "../platform/host_network.h"
 #include "../platform/host_thread.h"
@@ -28,6 +29,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <utility>
 
 namespace cerfcore {
 
@@ -115,8 +117,7 @@ void SlirpBackend::OnReady() {
 
     int net_rc = 0;
     if (!host_platform::StartNetworking(net_rc)) {
-        LOG(Caution, "FATAL: StartNetworking failed (%d)\n", net_rc);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("FATAL: StartNetworking failed (%d)", net_rc);
     }
 
     host_has_v6_ = ProbeHostIpv6Reachable();
@@ -182,8 +183,7 @@ void SlirpBackend::OnReady() {
         slirp_ = slirp_new(&sc, cbs_, this);
     }
     if (!slirp_) {
-        LOG(Caution, "FATAL: slirp_new returned null\n");
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("FATAL: slirp_new returned null");
     }
 
     LOG(Net, "SlirpBackend ready: guest=%s "
@@ -233,7 +233,9 @@ void SlirpBackend::OnReady() {
     register_forwards(cfg.network_forward_tcp, 0, "TCP");
     register_forwards(cfg.network_forward_udp, 1, "UDP");
 
-    poll_thread_ = std::thread(&SlirpBackend::PollLoop, this);
+    fatal_       = &emu_.Get<Fatal>();
+    threads_     = &emu_.Get<InstanceThreads>();
+    poll_thread_ = threads_->Start([this] { PollLoop(); });
 }
 
 void SlirpBackend::StopPollThread() {
@@ -281,6 +283,7 @@ void SlirpBackend::SendFrame(const uint8_t* frame, std::size_t len) {
     if (TryInterceptAaaaQuery(frame, len)) return;
     std::lock_guard<std::mutex> lk(slirp_mutex_);
     slirp_input(slirp_, frame, (int)len);
+    RethrowCallbackFailure();
 }
 
 cerf::inet::MacAddress SlirpBackend::GuestMacAddress() const {
@@ -288,6 +291,7 @@ cerf::inet::MacAddress SlirpBackend::GuestMacAddress() const {
 }
 
 void SlirpBackend::OnSlirpSendPacket(const void* buf, std::size_t len) {
+    if (callback_failure_) return;
     static std::atomic<uint64_t> rx_count{0};
     uint64_t n = rx_count.fetch_add(1, std::memory_order_relaxed) + 1;
     char tag[128] = {};
@@ -296,7 +300,16 @@ void SlirpBackend::OnSlirpSendPacket(const void* buf, std::size_t len) {
     const uint8_t* rx  = static_cast<const uint8_t*>(buf);
     const uint8_t* dst = len >= kEthOffDst + kEthMacSize ? rx + kEthOffDst : kNoMac;
     LOG(Net, "RX #%llu len=%zu dst=%s %s\n", (unsigned long long)n, len, FormatMac(dst).s, tag);
-    DispatchFrame(static_cast<const uint8_t*>(buf), len);
+    try {
+        Fatal::CatchScope scope;
+        DispatchFrame(static_cast<const uint8_t*>(buf), len);
+    } catch (const InstanceHalt&) {
+        callback_failure_ = std::current_exception();
+    }
+}
+
+void SlirpBackend::RethrowCallbackFailure() {
+    if (callback_failure_) fatal_->Raise(std::exchange(callback_failure_, nullptr));
 }
 
 int64_t SlirpBackend::OnSlirpClockGetNs() {
@@ -398,6 +411,7 @@ void SlirpBackend::PollLoop() {
             std::lock_guard<std::mutex> lk(slirp_mutex_);
             PollFillCtx ctx{&fds};
             slirp_pollfds_poll(slirp_, npoll < 0 ? 1 : 0, &cb_get_revents, &ctx);
+            RethrowCallbackFailure();
         }
 
         /* Step 5 - fire any expired timers (outside the timers_ lock). */
@@ -417,6 +431,7 @@ void SlirpBackend::PollLoop() {
         for (auto* t : due) {
             std::lock_guard<std::mutex> lk(slirp_mutex_);
             if (t->cb) t->cb(t->cb_opaque);
+            RethrowCallbackFailure();
         }
     }
 }

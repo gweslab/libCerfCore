@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "hp_jornada_820_family_id.h"
@@ -78,9 +79,8 @@ uint32_t HpJornada820PageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "HpJornada820PageTableBuilder::VaToPa: VA 0x%08X outside "
-            "every OAT band (nk.exe firmware table @ 0x8000114C)\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("HpJornada820PageTableBuilder::VaToPa: VA 0x%08X outside "
+                          "every OAT band (nk.exe firmware table @ 0x8000114C)", va);
 }
 
 std::vector<DramRegion> HpJornada820PageTableBuilder::CachedDramRegions() const {

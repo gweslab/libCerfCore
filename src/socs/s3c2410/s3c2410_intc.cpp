@@ -1,6 +1,7 @@
 #include "../irq_controller.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/arm/arm_jit.h>
@@ -147,10 +148,9 @@ bool S3C2410Intc::HasPendingUnmasked() const {
 
 void S3C2410Intc::AssertIrq(int source_bit) {
     if (source_bit < 0 || source_bit >= 32) {
-        LOG(Caution, "S3C2410Intc::AssertIrq: source_bit %d out of "
-                "range - main SRCPND is 32 bits per S3C2410 UM\n",
-                source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("S3C2410Intc::AssertIrq: source_bit %d out of "
+                              "range - main SRCPND is 32 bits per S3C2410 UM",
+                              source_bit);
     }
 
     {
@@ -158,10 +158,9 @@ void S3C2410Intc::AssertIrq(int source_bit) {
         const uint32_t bit_mask = 1u << source_bit;
 
         if (storage_[kSlotINTMOD] & bit_mask) {
-            LOG(Caution, "S3C2410Intc::AssertIrq: source %d configured "
-                    "as FIQ (INTMOD bit set) - FIQ routing not "
-                    "modelled\n", source_bit);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("S3C2410Intc::AssertIrq: source %d configured "
+                                  "as FIQ (INTMOD bit set) - FIQ routing not "
+                                  "modelled", source_bit);
         }
 
         storage_[kSlotSRCPND] |= bit_mask;
@@ -175,15 +174,13 @@ void S3C2410Intc::AssertSubIrq(int main_source_bit, int sub_source_bit) {
        INT_ADC/TC/ERR2/TXD2/RXD2/ERR1/TXD1/RXD1/ERR0/TXD0/RXD0,
        Reserved [31:11]. */
     if (sub_source_bit < 0 || sub_source_bit >= 11) {
-        LOG(Caution, "S3C2410Intc::AssertSubIrq: sub_source_bit %d out "
-                "of range - SUBSRCPND has 11 bits per S3C2410 UM\n",
-                sub_source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("S3C2410Intc::AssertSubIrq: sub_source_bit %d out "
+                              "of range - SUBSRCPND has 11 bits per S3C2410 UM",
+                              sub_source_bit);
     }
     if (main_source_bit < 0 || main_source_bit >= 32) {
-        LOG(Caution, "S3C2410Intc::AssertSubIrq: main_source_bit %d "
-                "out of range\n", main_source_bit);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("S3C2410Intc::AssertSubIrq: main_source_bit %d "
+                              "out of range", main_source_bit);
     }
 
     {
@@ -192,17 +189,15 @@ void S3C2410Intc::AssertSubIrq(int main_source_bit, int sub_source_bit) {
         const uint32_t main_mask = 1u << main_source_bit;
 
         if (storage_[kSlotINTMOD] & main_mask) {
-            LOG(Caution, "S3C2410Intc::AssertSubIrq: main source %d "
-                    "configured as FIQ (INTMOD bit set) - FIQ routing "
-                    "not modelled\n", main_source_bit);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("S3C2410Intc::AssertSubIrq: main source %d "
+                                  "configured as FIQ (INTMOD bit set) - FIQ routing "
+                                  "not modelled", main_source_bit);
         }
 
         if (MainSourceForSubLocked(sub_source_bit) != main_source_bit) {
-            LOG(Caution, "S3C2410Intc::AssertSubIrq: sub source %d belongs to "
-                    "main source %d, caller passed %d\n", sub_source_bit,
-                    MainSourceForSubLocked(sub_source_bit), main_source_bit);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("S3C2410Intc::AssertSubIrq: sub source %d belongs to "
+                                  "main source %d, caller passed %d", sub_source_bit,
+                                  MainSourceForSubLocked(sub_source_bit), main_source_bit);
         }
 
         /* Sub-pending stays latched even when INTSUBMSK masks it -
@@ -217,9 +212,8 @@ void S3C2410Intc::AssertSubIrq(int main_source_bit, int sub_source_bit) {
 uint32_t S3C2410Intc::ReadReg(uint32_t offset) {
     const uint32_t slot = offset / 4u;
     if (slot >= kSlotCount) {
-        LOG(Caution, "S3C2410Intc::ReadReg: offset 0x%X out of range\n",
-                offset);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("S3C2410Intc::ReadReg: offset 0x%X out of range",
+                              offset);
     }
     uint32_t value;
     {
@@ -232,9 +226,8 @@ uint32_t S3C2410Intc::ReadReg(uint32_t offset) {
 void S3C2410Intc::WriteReg(uint32_t offset, uint32_t value) {
     const uint32_t slot = offset / 4u;
     if (slot >= kSlotCount) {
-        LOG(Caution, "S3C2410Intc::WriteReg: offset 0x%X out of range\n",
-                offset);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("S3C2410Intc::WriteReg: offset 0x%X out of range",
+                              offset);
     }
 
     uint32_t cleared_sub  = 0;

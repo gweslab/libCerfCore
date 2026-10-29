@@ -6,6 +6,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/samsung_smdk2410/samsung_smdk2410_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/host/host_widget_registry.h>
 #include <cerfcore/state/state_stream.h>
@@ -82,8 +83,7 @@ uint8_t Pd6710Controller::ReadIndexedDataLocked() {
             return v;
         }
         default:
-            LOG(Caution, "[PD6710] read of unmodeled INDEX 0x%02X\n", index_);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[PD6710] read of unmodeled INDEX 0x%02X", index_);
     }
 }
 
@@ -100,9 +100,8 @@ bool Pd6710Controller::WriteIndexedDataLocked(uint8_t value, bool* power_on) {
             reg_chip_info_ = 0xC0u;
             return false;
         default:
-            LOG(Caution, "[PD6710] write of unmodeled INDEX 0x%02X "
-                    "(value 0x%02X)\n", index_, value);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("[PD6710] write of unmodeled INDEX 0x%02X "
+                                  "(value 0x%02X)", index_, value);
     }
 }
 

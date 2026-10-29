@@ -4,6 +4,7 @@
 #include "../../boards/askey_pc3xx/askey_pc3xx_family_id.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
@@ -15,6 +16,10 @@ namespace cerfcore {
 bool MediaQMq1188::ShouldRegister() {
     auto* bd = emu_.TryGet<BoardContext>();
     return bd && bd->GetBoardFamilyId() == BoardFamilyId::AskeyPc3xx;
+}
+
+Fatal& MediaQMq1188::OwnerFatal() {
+    return emu_.Get<Fatal>();
 }
 
 void MediaQMq1188::OnReady() {

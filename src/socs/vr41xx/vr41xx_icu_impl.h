@@ -4,6 +4,7 @@
 
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/mips/mips_jit.h>
@@ -320,9 +321,8 @@ private:
            14.2.13); the MIPS engine implements no NMI delivery. */
         const bool bat = (m1 & kS1Bat) != 0;
         if (bat && !(nmireg_ & kNmiOrInt)) {
-            LOG(Caution, "Vr41xxIcu: battint routed to NMI (NMIREG=0x%04X); MIPS NMI "
-                         "delivery is not modeled\n", nmireg_);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("Vr41xxIcu: battint routed to NMI (NMIREG=0x%04X); MIPS NMI "
+                                  "delivery is not modeled", nmireg_);
         }
 
         const uint16_t int0_1 = static_cast<uint16_t>(m1 & ~(kS1Bat | kS1RtcL1));

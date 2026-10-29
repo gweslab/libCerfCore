@@ -4,6 +4,7 @@
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/host/hw_screen.h>
@@ -62,10 +63,9 @@ void CerfLogChannelPeripheral::Dispatch(uint32_t addr, char c) {
 
 void CerfLogChannelPeripheral::Fatal(uint32_t id) {
     AppendChar(id, '\n');
-    LOG(GuestDriver, "%sFATAL raised by guest driver - halting\n", ChannelTag(id));
     emu_.Get<HwScreen>().AddLine(std::string(ChannelTag(id)) +
                                  "FATAL raised by guest driver - halting");
-    CerfFatalExit();
+    emu_.Get<cerfcore::Fatal>().Die("%sFATAL raised by guest driver - halting", ChannelTag(id));
 }
 
 void CerfLogChannelPeripheral::AppendChar(uint32_t id, char c) {

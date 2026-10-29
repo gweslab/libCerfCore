@@ -3,6 +3,7 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "odo_family_id.h"
@@ -107,10 +108,9 @@ public:
 
     uint16_t ReadHalf(uint32_t addr) override {
         const uint32_t off = addr - MmioBase();
-        LOG(Caution, "Odo DEBUG_SER TX_DMA: read at +0x%02X - the TX "
-                "DMA pointers are write-only; unexpected codepath\n",
-                off);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Odo DEBUG_SER TX_DMA: read at +0x%02X - the TX "
+                              "DMA pointers are write-only; unexpected codepath",
+                              off);
     }
 };
 
@@ -122,10 +122,9 @@ public:
 
     uint16_t ReadHalf(uint32_t addr) override {
         const uint32_t off = addr - MmioBase();
-        LOG(Caution, "Odo DEBUG_SER RX_DMA: read at +0x%02X - the "
-                "kernel is polling for RX bytes; RX is not "
-                "implemented.\n", off);
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("Odo DEBUG_SER RX_DMA: read at +0x%02X - the "
+                              "kernel is polling for RX bytes; RX is not "
+                              "implemented.", off);
     }
 };
 

@@ -2,6 +2,7 @@
 #include "imx51_gpu2d_command_engine.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
@@ -78,8 +79,7 @@ bool Imx51Gpu2dCommandEngine::ShouldRegister() {
 }
 
 void Imx51Gpu2dCommandEngine::Halt(const char* why, uint32_t addr, uint32_t data) const {
-    LOG(Caution, "[GPU2D-CMD] %s at 0x%08X (value 0x%08X)\n", why, addr, data);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("[GPU2D-CMD] %s at 0x%08X (value 0x%08X)", why, addr, data);
 }
 
 bool Imx51Gpu2dCommandEngine::WriteReg(uint32_t addr, uint32_t data) {
@@ -286,10 +286,6 @@ void Imx51Gpu2dCommandEngine::StoreReg(uint32_t reg, uint32_t data) {
             }
             Halt("G2D_COLOR write under unmodeled G2D_INPUT", reg, vg_regs_[kAddrG2dInput]);
     }
-    /* A register leaves CerfFatalExit ONLY when a modeled path reads it back:
-       this is EXACTLY the set FlushPath + EmitPoint consume. Every other g12
-       register write has no modeled consumer and halts loudly (no range
-       store) - FATAL-first per rules.md. */
     if (IsConsumedConfigReg(reg)) { vg_regs_[reg] = data; return; }
     Halt("g12 register write has no modeled consumer", reg, data);
 }

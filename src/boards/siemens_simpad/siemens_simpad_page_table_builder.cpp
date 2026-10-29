@@ -2,6 +2,7 @@
 
 #include "siemens_simpad_boot.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "siemens_simpad_family_id.h"
@@ -83,9 +84,8 @@ uint32_t SiemensSimpadPageTableBuilder::VaToPa(uint32_t va) const {
             return e.pa_base + (va - e.va_base);
         }
     }
-    LOG(Caution, "SiemensSimpadPageTableBuilder::VaToPa: VA 0x%08X outside every "
-            "OAT band (nk.exe OEMAddressTable @ 0x80081400)\n", va);
-    CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+    emu_.Get<Fatal>().Die("SiemensSimpadPageTableBuilder::VaToPa: VA 0x%08X outside every "
+                          "OAT band (nk.exe OEMAddressTable @ 0x80081400)", va);
 }
 
 std::vector<DramRegion> SiemensSimpadPageTableBuilder::CachedDramRegions() const {

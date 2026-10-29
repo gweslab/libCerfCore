@@ -1,6 +1,7 @@
 #include "imx31_avic.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx31_id.h"
@@ -56,11 +57,10 @@ bool Imx31Avic::FiqActiveLocked() const {
 
 void Imx31Avic::NotifyLocked() {
     if (FiqActiveLocked()) {
-        LOG(SocIntc, "[AVIC] FIQ asserted (FIPND=0x%016llX); ArmJit "
-                     "exception entry path delivers IRQ only - FIQ is a "
-                     "separate ARM nFIQ line that the JIT exception filter "
-                     "does not service\n", (unsigned long long)Fipnd());
-        CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+        emu_.Get<Fatal>().Die("[AVIC] FIQ asserted (FIPND=0x%016llX); ArmJit "
+                              "exception entry path delivers IRQ only - FIQ is a "
+                              "separate ARM nFIQ line that the JIT exception filter "
+                              "does not service", (unsigned long long)Fipnd());
     }
     const bool active = IrqActiveLocked();
     if (active) jit_->SetInterruptPending();
@@ -153,12 +153,11 @@ void Imx31Avic::WriteRegLocked(uint32_t off, uint32_t value) {
     switch (off) {
         case 0x00:
             if ((value & kIntCntlNmBit) != 0) {
-                LOG(SocIntc, "[AVIC] INTCNTL write 0x%08X enables hardware-"
-                             "accelerated vector dispatch (NM=1); ArmJit's "
-                             "IRQ exception entry path jumps to ARM's single "
-                             "0xFFFF0018 vector and does not consume AVIC's "
-                             "vector table\n", value);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("[AVIC] INTCNTL write 0x%08X enables hardware-"
+                                      "accelerated vector dispatch (NM=1); ArmJit's "
+                                      "IRQ exception entry path jumps to ARM's single "
+                                      "0xFFFF0018 vector and does not consume AVIC's "
+                                      "vector table", value);
             }
             intcntl_ = value;
             break;

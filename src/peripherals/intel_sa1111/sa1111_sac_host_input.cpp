@@ -1,6 +1,7 @@
 #include "sa1111_sac_host_input.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/instance_threads.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/hp_jornada_700/hp_jornada_700_family_id.h"
 #include "../../host/audio_activity_widget.h"
@@ -25,7 +26,7 @@ bool Sa1111SacHostInput::ShouldRegister() {
 }
 
 void Sa1111SacHostInput::OnReady() {
-    mic_.Start("Sa1111SacCapture", kMicFifoBytes);
+    mic_.Start(emu_.Get<InstanceThreads>(), "Sa1111SacCapture", kMicFifoBytes);
 }
 
 void Sa1111SacHostInput::OnShutdown() { mic_.Stop(); }

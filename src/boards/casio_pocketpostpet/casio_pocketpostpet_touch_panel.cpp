@@ -1,6 +1,7 @@
 #include "../../socs/vr41xx/vr41xx_piu_panel.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "casio_pocketpostpet_family_id.h"
@@ -48,9 +49,8 @@ public:
                                                uint16_t /*pos_x*/,
                                                uint16_t /*pos_y*/) override {
         if (adcmd != kAdcmdTpx0) {
-            LOG(Caution, "CasioPocketpostpetTouchPanel: PIUCMDREG ADCMD=0x%X selects an A/D "
-                    "port this board's panel does not drive\n", adcmd);
-            CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+            emu_.Get<Fatal>().Die("CasioPocketpostpetTouchPanel: PIUCMDREG ADCMD=0x%X selects an A/D "
+                                  "port this board's panel does not drive", adcmd);
         }
         return std::nullopt;
     }
@@ -72,9 +72,8 @@ public:
             }
             case kAdcmdAdin1: return kSecondCellHealthy;
             default:
-                LOG(Caution, "CasioPocketpostpetTouchPanel: ADPortScan A/D port 0x%X this board "
-                        "does not drive\n", port);
-                CerfFatalExit(CERF_FATAL_RUNTIME_ERROR);
+                emu_.Get<Fatal>().Die("CasioPocketpostpetTouchPanel: ADPortScan A/D port 0x%X this board "
+                                      "does not drive", port);
         }
     }
 
