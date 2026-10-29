@@ -6,10 +6,10 @@ namespace cerfcore {
 
 namespace {
 
-uint8_t ClampDelta(int v) {
-    if (v >  127) return static_cast<uint8_t>(127);
-    if (v < -127) return static_cast<uint8_t>(-127);
-    return static_cast<uint8_t>(v);
+int ClampDelta(int v) {
+    if (v >  127) return 127;
+    if (v < -127) return -127;
+    return v;
 }
 
 }  /* namespace */
@@ -78,12 +78,16 @@ void Ps2Mouse::QueueMotion(int dx, int dy, uint32_t button_mask) {
         std::lock_guard<std::mutex> lk(mtx_);
         if (!reporting_) return;   /* disabled mouse streams nothing (PS/2 default) */
         const bool was_empty = out_.empty();
-        uint8_t b0 = 0x08u;        /* always-1 sync bit */
+        const int  x         = ClampDelta(dx);
+        const int  y         = ClampDelta(-dy);
+        uint8_t    b0        = 0x08u;
         if (button_mask & kButtonLeft)  b0 |= 0x01u;
         if (button_mask & kButtonRight) b0 |= 0x02u;
+        if (x < 0) b0 |= 0x10u;
+        if (y < 0) b0 |= 0x20u;
         PushLocked(b0);
-        PushLocked(ClampDelta(dx));
-        PushLocked(ClampDelta(-dy));   /* PS/2 Y is inverted vs screen */
+        PushLocked(static_cast<uint8_t>(x));
+        PushLocked(static_cast<uint8_t>(y));
         raise = was_empty;
     }
     if (raise) RaiseData();
