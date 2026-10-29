@@ -1679,6 +1679,10 @@
         {
           "feature_id": "serial",
           "supported": true
+        },
+        {
+          "feature_id": "microphone",
+          "supported": true
         }
       ],
       "notes": [],
