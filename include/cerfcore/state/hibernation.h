@@ -31,6 +31,7 @@ public:
     void RestoreAsync(const std::string& path, bool ram_only = false);
 
     void RegisterPreSaveListener(std::function<void()> fn);
+    void RegisterPostRestoreListener(std::function<void()> fn);
 
     void OnShutdown() override;
 
@@ -53,6 +54,7 @@ private:
     std::thread worker_;
 
     std::vector<std::function<void()>> pre_save_listeners_;
+    std::vector<std::function<void()>> post_restore_listeners_;
 };
 
 }

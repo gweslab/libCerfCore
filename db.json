@@ -1053,7 +1053,7 @@
         },
         {
           "feature_id": "keyboard",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "network",
@@ -1065,7 +1065,7 @@
         },
         {
           "feature_id": "battery",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "suspend",

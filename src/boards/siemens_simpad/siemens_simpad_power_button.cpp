@@ -6,6 +6,7 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/guest_deep_sleep.h>
+#include <cerfcore/state/hibernation.h>
 
 namespace cerfcore {
 
@@ -25,7 +26,8 @@ bool SiemensSimpadPowerButton::ShouldRegister() {
 }
 
 void SiemensSimpadPowerButton::OnReady() {
-    emu_.Get<Sa11xxGpio>().DriveInputPin(kGpioPowerButton, true);
+    SetPressed(false);
+    emu_.Get<Hibernation>().RegisterPostRestoreListener([this] { SetPressed(false); });
     emu_.Get<GuestDeepSleep>().RegisterUserWakeInput([this] {
         SetPressed(true);
         SetPressed(false);

@@ -48,6 +48,10 @@ void Hibernation::RegisterPreSaveListener(std::function<void()> fn) {
     pre_save_listeners_.push_back(std::move(fn));
 }
 
+void Hibernation::RegisterPostRestoreListener(std::function<void()> fn) {
+    post_restore_listeners_.push_back(std::move(fn));
+}
+
 void Hibernation::SaveAsync(const std::string& path, std::function<void(bool)> on_done) {
     JoinWorker();
     worker_ = emu_.Get<InstanceThreads>().Start([this, path, on_done = std::move(on_done)] {
@@ -236,6 +240,7 @@ void Hibernation::RestorePeripherals(StateReader& r) {
         r.LeaveFrame();
     }
     for (Peripheral* p : periphs) p->PostRestore();
+    for (auto& fn : post_restore_listeners_) fn();
 }
 
 void Hibernation::RestorePresentation(StateReader& r) {

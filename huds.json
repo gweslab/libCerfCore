@@ -278,6 +278,29 @@
         }
       ]
     },
+    "ipaq_h3000_top": {
+      "row": [
+        { "button": { "keys": ["VK_F5"], "icon": "mic" } },
+        { "button": { "keys": ["VK_OFF"], "icon": "power_settings_new" } }
+      ]
+    },
+    "ipaq_h3000_keys": {
+      "row": [
+        {
+          "column": [
+            { "button": { "keys": ["VK_F1"], "icon": "calendar_month" } },
+            { "button": { "keys": ["VK_F2"], "icon": "contacts" } }
+          ]
+        },
+        { "grow": 1.5, "column": ["arrows"] },
+        {
+          "column": [
+            { "button": { "keys": ["VK_F3"], "label": "Q" } },
+            { "button": { "keys": ["VK_F4"], "icon": "rotate_right" } }
+          ]
+        }
+      ]
+    },
     "tomcat_navigation": {
       "dpad": {
         "up": ["VK_UP"],
@@ -623,6 +646,16 @@
       "gap": 0.02,
       "panels": [
         { "side": "bottom", "align": "center", "width": 1.0, "height": 0.48, "content": "nino_keys" }
+      ]
+    },
+    {
+      "id": "compaq_ipaq_h3000",
+      "name": "Compaq iPAQ H3000",
+      "board_family_ids": ["compaq_ipaq_h3000"],
+      "gap": 0.02,
+      "panels": [
+        { "side": "top", "align": "center", "width": 0.5, "height": 0.24, "content": "ipaq_h3000_top" },
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.48, "content": "ipaq_h3000_keys" }
       ]
     },
     {
