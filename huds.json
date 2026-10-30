@@ -1,0 +1,686 @@
+{
+  "elements": {
+    "soft_left": { "button": { "keys": ["VK_F1"], "icon": "remove" } },
+    "soft_right": { "button": { "keys": ["VK_F2"], "icon": "remove" } },
+    "home": { "button": { "keys": ["VK_LWIN"], "icon": "home" } },
+    "app_2": { "button": { "keys": ["VK_LWIN", "VK_F2"], "icon": "screen_rotation" } },
+    "dial": { "button": { "keys": ["VK_F3"], "icon": "call" } },
+    "hang": { "button": { "keys": ["VK_F4"], "icon": "call_end" } },
+    "smartphone_back": { "button": { "keys": ["VK_ESCAPE"], "icon": "arrow_back" } },
+    "pocket_pc_back": { "button": { "keys": ["VK_BACK"], "icon": "arrow_back" } },
+    "arrows": {
+      "dpad": {
+        "up": ["VK_UP"],
+        "down": ["VK_DOWN"],
+        "left": ["VK_LEFT"],
+        "right": ["VK_RIGHT"],
+        "center": ["VK_RETURN"],
+        "shape": "rounded"
+      }
+    },
+    "device_emulator_keys": {
+      "row": [
+        { "column": [{ "row": ["soft_left", "home"] }, "dial"] },
+        { "grow": 1.5, "column": ["arrows"] },
+        { "column": [{ "row": ["app_2", "soft_right"] }, { "row": ["pocket_pc_back", "hang"] }] }
+      ]
+    },
+    "device_emulator_smartphone_keys": {
+      "row": [
+        { "column": [{ "row": ["soft_left", "home"] }, "dial"] },
+        { "grow": 1.5, "column": ["arrows"] },
+        { "column": [{ "row": ["smartphone_back", "soft_right"] }, "hang"] }
+      ]
+    },
+    "key_1": { "button": { "keys": ["VK_1"], "label": "1" } },
+    "key_2": { "button": { "keys": ["VK_2"], "label": "2" } },
+    "key_3": { "button": { "keys": ["VK_3"], "label": "3" } },
+    "key_4": { "button": { "keys": ["VK_4"], "label": "4" } },
+    "key_5": { "button": { "keys": ["VK_5"], "label": "5" } },
+    "key_6": { "button": { "keys": ["VK_6"], "label": "6" } },
+    "key_7": { "button": { "keys": ["VK_7"], "label": "7" } },
+    "key_8": { "button": { "keys": ["VK_8"], "label": "8" } },
+    "key_9": { "button": { "keys": ["VK_9"], "label": "9" } },
+    "key_0": { "button": { "keys": ["VK_0"], "label": "0" } },
+    "device_emulator_star": { "button": { "keys": ["VK_F8"], "label": "*" } },
+    "device_emulator_pound": { "button": { "keys": ["VK_F9"], "label": "#" } },
+    "device_emulator_keypad": {
+      "column": [
+        { "row": ["key_1", "key_2", "key_3"] },
+        { "row": ["key_4", "key_5", "key_6"] },
+        { "row": ["key_7", "key_8", "key_9"] },
+        { "row": ["device_emulator_star", "key_0", "device_emulator_pound"] }
+      ]
+    },
+    "simpad_power": { "button": { "keys": ["VK_OFF"], "icon": "power_settings_new" } },
+    "simpad_alt": { "button": { "keys": ["VK_MENU"], "label": "Alt" } },
+    "simpad_navigation": {
+      "dpad": {
+        "up": ["VK_UP"],
+        "down": ["VK_DOWN"],
+        "left": ["VK_ESCAPE"],
+        "right": ["VK_RETURN"],
+        "shape": "circle"
+      }
+    },
+    "simpad_keyboard": { "button": { "keys": ["VK_F1"], "icon": "picture_in_picture_alt" } },
+    "simpad_keys": {
+      "column": [
+        { "row": ["simpad_power", "simpad_alt"] },
+        { "grow": 2, "column": ["simpad_navigation"] },
+        { "row": ["simpad_keyboard"] }
+      ]
+    },
+    "jornada_escape": { "button": { "keys": ["VK_ESCAPE"], "label": "Esc" } },
+    "jornada_internet": { "button": { "keys": ["VK_F1"], "icon": "language" } },
+    "jornada_mail": { "button": { "keys": ["VK_F2"], "icon": "mail" } },
+    "jornada_recorder": { "button": { "keys": ["VK_F3"], "icon": "voicemail" } },
+    "jornada_contacts": { "button": { "keys": ["VK_F4"], "icon": "contacts" } },
+    "jornada_tasks": { "button": { "keys": ["VK_F5"], "icon": "checklist" } },
+    "jornada_calendar": { "button": { "keys": ["VK_F6"], "icon": "calendar_month" } },
+    "jornada_quick_view": { "button": { "keys": ["VK_F7"], "icon": "image" } },
+    "jornada_quick_pad": { "button": { "keys": ["VK_F8"], "icon": "library_books" } },
+    "jornada_access": { "button": { "keys": ["VK_F9"], "icon": "edit_note" } },
+    "jornada_excel": { "button": { "keys": ["VK_F10"], "label": "X" } },
+    "jornada_word": { "button": { "keys": ["VK_F11"], "label": "W" } },
+    "jornada_power": { "button": { "keys": ["VK_OFF"], "icon": "power_settings_new" } },
+    "jornada_backspace": { "button": { "keys": ["VK_BACK"] } },
+    "jornada_enter": { "button": { "keys": ["VK_RETURN"] } },
+    "jornada_up": {
+      "button": { "keys": ["VK_UP"], "icon": "arrow_upward", "held": { "VK_MENU": { "icon": "keyboard_double_arrow_up" } } }
+    },
+    "jornada_left": {
+      "button": { "keys": ["VK_LEFT"], "icon": "arrow_back", "held": { "VK_MENU": { "icon": "first_page" } } }
+    },
+    "jornada_down": {
+      "button": { "keys": ["VK_DOWN"], "icon": "arrow_downward", "held": { "VK_MENU": { "icon": "keyboard_double_arrow_down" } } }
+    },
+    "jornada_right": {
+      "button": { "keys": ["VK_RIGHT"], "icon": "arrow_forward", "held": { "VK_MENU": { "icon": "last_page" } } }
+    },
+    "jornada_keyboard": {
+      "column": [
+        {
+          "row": [
+            "jornada_escape", "jornada_internet", "jornada_mail", "jornada_recorder", "jornada_contacts",
+            "jornada_tasks", "jornada_calendar", "jornada_quick_view", "jornada_quick_pad", "jornada_access",
+            "jornada_excel", "jornada_word", "jornada_power"
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_1"] } }, { "button": { "keys": ["VK_2"] } }, { "button": { "keys": ["VK_3"] } },
+            { "button": { "keys": ["VK_4"] } }, { "button": { "keys": ["VK_5"] } }, { "button": { "keys": ["VK_6"] } },
+            { "button": { "keys": ["VK_7"] } }, { "button": { "keys": ["VK_8"] } }, { "button": { "keys": ["VK_9"] } },
+            { "button": { "keys": ["VK_0"] } }, { "button": { "keys": ["VK_OEM_MINUS"] } },
+            { "button": { "keys": ["VK_OEM_PLUS"] } }, "jornada_backspace"
+          ]
+        },
+        {
+          "grow": 2,
+          "row": [
+            {
+              "grow": 12,
+              "column": [
+                {
+                  "row": [
+                    { "button": { "keys": ["VK_Q"] } }, { "button": { "keys": ["VK_W"] } },
+                    { "button": { "keys": ["VK_E"] } }, { "button": { "keys": ["VK_R"] } },
+                    { "button": { "keys": ["VK_T"] } }, { "button": { "keys": ["VK_Y"] } },
+                    { "button": { "keys": ["VK_U"] } }, { "button": { "keys": ["VK_I"] } },
+                    { "button": { "keys": ["VK_O"] } }, { "button": { "keys": ["VK_P"] } },
+                    { "grow": 1.5, "button": { "keys": ["VK_OEM_5"] } }
+                  ]
+                },
+                {
+                  "row": [
+                    { "button": { "keys": ["VK_TAB"] } },
+                    { "button": { "keys": ["VK_A"] } }, { "button": { "keys": ["VK_S"] } },
+                    { "button": { "keys": ["VK_D"] } }, { "button": { "keys": ["VK_F"] } },
+                    { "button": { "keys": ["VK_G"] } }, { "button": { "keys": ["VK_H"] } },
+                    { "button": { "keys": ["VK_J"] } }, { "button": { "keys": ["VK_K"] } },
+                    { "button": { "keys": ["VK_L"] } }, { "button": { "keys": ["VK_OEM_1"] } },
+                    { "button": { "keys": ["VK_OEM_7"] } }
+                  ]
+                }
+              ]
+            },
+            "jornada_enter"
+          ]
+        },
+        {
+          "row": [
+            { "grow": 2, "button": { "keys": ["VK_SHIFT"] } },
+            { "button": { "keys": ["VK_Z"] } }, { "button": { "keys": ["VK_X"] } }, { "button": { "keys": ["VK_C"] } },
+            { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
+            { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
+            { "button": { "keys": ["VK_OEM_PERIOD"] } }, "jornada_up", { "button": { "keys": ["VK_SHIFT"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
+            { "button": { "keys": ["VK_MENU"] } }, { "button": { "keys": ["VK_F12"] } },
+            { "grow": 4, "button": { "keys": ["VK_SPACE"] } }, { "button": { "keys": ["VK_OEM_2"] } },
+            { "button": { "keys": ["VK_DELETE"] } }, "jornada_left", "jornada_down", "jornada_right"
+          ]
+        }
+      ]
+    },
+    "jornada_820_inbox": { "button": { "keys": ["VK_F1"], "icon": "mail" } },
+    "jornada_820_internet": { "button": { "keys": ["VK_F2"], "icon": "language" } },
+    "jornada_820_calendar": { "button": { "keys": ["VK_F3"], "icon": "calendar_month" } },
+    "jornada_820_contacts": { "button": { "keys": ["VK_F4"], "icon": "contacts" } },
+    "jornada_820_tasks": { "button": { "keys": ["VK_F5"], "icon": "checklist" } },
+    "jornada_820_word": { "button": { "keys": ["VK_F6"], "label": "W" } },
+    "jornada_820_excel": { "button": { "keys": ["VK_F7"], "label": "X" } },
+    "jornada_820_powerpoint": { "button": { "keys": ["VK_F8"], "label": "P" } },
+    "jornada_820_viewer": { "button": { "keys": ["VK_F9"], "icon": "image" } },
+    "jornada_820_recorder": { "button": { "keys": ["VK_F10"], "icon": "voicemail" } },
+    "jornada_820_settings": { "button": { "keys": ["VK_F11"], "icon": "settings" } },
+    "jornada_820_keyboard": {
+      "column": [
+        {
+          "row": [
+            "jornada_escape", "jornada_820_inbox", "jornada_820_internet", "jornada_820_calendar",
+            "jornada_820_contacts", "jornada_820_tasks", "jornada_820_word", "jornada_820_excel",
+            "jornada_820_powerpoint", "jornada_820_viewer", "jornada_820_recorder",
+            "jornada_820_settings", "jornada_power"
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_1"] } }, { "button": { "keys": ["VK_2"] } }, { "button": { "keys": ["VK_3"] } },
+            { "button": { "keys": ["VK_4"] } }, { "button": { "keys": ["VK_5"] } }, { "button": { "keys": ["VK_6"] } },
+            { "button": { "keys": ["VK_7"] } }, { "button": { "keys": ["VK_8"] } }, { "button": { "keys": ["VK_9"] } },
+            { "button": { "keys": ["VK_0"] } }, { "button": { "keys": ["VK_OEM_MINUS"] } },
+            { "button": { "keys": ["VK_OEM_PLUS"] } }, "jornada_backspace"
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_Q"] } }, { "button": { "keys": ["VK_W"] } }, { "button": { "keys": ["VK_E"] } },
+            { "button": { "keys": ["VK_R"] } }, { "button": { "keys": ["VK_T"] } }, { "button": { "keys": ["VK_Y"] } },
+            { "button": { "keys": ["VK_U"] } }, { "button": { "keys": ["VK_I"] } }, { "button": { "keys": ["VK_O"] } },
+            { "button": { "keys": ["VK_P"] } }, { "button": { "keys": ["VK_OEM_4"] } },
+            { "button": { "keys": ["VK_OEM_6"] } }, { "button": { "keys": ["VK_OEM_5"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_TAB"] } },
+            { "button": { "keys": ["VK_A"] } }, { "button": { "keys": ["VK_S"] } }, { "button": { "keys": ["VK_D"] } },
+            { "button": { "keys": ["VK_F"] } }, { "button": { "keys": ["VK_G"] } }, { "button": { "keys": ["VK_H"] } },
+            { "button": { "keys": ["VK_J"] } }, { "button": { "keys": ["VK_K"] } }, { "button": { "keys": ["VK_L"] } },
+            { "button": { "keys": ["VK_OEM_1"] } }, { "button": { "keys": ["VK_OEM_7"] } }, "jornada_enter"
+          ]
+        },
+        {
+          "row": [
+            { "grow": 1.5, "button": { "keys": ["VK_SHIFT"] } },
+            { "button": { "keys": ["VK_Z"] } }, { "button": { "keys": ["VK_X"] } }, { "button": { "keys": ["VK_C"] } },
+            { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
+            { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
+            { "button": { "keys": ["VK_OEM_PERIOD"] } }, { "button": { "keys": ["VK_OEM_2"] } },
+            { "grow": 1.5, "button": { "keys": ["VK_SHIFT"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
+            { "button": { "keys": ["VK_MENU"] } }, { "button": { "keys": ["VK_OEM_3"] } },
+            { "grow": 4, "button": { "keys": ["VK_SPACE"] } }, { "button": { "keys": ["VK_F12"] } },
+            { "button": { "keys": ["VK_DELETE"] } },
+            {
+              "grow": 3,
+              "column": [
+                { "row": [{ "grow": 1 }, "jornada_up", { "grow": 1 }] },
+                { "row": ["jornada_left", "jornada_down", "jornada_right"] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "jornada_bezel": {
+      "column": [
+        { "button": { "action": "settings", "icon": "settings" } },
+        { "button": { "action": "backup", "icon": "backup" } },
+        { "button": { "action": "dialer", "icon": "dialpad" } },
+        { "button": { "action": "media_player", "icon": "play_circle" } }
+      ]
+    },
+    "nino_navigation": {
+      "dpad": {
+        "up": ["VK_UP"],
+        "down": ["VK_DOWN"],
+        "left": ["VK_ESCAPE"],
+        "right": ["VK_RETURN"],
+        "center": ["VK_RETURN"],
+        "shape": "rounded"
+      }
+    },
+    "nino_keys": {
+      "row": [
+        {
+          "column": [
+            { "button": { "keys": ["VK_F1"], "icon": "voicemail" } },
+            { "button": { "keys": ["VK_F2"], "icon": "calendar_month" } }
+          ]
+        },
+        { "grow": 1.5, "column": ["nino_navigation"] },
+        {
+          "column": [
+            { "button": { "keys": ["VK_F3"], "icon": "contacts" } },
+            { "button": { "keys": ["VK_F4"], "icon": "mail" } }
+          ]
+        }
+      ]
+    },
+    "tomcat_navigation": {
+      "dpad": {
+        "up": ["VK_UP"],
+        "down": ["VK_DOWN"],
+        "left": ["VK_LEFT"],
+        "right": ["VK_RIGHT"],
+        "center": ["VK_RETURN"],
+        "shape": "rounded"
+      }
+    },
+    "tomcat_keys": {
+      "row": [
+        {
+          "column": [
+            { "button": { "keys": ["VK_F4"], "icon": "mic" } },
+            { "button": { "keys": ["VK_ESCAPE"], "icon": "arrow_back" } }
+          ]
+        },
+        { "grow": 2, "column": ["tomcat_navigation"] },
+        { "button": { "keys": ["VK_F1"], "icon": "calendar_month" } },
+        { "button": { "keys": ["VK_F2"], "icon": "apps" } },
+        { "button": { "keys": ["VK_F3"], "icon": "search" } }
+      ]
+    },
+    "velo_keyboard": {
+      "column": [
+        {
+          "row": [
+            { "button": { "keys": ["VK_ESCAPE"] } },
+            { "button": { "keys": ["VK_1"], "held": { "VK_MENU": { "label": "W" } } } },
+            { "button": { "keys": ["VK_2"], "held": { "VK_MENU": { "label": "X" } } } },
+            { "button": { "keys": ["VK_3"], "held": { "VK_MENU": { "icon": "calendar_month" } } } },
+            { "button": { "keys": ["VK_4"], "held": { "VK_MENU": { "icon": "contacts" } } } },
+            { "button": { "keys": ["VK_5"], "held": { "VK_MENU": { "icon": "checklist" } } } },
+            { "button": { "keys": ["VK_6"], "held": { "VK_MENU": { "icon": "language" } } } },
+            { "button": { "keys": ["VK_7"], "held": { "VK_MENU": { "icon": "mail" } } } },
+            { "button": { "keys": ["VK_8"], "held": { "VK_MENU": { "icon": "database" } } } },
+            { "button": { "keys": ["VK_9"], "held": { "VK_MENU": { "icon": "calculate" } } } },
+            { "button": { "keys": ["VK_0"], "held": { "VK_MENU": { "icon": "voicemail" } } } },
+            { "button": { "keys": ["VK_OEM_MINUS"] } },
+            { "button": { "keys": ["VK_BACK"] } }
+          ]
+        },
+        {
+          "grow": 2,
+          "row": [
+            {
+              "grow": 13,
+              "column": [
+                {
+                  "row": [
+                    { "button": { "keys": ["VK_OEM_3"] } },
+                    { "button": { "keys": ["VK_Q"] } }, { "button": { "keys": ["VK_W"] } },
+                    { "button": { "keys": ["VK_E"] } }, { "button": { "keys": ["VK_R"] } },
+                    { "button": { "keys": ["VK_T"] } }, { "button": { "keys": ["VK_Y"] } },
+                    { "button": { "keys": ["VK_U"] } }, { "button": { "keys": ["VK_I"] } },
+                    { "button": { "keys": ["VK_O"] } }, { "button": { "keys": ["VK_P"] } },
+                    { "button": { "keys": ["VK_OEM_PLUS"] } }, { "button": { "keys": ["VK_OEM_5"] } }
+                  ]
+                },
+                {
+                  "row": [
+                    { "grow": 2, "button": { "keys": ["VK_TAB"] } },
+                    { "button": { "keys": ["VK_A"] } }, { "button": { "keys": ["VK_S"] } },
+                    { "button": { "keys": ["VK_D"] } }, { "button": { "keys": ["VK_F"] } },
+                    { "button": { "keys": ["VK_G"] } }, { "button": { "keys": ["VK_H"] } },
+                    { "button": { "keys": ["VK_J"] } }, { "button": { "keys": ["VK_K"] } },
+                    { "button": { "keys": ["VK_L"] } }, { "button": { "keys": ["VK_OEM_1"] } },
+                    { "button": { "keys": ["VK_OEM_7"] } }
+                  ]
+                }
+              ]
+            },
+            "jornada_enter"
+          ]
+        },
+        {
+          "row": [
+            { "grow": 1.5, "button": { "keys": ["VK_SHIFT"] } },
+            { "button": { "keys": ["VK_Z"] } }, { "button": { "keys": ["VK_X"] } }, { "button": { "keys": ["VK_C"] } },
+            { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
+            { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
+            { "button": { "keys": ["VK_OEM_PERIOD"] } },
+            { "button": { "keys": ["VK_OEM_2"], "held": { "VK_MENU": { "icon": "first_page" } } } },
+            "jornada_up", { "grow": 1.5, "button": { "keys": ["VK_SHIFT"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
+            { "button": { "keys": ["VK_MENU"] } }, { "grow": 5, "button": { "keys": ["VK_SPACE"] } },
+            { "button": { "keys": ["VK_OEM_4"] } }, { "button": { "keys": ["VK_OEM_6"] } },
+            "jornada_left", "jornada_down", "jornada_right"
+          ]
+        }
+      ]
+    },
+    "cronos3e_keyboard": {
+      "column": [
+        {
+          "row": [
+            { "button": { "keys": ["VK_ESCAPE"] } }, { "button": { "keys": ["VK_OEM_3"] } },
+            { "button": { "keys": ["VK_F1"], "icon": "mail" } },
+            { "button": { "keys": ["VK_F2"], "icon": "language" } },
+            { "button": { "keys": ["VK_F3"], "icon": "calendar_month" } },
+            { "button": { "keys": ["VK_F4"], "icon": "contacts" } },
+            { "button": { "keys": ["VK_F5"], "icon": "checklist" } },
+            { "button": { "keys": ["VK_F6"], "label": "W" } },
+            { "button": { "keys": ["VK_F7"], "label": "X" } },
+            { "button": { "keys": ["VK_F8"], "label": "P" } },
+            { "button": { "keys": ["VK_F9"], "icon": "voicemail" } },
+            { "button": { "keys": ["VK_F10"], "icon": "calculate" } },
+            { "button": { "keys": ["VK_DELETE"] } }, "jornada_power"
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_1"] } }, { "button": { "keys": ["VK_2"] } }, { "button": { "keys": ["VK_3"] } },
+            { "button": { "keys": ["VK_4"] } }, { "button": { "keys": ["VK_5"] } }, { "button": { "keys": ["VK_6"] } },
+            { "button": { "keys": ["VK_7"] } }, { "button": { "keys": ["VK_8"] } }, { "button": { "keys": ["VK_9"] } },
+            { "button": { "keys": ["VK_0"] } }, { "button": { "keys": ["VK_OEM_MINUS"] } },
+            { "button": { "keys": ["VK_OEM_PLUS"] } }, { "grow": 2, "button": { "keys": ["VK_BACK"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_TAB"] } },
+            { "button": { "keys": ["VK_Q"] } }, { "button": { "keys": ["VK_W"] } }, { "button": { "keys": ["VK_E"] } },
+            { "button": { "keys": ["VK_R"] } }, { "button": { "keys": ["VK_T"] } }, { "button": { "keys": ["VK_Y"] } },
+            { "button": { "keys": ["VK_U"] } }, { "button": { "keys": ["VK_I"] } }, { "button": { "keys": ["VK_O"] } },
+            { "button": { "keys": ["VK_P"] } }, { "button": { "keys": ["VK_OEM_4"] } },
+            { "button": { "keys": ["VK_OEM_6"] } }, { "button": { "keys": ["VK_OEM_5"] } }
+          ]
+        },
+        {
+          "row": [
+            { "grow": 1.5, "button": { "keys": ["VK_CAPITAL"] } },
+            { "button": { "keys": ["VK_A"] } }, { "button": { "keys": ["VK_S"] } }, { "button": { "keys": ["VK_D"] } },
+            { "button": { "keys": ["VK_F"] } }, { "button": { "keys": ["VK_G"] } }, { "button": { "keys": ["VK_H"] } },
+            { "button": { "keys": ["VK_J"] } }, { "button": { "keys": ["VK_K"] } }, { "button": { "keys": ["VK_L"] } },
+            { "button": { "keys": ["VK_OEM_1"] } }, { "button": { "keys": ["VK_OEM_7"] } },
+            { "grow": 1.5, "button": { "keys": ["VK_RETURN"] } }
+          ]
+        },
+        {
+          "row": [
+            { "grow": 2, "button": { "keys": ["VK_SHIFT"] } },
+            { "button": { "keys": ["VK_Z"] } }, { "button": { "keys": ["VK_X"] } }, { "button": { "keys": ["VK_C"] } },
+            { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
+            { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
+            { "button": { "keys": ["VK_OEM_PERIOD"] } }, { "button": { "keys": ["VK_OEM_2"] } },
+            { "grow": 2, "button": { "keys": ["VK_SHIFT"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
+            { "button": { "keys": ["VK_MENU"] } }, { "button": { "keys": ["VK_F12"] } },
+            { "grow": 5, "button": { "keys": ["VK_SPACE"] } }, { "button": { "keys": ["VK_MENU"] } },
+            "jornada_left", "jornada_up", "jornada_down", "jornada_right"
+          ]
+        }
+      ]
+    },
+    "mobilon_keyboard": {
+      "column": [
+        {
+          "row": [
+            { "button": { "keys": ["VK_ESCAPE"] } },
+            { "button": { "keys": ["VK_F1"], "label": "W" } },
+            { "button": { "keys": ["VK_F2"], "label": "X" } },
+            { "button": { "keys": ["VK_F3"], "icon": "mail" } },
+            { "button": { "keys": ["VK_F4"], "icon": "contacts" } },
+            { "button": { "keys": ["VK_F5"], "icon": "calendar_month" } },
+            { "button": { "keys": ["VK_F6"], "icon": "checklist" } },
+            { "button": { "keys": ["VK_F7"], "icon": "language" } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_1"] } }, { "button": { "keys": ["VK_2"] } }, { "button": { "keys": ["VK_3"] } },
+            { "button": { "keys": ["VK_4"] } }, { "button": { "keys": ["VK_5"] } }, { "button": { "keys": ["VK_6"] } },
+            { "button": { "keys": ["VK_7"] } }, { "button": { "keys": ["VK_8"] } }, { "button": { "keys": ["VK_9"] } },
+            { "button": { "keys": ["VK_0"] } }, { "button": { "keys": ["VK_OEM_MINUS"] } },
+            { "grow": 2, "button": { "keys": ["VK_BACK"] } }
+          ]
+        },
+        {
+          "grow": 2,
+          "row": [
+            {
+              "grow": 13,
+              "column": [
+                {
+                  "row": [
+                    { "button": { "keys": ["VK_OEM_3"] } },
+                    { "button": { "keys": ["VK_Q"] } }, { "button": { "keys": ["VK_W"] } },
+                    { "button": { "keys": ["VK_E"] } }, { "button": { "keys": ["VK_R"] } },
+                    { "button": { "keys": ["VK_T"] } }, { "button": { "keys": ["VK_Y"] } },
+                    { "button": { "keys": ["VK_U"] } }, { "button": { "keys": ["VK_I"] } },
+                    { "button": { "keys": ["VK_O"] } }, { "button": { "keys": ["VK_P"] } },
+                    { "button": { "keys": ["VK_OEM_PLUS"] } }, { "button": { "keys": ["VK_OEM_5"] } }
+                  ]
+                },
+                {
+                  "row": [
+                    { "grow": 2, "button": { "keys": ["VK_TAB"] } },
+                    { "button": { "keys": ["VK_A"] } }, { "button": { "keys": ["VK_S"] } },
+                    { "button": { "keys": ["VK_D"] } }, { "button": { "keys": ["VK_F"] } },
+                    { "button": { "keys": ["VK_G"] } }, { "button": { "keys": ["VK_H"] } },
+                    { "button": { "keys": ["VK_J"] } }, { "button": { "keys": ["VK_K"] } },
+                    { "button": { "keys": ["VK_L"] } }, { "button": { "keys": ["VK_OEM_1"] } },
+                    { "button": { "keys": ["VK_OEM_7"] } }
+                  ]
+                }
+              ]
+            },
+            "jornada_enter"
+          ]
+        },
+        {
+          "row": [
+            { "grow": 1.5, "button": { "keys": ["VK_SHIFT"] } },
+            { "button": { "keys": ["VK_Z"] } }, { "button": { "keys": ["VK_X"] } }, { "button": { "keys": ["VK_C"] } },
+            { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
+            { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
+            { "button": { "keys": ["VK_OEM_PERIOD"] } }, { "button": { "keys": ["VK_OEM_2"] } },
+            "jornada_up", { "grow": 1.5, "button": { "keys": ["VK_RSHIFT"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
+            { "button": { "keys": ["VK_MENU"] } }, { "grow": 4, "button": { "keys": ["VK_SPACE"] } },
+            { "button": { "keys": ["VK_OEM_4"] } }, { "button": { "keys": ["VK_OEM_6"] } },
+            "jornada_left", "jornada_down", "jornada_right"
+          ]
+        }
+      ]
+    },
+    "gigabeat_keys": {
+      "row": [
+        { "button": { "keys": ["VK_ESCAPE"], "icon": "arrow_back" } },
+        {
+          "grow": 2,
+          "dpad": {
+            "up": ["VK_UP"],
+            "down": ["VK_DOWN"],
+            "left": ["VK_LEFT"],
+            "right": ["VK_RIGHT"],
+            "center": ["VK_RETURN"],
+            "shape": "circle"
+          }
+        },
+        { "button": { "keys": ["VK_SPACE"], "icon": "play_pause" } }
+      ]
+    },
+    "pocketpostpet_navigation": {
+      "dpad": {
+        "up": ["VK_UP"], "down": ["VK_DOWN"], "left": ["VK_LEFT"], "right": ["VK_RIGHT"], "center": ["VK_RETURN"],
+        "shape": "circle"
+      }
+    },
+    "pocketpostpet_keys": {
+      "column": [
+        { "button": { "keys": ["VK_OFF"], "icon": "power_settings_new" } },
+        { "grow": 3, "column": ["pocketpostpet_navigation"] },
+        { "button": { "keys": ["VK_TAB"] } },
+        { "button": { "keys": ["VK_ESCAPE"] } },
+        { "button": { "keys": ["VK_F10"] } }
+      ]
+    },
+    "pocketpostpet_bezel": {
+      "column": [
+        { "button": { "action": "top_menu", "icon": "apps" } },
+        { "button": { "action": "get_mail", "icon": "mail" } },
+        { "button": { "action": "internet", "icon": "language" } },
+        { "button": { "action": "mic", "icon": "mic" } },
+        { "button": { "action": "tools", "icon": "build" } },
+        { "button": { "action": "set_up", "icon": "settings" } },
+        { "button": { "action": "text_edit", "icon": "edit_note" } }
+      ]
+    }
+  },
+  "huds": [
+    {
+      "id": "device_emulator_pocket_pc",
+      "name": "Pocket PC",
+      "board_ids": ["devemu", "devemu_vga", "devemu_wqvga", "devemu_wvga", "devemu_1st_gen", "devemu_1st_gen_vga"],
+      "gap": 0.02,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.48, "content": "device_emulator_keys" }
+      ]
+    },
+    {
+      "id": "device_emulator_smartphone",
+      "name": "Smartphone",
+      "board_ids": ["devemu_smartphone", "devemu_smartphone_qvga", "devemu_1st_gen_smartphone"],
+      "gap": 0.02,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.48, "content": "device_emulator_smartphone_keys" },
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.667, "content": "device_emulator_keypad" }
+      ]
+    },
+    {
+      "id": "simpad",
+      "name": "SIMpad",
+      "board_family_ids": ["siemens_simpad"],
+      "gap": 0.02,
+      "panels": [
+        {
+          "side": "right", "align": "start", "width": 0.187, "height": 0.5, "content": "simpad_keys",
+          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.374 }
+        }
+      ]
+    },
+    {
+      "id": "jornada_700",
+      "name": "HP Jornada 700",
+      "board_family_ids": ["hp_jornada_700"],
+      "gap": 0.01,
+      "panels": [
+        { "side": "right", "align": "center", "width": 0.25, "height": 1.0, "content": "jornada_bezel" },
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.42, "content": "jornada_keyboard" }
+      ]
+    },
+    {
+      "id": "jornada_820",
+      "name": "HP Jornada 820",
+      "board_family_ids": ["hp_jornada_820"],
+      "gap": 0.01,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.42, "content": "jornada_820_keyboard" }
+      ]
+    },
+    {
+      "id": "philips_nino",
+      "name": "Philips Nino",
+      "board_family_ids": ["philips_nino"],
+      "gap": 0.02,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.48, "content": "nino_keys" }
+      ]
+    },
+    {
+      "id": "casio_tomcat",
+      "name": "Casio Tomcat",
+      "board_family_ids": ["casio_tomcat"],
+      "gap": 0.02,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.4, "content": "tomcat_keys" }
+      ]
+    },
+    {
+      "id": "philips_velo_1",
+      "name": "Philips Velo 1",
+      "board_family_ids": ["philips_velo_1"],
+      "gap": 0.01,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.38, "content": "velo_keyboard" }
+      ]
+    },
+    {
+      "id": "nec_cronos3e",
+      "name": "NEC CRONOS3E",
+      "board_family_ids": ["nec_cronos3e"],
+      "gap": 0.01,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.4, "content": "cronos3e_keyboard" }
+      ]
+    },
+    {
+      "id": "sharp_mobilon_hc",
+      "name": "Sharp Mobilon HC",
+      "board_family_ids": ["sharp_mobilon_hc"],
+      "gap": 0.01,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.4, "content": "mobilon_keyboard" }
+      ]
+    },
+    {
+      "id": "toshiba_gigabeat_s",
+      "name": "Toshiba Gigabeat S",
+      "board_family_ids": ["toshiba_gigabeat_s"],
+      "gap": 0.02,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.5, "content": "gigabeat_keys" }
+      ]
+    },
+    {
+      "id": "pocketpostpet",
+      "name": "PocketPostPet",
+      "board_family_ids": ["casio_pocketpostpet"],
+      "gap": 0.02,
+      "panels": [
+        {
+          "side": "left", "align": "center", "width": 0.4, "height": 1.0, "content": "pocketpostpet_keys",
+          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.4 }
+        },
+        {
+          "side": "right", "align": "center", "width": 0.25, "height": 1.0, "content": "pocketpostpet_bezel",
+          "portrait": { "side": "top", "align": "center", "width": 1.0, "height": 0.25 }
+        }
+      ]
+    }
+  ]
+}

@@ -29,17 +29,13 @@ public:
             {0x25u,  7u,    "Left",  0u, 0u},
             {0x27u, 14u,    "Right", 0u, 0u},
             {0x0Du,  0u,    "OK",    0u, 0u},
-            {0x1Bu,  8u,    "Back",  0u, 0u},
-            {0x08u,  8u,    "Back",  0u, 0u},
-            {0x09u, 23u,    "Disp",  0u, 0u},
+            {0x1Bu,  8u,    "BACK",  0u, 0u},
+            {0x08u,  8u,    "BACK",  0u, 0u},
+            {0x09u, 23u,    "DISP",  0u, 0u},
             {0x79u, 0x102u, "Side1", 0u, 0u},
-            {0xDFu, 0x104u, "Side2", 0u, 0u},
+            {0xDFu, 0x104u, "Power", 0u, 0u},
         };
         return kBindings;
-    }
-
-    std::vector<uint8_t> SpecialKeyOrder() const override {
-        return {0x0Du, 0x1Bu, 0x26u, 0x28u, 0x25u, 0x27u, 0x09u, 0x79u, 0xDFu};
     }
 };
 

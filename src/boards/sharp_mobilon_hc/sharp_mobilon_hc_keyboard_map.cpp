@@ -1,6 +1,5 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/keyboard_map.h>
-#include "../../host/pc_special_key_order.h"
 #include <cerfcore/boards/board_context.h>
 #include "sharp_mobilon_hc_family_id.h"
 
@@ -14,8 +13,7 @@ namespace {
 
 /* Win32 VK -> matrix cell (device_code = col*16+row), inverted from
    keybddr.dll's (col,row)->VK table dword_14B1058 (sub_14B195C indexes by
-   rawcode, sub_14B2C0C default case: VK == table byte). Host modifiers arrive
-   generic (HostInputCapture::NormalizeVk); OEM Fn cells 0xC1-0xC7 lack a host key. */
+   rawcode, sub_14B2C0C default case: VK == table byte). */
 constexpr std::array<uint8_t, 256> MakeVkToCell() {
     std::array<uint8_t, 256> m{};
     for (auto& e : m) e = 0xFFu;
@@ -38,9 +36,24 @@ constexpr std::array<uint8_t, 256> MakeVkToCell() {
     set(0x10,  59); set(0xA0,  59); set(0xA1,  75);
     set(0x11,  34); set(0xA2,  34);
     set(0x12,  17); set(0xA4,  17);
+    set(0x70,  40); set(0x71,  10); set(0x72,  42); set(0x73,  58);
+    set(0x74,   9); set(0x75,  25); set(0x76,  73);
     return m;
 }
 constexpr std::array<uint8_t, 256> kVkToCell = MakeVkToCell();
+
+struct CellLabel { uint8_t vk; const char* label; };
+
+constexpr CellLabel kBaseLabels[] = {
+    { 0x70, "App1" }, { 0x71, "App2" }, { 0x72, "App3" }, { 0x73, "App4" },
+    { 0x74, "App5" }, { 0x75, "App6" }, { 0x76, "App7" }, { 0xA1, "Caps Lock" },
+};
+
+constexpr CellLabel kAltLayer[] = {
+    { 0x26, "PgUp" }, { 0x25, "Home" }, { 0x28, "PgDn" }, { 0x27, "End" },
+};
+
+constexpr uint8_t kAltLayerId = 1;
 
 class SharpMobilonHcKeyboardMap : public KeyboardMap {
 public:
@@ -54,14 +67,17 @@ public:
     void OnReady() override {
         for (int vk = 0; vk < 256; ++vk) {
             const uint8_t code = kVkToCell[vk];
-            if (code != 0xFFu)
-                bindings_.push_back({ static_cast<uint8_t>(vk), code, nullptr, 0, 0 });
+            if (code == 0xFFu) continue;
+            KeyBinding b{ static_cast<uint8_t>(vk), code, nullptr, 0, 0 };
+            if (vk == 0x12 || vk == 0xA4) b.holds_layer = kAltLayerId;
+            for (const CellLabel& l : kBaseLabels)
+                if (l.vk == vk) b.guest_label = l.label;
+            bindings_.push_back(b);
         }
+        for (const CellLabel& l : kAltLayer) bindings_.push_back({ l.vk, 0, l.label, kAltLayerId, 0 });
     }
 
     const std::vector<KeyBinding>& Bindings() const override { return bindings_; }
-
-    std::vector<uint8_t> SpecialKeyOrder() const override { return PcSpecialKeyOrder(); }
 
 private:
     std::vector<KeyBinding> bindings_;

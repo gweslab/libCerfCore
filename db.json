@@ -1998,12 +1998,11 @@
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "480x640 panel",
       "lcd_panel_size": {
         "width": 480,
         "height": 640
       },
-      "has_high_dpi": true
+      "dynamic_scale_factor": -1
     },
     {
       "id": "devemu_wqvga",
@@ -2011,7 +2010,6 @@
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "240x400 panel",
       "lcd_panel_size": {
         "width": 240,
         "height": 400
@@ -2023,10 +2021,70 @@
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "480x800 panel",
       "lcd_panel_size": {
         "width": 480,
         "height": 800
+      }
+    },
+    {
+      "id": "devemu_smartphone",
+      "name": "Device Emulator Smartphone (QCIF+)",
+      "short_name": "Device Emulator",
+      "board_family_id": "samsung_smdk2410",
+      "support_level": "bootable_full",
+      "lcd_panel_size": {
+        "width": 176,
+        "height": 220
+      },
+      "dynamic_scale_factor": 1
+    },
+    {
+      "id": "devemu_smartphone_qvga",
+      "name": "Device Emulator Smartphone (QVGA)",
+      "short_name": "Device Emulator",
+      "board_family_id": "samsung_smdk2410",
+      "support_level": "bootable_full"
+    },
+    {
+      "id": "devemu_1st_gen",
+      "name": "Device Emulator (1st gen, QVGA)",
+      "short_name": "Device Emulator",
+      "board_family_id": "samsung_smdk2410",
+      "support_level": "bootable_full"
+    },
+    {
+      "id": "devemu_1st_gen_vga",
+      "name": "Device Emulator (1st gen, VGA)",
+      "short_name": "Device Emulator",
+      "board_family_id": "samsung_smdk2410",
+      "support_level": "bootable_full",
+      "lcd_panel_size": {
+        "width": 480,
+        "height": 640
+      },
+      "dynamic_scale_factor": -1
+    },
+    {
+      "id": "devemu_1st_gen_smartphone",
+      "name": "Device Emulator Smartphone (1st gen, QCIF+)",
+      "short_name": "Device Emulator",
+      "board_family_id": "samsung_smdk2410",
+      "support_level": "bootable_full",
+      "lcd_panel_size": {
+        "width": 176,
+        "height": 220
+      },
+      "dynamic_scale_factor": 1
+    },
+    {
+      "id": "devemu_wince_svga",
+      "name": "Device Emulator WinCE (SVGA)",
+      "short_name": "Device Emulator",
+      "board_family_id": "samsung_smdk2410",
+      "support_level": "bootable_full",
+      "lcd_panel_size": {
+        "width": 800,
+        "height": 600
       }
     },
     {

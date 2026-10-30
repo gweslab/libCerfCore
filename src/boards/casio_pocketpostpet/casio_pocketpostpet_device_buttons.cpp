@@ -13,19 +13,19 @@ namespace cerfcore {
 
 namespace {
 
-struct StripButton { const char* label; uint16_t adc_y; };
+struct StripButton { const char* id; const char* label; uint16_t adc_y; };
 
 /* casio_toricomail_ce212 touch.dll sub_137095C (Jx627 table @0x1370568): 7 right-strip hard icons, VK 0xE9..0xEF
    top-to-bottom, each record field[2..3] = its v9 (4x GDI px-Y) zone. */
 constexpr uint16_t kStripAdcX = 945u;
 constexpr StripButton kStrip[] = {
-    { "Top Menu",   73u },
-    { "Get Mail",  220u },
-    { "Internet",  367u },
-    { "Mic",       514u },
-    { "Tools",     660u },
-    { "Set Up",    807u },
-    { "Text Edit", 953u },
+    { "top_menu",  "Top Menu",   73u },
+    { "get_mail",  "Get Mail",  220u },
+    { "internet",  "Internet",  367u },
+    { "mic",       "Mic",       514u },
+    { "tools",     "Tools",     660u },
+    { "set_up",    "Set Up",    807u },
+    { "text_edit", "Text Edit", 953u },
 };
 
 class CasioPocketpostpetDeviceButtons : public DeviceButtons {
@@ -36,18 +36,18 @@ public:
         return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::CasioPocketpostpet;
     }
 
-    std::vector<ButtonGroup> ButtonGroups() override {
-        ButtonGroup group;
+    std::vector<ActionControl> Actions() override {
+        std::vector<ActionControl> out;
         for (const StripButton& b : kStrip) {
             ActionControl it;
-            it.id    = "strip:" + std::to_string(b.adc_y);
+            it.id    = b.id;
             it.label = b.label;
             it.press = [this, y = b.adc_y] {
                 emu_.Get<Vr41xxPiu>().SyntheticTap(kStripAdcX, y);
             };
-            group.push_back(std::move(it));
+            out.push_back(std::move(it));
         }
-        return { std::move(group) };
+        return out;
     }
 };
 

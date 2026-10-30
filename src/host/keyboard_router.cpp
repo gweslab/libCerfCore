@@ -27,7 +27,17 @@ void KeyboardRouter::Register(KeyboardInput* src) {
     if (!user_picked_) SelectAutoLocked();
 }
 
-void KeyboardRouter::OnHostKey(uint8_t vk, bool key_up) {
+void KeyboardRouter::OnHostKey(uint8_t vk, bool key_up) { Route(vk, key_up, false); }
+
+void KeyboardRouter::OnStockKey(uint8_t vk, bool key_up) { Route(vk, key_up, true); }
+
+KeyboardInput* KeyboardRouter::StockLocked() const {
+    for (auto* s : sources_)
+        if (s->Stock()) return s;
+    return nullptr;
+}
+
+void KeyboardRouter::Route(uint8_t vk, bool key_up, bool stock) {
     KeyboardInput* target;
     KeyboardInput* released = nullptr;
     {
@@ -37,13 +47,19 @@ void KeyboardRouter::OnHostKey(uint8_t vk, bool key_up) {
             target = owner;
             owner  = nullptr;
         } else {
-            if (owner != active_) released = owner;
-            owner  = active_;
+            KeyboardInput* receiver = stock ? StockLocked() : active_;
+            if (owner != receiver) released = owner;
+            owner  = receiver;
             target = owner;
         }
     }
     if (released) released->OnHostKey(vk, true);
     if (target) target->OnHostKey(vk, key_up);
+}
+
+bool KeyboardRouter::Held(uint8_t vk) const {
+    std::lock_guard<std::mutex> lk(mtx_);
+    return key_owner_[vk] != nullptr;
 }
 
 std::vector<KeyboardInput*> KeyboardRouter::Sources() {

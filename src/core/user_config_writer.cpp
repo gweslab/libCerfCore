@@ -40,4 +40,25 @@ void UserConfigWriter::WriteConfigurableScreenSize(uint32_t width,
         height);
 }
 
+void UserConfigWriter::WriteHud(const std::string& hud) {
+    auto&             config = emu_.Get<DeviceConfig>();
+    const std::string path   = UserConfigPath(config.device_name);
+
+    std::string error;
+    const bool  written = CfgUpdateJsonFile(
+        path,
+        [&](nlohmann::ordered_json& j) {
+            if (hud.empty()) j.erase(config_key::kHud);
+            else             j[config_key::kHud] = hud;
+        },
+        CfgEmptyObject::kRemoveFile, error);
+    if (!written) {
+        LOG(Cfg, "UserConfigWriter: %s\n", error.c_str());
+        return;
+    }
+
+    config.hud = hud;
+    LOG(Cfg, "UserConfigWriter: persisted hud '%s'\n", hud.c_str());
+}
+
 }

@@ -60,7 +60,7 @@ struct DbBoard {
     std::string                   soc_id;
     std::optional<DbLcdPanelSize> lcd_panel_size;
     uint32_t                      ga_color_depth;
-    bool                          has_high_dpi;
+    int                           dynamic_scale_factor;
     RomPlacingMode                rom_placing_mode;
     bool                          configurable_screen;
     uint32_t                      device_year;

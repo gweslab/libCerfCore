@@ -120,6 +120,7 @@ void ConfigLoader::LoadFeatures(const json& root, DeviceConfig& config, const st
     }
     Reader().LoadOptBool(root, config_key::kFullScreen, config.start_fullscreen, path, {});
     Reader().LoadOptBool(root, config_key::kDoubleTapHelper, config.double_tap_helper, path, {});
+    emu_.Get<ConfigMutableFields>().LoadHud(root, config, path);
     Reader().LoadOptBool(root, config_key::kAdoptGaResolution, config.adopt_guest_additions_resolution_for_host_screen,
                          path, {});
 }

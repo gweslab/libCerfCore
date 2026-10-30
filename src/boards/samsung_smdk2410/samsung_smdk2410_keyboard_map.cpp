@@ -1,8 +1,9 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/keyboard_map.h>
-#include "../../host/pc_special_key_order.h"
 #include <cerfcore/boards/board_context.h>
 #include "samsung_smdk2410_family_id.h"
+#include "samsung_smdk2410_fn_key.h"
+#include "samsung_smdk2410_key_codes.h"
 
 #include <vector>
 
@@ -70,7 +71,7 @@ const std::vector<KeyBinding> kBindings = {
     { 0xBF, 0xBF5D, nullptr, 0, 0 },
     { 0xBE, 0xBE5E, nullptr, 0, 0 },
     { 0x5C, 0x5C5F, nullptr, 0, 0 },
-    { 0x5B, 0x5B60, nullptr, 0, 0 },
+    { 0x5B, 0x5B60, nullptr, 0, kSmdk2410WinLayer },
     { 0xA1, 0xA162, nullptr, 0, 0 },
     { 0x08, 0x0869, nullptr, 0, 0 },
     { 0x28, 0x286A, nullptr, 0, 0 },
@@ -84,11 +85,17 @@ const std::vector<KeyBinding> kBindings = {
     { 0xA3, 0x1119, nullptr, 0, 0 },
     { 0xA4, 0x1201, nullptr, 0, 0 },
     { 0xA5, 0x1201, nullptr, 0, 0 },
-    { 0x70, 0xC265, "LSK",  0, 0 },
-    { 0x71, 0xC366, "RSK",  0, 0 },
-    { 0x72, 0xC467, "Dial", 0, 0 },
-    { 0x73, 0xC568, "Hang", 0, 0 },
-    { 0x74, 0xC121, "Fn",   0, 0 },
+    { 0x70, kSmdk2410FnChord | 0x7031, "LSK",  0, 0 },
+    { 0x71, kSmdk2410FnChord | 0x7139, "RSK",  0, 0 },
+    { 0x72, kSmdk2410FnChord | 0x722F, "Dial", 0, 0 },
+    { 0x73, kSmdk2410FnChord | 0x7337, "Hang", 0, 0 },
+    { 0x75, kSmdk2410FnChord | 0x7547, "Vol+", 0, 0 },
+    { 0x76, kSmdk2410FnChord | 0x764F, "Vol-", 0, 0 },
+    { 0x77, kSmdk2410FnChord | 0x7757, "*",    0, 0 },
+    { 0x78, kSmdk2410FnChord | 0x7841, "#",    0, 0 },
+    { 0x71, 0xC265, "App 2", kSmdk2410WinLayer, 0 },
+    { 0x72, 0xC366, "App 3", kSmdk2410WinLayer, 0 },
+    { 0x73, 0xC467, "App 4", kSmdk2410WinLayer, 0 },
 };
 
 class SamsungSmdk2410KeyboardMap : public KeyboardMap {
@@ -100,9 +107,17 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::SamsungSmdk2410;
     }
 
-    const std::vector<KeyBinding>& Bindings() const override { return kBindings; }
+    void OnReady() override {
+        const auto& fn = emu_.Get<SamsungSmdk2410FnKey>();
+        bindings_ = kBindings;
+        bindings_.push_back({ 0x74, 0xC100u | fn.Scancode(), "Fn", 0, 0 });
+        if (fn.HasApp1Key()) bindings_.push_back({ 0x70, 0xC164, "App 1", kSmdk2410WinLayer, 0 });
+    }
 
-    std::vector<uint8_t> SpecialKeyOrder() const override { return PcSpecialKeyOrder(); }
+    const std::vector<KeyBinding>& Bindings() const override { return bindings_; }
+
+private:
+    std::vector<KeyBinding> bindings_;
 };
 
 }  /* namespace */

@@ -12,9 +12,7 @@ public:
     using Service::Service;
     ~DeviceButtons() override = default;
 
-    using ButtonGroup = std::vector<ActionControl>;
-
-    virtual std::vector<ButtonGroup> ButtonGroups() = 0;
+    virtual std::vector<ActionControl> Actions() = 0;
 };
 
 }

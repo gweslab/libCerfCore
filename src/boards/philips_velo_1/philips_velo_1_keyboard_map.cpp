@@ -1,6 +1,5 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/keyboard_map.h>
-#include "../../host/pc_special_key_order.h"
 #include <cerfcore/boards/board_context.h>
 #include "philips_velo_1_family_id.h"
 
@@ -43,8 +42,8 @@ public:
             {0x38u, 0x37u, nullptr, 0u, 0u},  {0x39u, 0x3Fu, nullptr, 0u, 0u},
             {0x20u, 0x21u, nullptr, 0u, 0u},  {0x09u, 0x11u, nullptr, 0u, 0u},
             {0x08u, 0x39u, nullptr, 0u, 0u},  {0x0Du, 0x4Bu, nullptr, 0u, 0u},
-            {0x1Bu, 0x29u, nullptr, 0u, 0u},  {0x10u, 0x51u, nullptr, 0u, 0u},
-            {0x11u, 0x01u, nullptr, 0u, 0u},  {0x12u, 0x19u, nullptr, 0u, 0u},
+            {0x1Bu, 0x29u, nullptr, 0u, 0u},  {0x10u, 0x51u, nullptr, 0u, 2u},
+            {0x11u, 0x01u, nullptr, 0u, 0u},  {0x12u, 0x19u, nullptr, 0u, 1u},
             {0x5Bu, 0x09u, nullptr, 0u, 0u},  {0x25u, 0x41u, nullptr, 0u, 0u},
             {0x26u, 0x4Au, nullptr, 0u, 0u},  {0x27u, 0x32u, nullptr, 0u, 0u},
             {0x28u, 0x49u, nullptr, 0u, 0u},  {0xBAu, 0x4Cu, nullptr, 0u, 0u},
@@ -54,11 +53,19 @@ public:
             {0xDBu, 0x48u, nullptr, 0u, 0u},  {0xDCu, 0x50u, nullptr, 0u, 0u},
             {0xDDu, 0x46u, nullptr, 0u, 0u},  {0xDEu, 0x2Eu, nullptr, 0u, 0u},
             {0xDFu, 0x53u, nullptr, 0u, 0u},
+            {0x31u, 0u, "Word", 1u, 0u},      {0x32u, 0u, "Excel", 1u, 0u},
+            {0x33u, 0u, "Calendar", 1u, 0u},  {0x34u, 0u, "Contacts", 1u, 0u},
+            {0x35u, 0u, "Tasks", 1u, 0u},     {0x36u, 0u, "WWW", 1u, 0u},
+            {0x37u, 0u, "Inbox", 1u, 0u},     {0x38u, 0u, "Database", 1u, 0u},
+            {0x39u, 0u, "Calculator", 1u, 0u}, {0x30u, 0u, "Voice memo", 1u, 0u},
+            {0xBFu, 0u, "Home", 1u, 0u},      {0x26u, 0u, "PgUp", 1u, 0u},
+            {0x25u, 0u, "Home", 1u, 0u},      {0x28u, 0u, "PgDn", 1u, 0u},
+            {0x27u, 0u, "End", 1u, 0u},
+            {0x08u, 0u, "Delete", 2u, 0u},    {0x09u, 0u, "Back Tab", 2u, 0u},
+            {0x10u, 0u, "Caps Lock", 2u, 0u},
         };
         return kBindings;
     }
-
-    std::vector<uint8_t> SpecialKeyOrder() const override { return PcSpecialKeyOrder(); }
 };
 
 }  // namespace

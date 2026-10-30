@@ -24,6 +24,7 @@ public:
     bool HasLetterKeys() const;
 
     virtual std::string SourceName() const { return "Stock keyboard"; }
+    virtual bool Stock() const { return true; }
     virtual int SourcePriority() const { return 0; }
     virtual bool SourceReady() const { return true; }
     virtual const char* IconResourceName() const { return "keyboard"; }

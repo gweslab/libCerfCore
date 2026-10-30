@@ -159,6 +159,8 @@ struct DeviceConfig : public Service {
 
     bool double_tap_helper = kDefaultDoubleTapHelper;
 
+    std::string hud;
+
     bool no_focus = false;
 
     /* When true, ConfigLoader overwrites board_configurable_screen_* with the

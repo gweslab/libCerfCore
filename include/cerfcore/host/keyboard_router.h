@@ -18,6 +18,8 @@ public:
 
     void Register(KeyboardInput* src);
     void OnHostKey(uint8_t vk, bool key_up);
+    void OnStockKey(uint8_t vk, bool key_up);
+    bool Held(uint8_t vk) const;
 
     std::vector<KeyboardInput*> Sources();
     KeyboardInput*              Active();
@@ -31,7 +33,9 @@ public:
     void RestoreUserPicked(bool picked);
 
 private:
-    void SelectAutoLocked();
+    void           SelectAutoLocked();
+    KeyboardInput* StockLocked() const;
+    void           Route(uint8_t vk, bool key_up, bool stock);
 
     mutable std::mutex               mtx_;
     std::vector<KeyboardInput*>      sources_;

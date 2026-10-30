@@ -2,6 +2,7 @@
 #include <cerfcore/host/keyboard_map.h>
 #include <cerfcore/boards/board_context.h>
 #include "siemens_simpad_family_id.h"
+#include "siemens_simpad_power_button.h"
 
 #include <vector>
 
@@ -9,10 +10,6 @@ namespace cerfcore {
 
 namespace {
 
-/* device_code = SIMpad keypad button 0..5. Each button's guest action is the
-   device's observed nav behavior: 0=F1, 1=Alt, 2=Up, 3=Down, 4=Esc(Back),
-   5=Enter(OK). Host arrows land on the arrow buttons directly (identity); host
-   PgUp/PgDn are bonus keys routed to the same Up/Down buttons. */
 const std::vector<KeyBinding> kBindings = {
     { 0x70, 0, nullptr,  0, 0 },   /* F1     -> PROG1 (guest F1)        */
     { 0x12, 1, nullptr,  0, 0 },   /* Alt    -> PROG2 (guest Alt)       */
@@ -25,6 +22,7 @@ const std::vector<KeyBinding> kBindings = {
     { 0x1B, 4, nullptr,  0, 0 },   /* Esc    -> LEFT  (guest Esc/Back)  */
     { 0x27, 5, "Enter", 0, 0 },
     { 0x0D, 5, nullptr,  0, 0 },   /* Enter  -> RIGHT (guest Enter/OK)  */
+    { 0xDF, kSimpadPowerButtonCode, "Power", 0, 0 },
 };
 
 class SiemensSimpadKeyboardMap : public KeyboardMap {
@@ -37,8 +35,6 @@ public:
     }
 
     const std::vector<KeyBinding>& Bindings() const override { return kBindings; }
-
-    std::vector<uint8_t> SpecialKeyOrder() const override { return { 0x0D, 0x1B, 0x26, 0x28, 0x12, 0x70 }; }
 };
 
 }  /* namespace */

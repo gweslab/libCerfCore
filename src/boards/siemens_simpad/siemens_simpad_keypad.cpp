@@ -1,4 +1,5 @@
 #include "siemens_simpad_keypad.h"
+#include "siemens_simpad_power_button.h"
 
 #include <cerfcore/host/keyboard_input.h>
 #include <cerfcore/host/keyboard_map.h>
@@ -36,13 +37,16 @@ public:
         uint32_t code;
         if (!map.BaseDeviceCode(vk, code)) return;
         down_[vk] = !key_up;
-        uint8_t mask = 0;
+        uint8_t mask  = 0;
+        bool    power = false;
         for (int v = 0; v < 256; ++v) {
             uint32_t btn;
-            if (down_[v] && map.BaseDeviceCode(static_cast<uint8_t>(v), btn))
-                mask |= static_cast<uint8_t>(1u << btn);
+            if (!down_[v] || !map.BaseDeviceCode(static_cast<uint8_t>(v), btn)) continue;
+            if (btn == kSimpadPowerButtonCode) power = true;
+            else                               mask |= static_cast<uint8_t>(1u << btn);
         }
         emu_.Get<SiemensSimpadKeypad>().SetPressedMask(mask);
+        emu_.Get<SiemensSimpadPowerButton>().SetPressed(power);
     }
 
 private:

@@ -24,6 +24,7 @@ void CfgResetMutableFields(DeviceConfig& config) {
     config.guest_additions_allow_untrusted_apps = kDefaultAllowUntrustedApps;
     config.share_folder.clear();
     config.share_folder_mount_point.clear();
+    config.hud.clear();
 }
 
 void ConfigMutableFields::LoadScreenFields(const nlohmann::json& board, DeviceConfig& config,
@@ -109,7 +110,13 @@ void ConfigMutableFields::LoadGaAllowUntrustedApps(const nlohmann::json& ga, Dev
                                          path, config_key::kGuestAdditions);
 }
 
+void ConfigMutableFields::LoadHud(const nlohmann::json& root, DeviceConfig& config, const std::string& path) {
+    if (root.contains(config_key::kHud))
+        config.hud = emu_.Get<ConfigReader>().ReadOptString(root, config_key::kHud, path, {});
+}
+
 void ConfigMutableFields::LoadAll(const nlohmann::json& root, DeviceConfig& config, const std::string& path) {
+    LoadHud(root, config, path);
     if (root.contains(config_key::kBoard)) {
         const auto& b = root[config_key::kBoard];
         if (!b.is_object())

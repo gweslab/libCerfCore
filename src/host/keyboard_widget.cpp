@@ -6,8 +6,6 @@
 #include <cerfcore/core/utf16.h>
 #include <cerfcore/host/host_widget_registry.h>
 #include <cerfcore/host/keyboard_input.h>
-#include <cerfcore/host/keyboard_map.h>
-#include <cerfcore/host/keyboard_mapping_view.h>
 #include <cerfcore/host/keyboard_router.h>
 #include <cerfcore/state/state_stream.h>
 
@@ -22,10 +20,7 @@ class KeyboardWidget : public Service, public HostWidget {
 public:
     using Service::Service;
 
-    bool ShouldRegister() override {
-        return emu_.Get<DeviceConfig>().guest_additions ||
-               emu_.TryGet<KeyboardMap>() != nullptr;
-    }
+    bool ShouldRegister() override { return emu_.Get<DeviceConfig>().guest_additions; }
 
     void OnReady() override { emu_.Get<HostWidgetRegistry>().Register(this); }
 
@@ -47,9 +42,7 @@ std::string KeyboardWidget::Tooltip() const {
     auto& router = emu_.Get<KeyboardRouter>();
     KeyboardInput* active = router.Active();
     std::string tip = active ? active->SourceName() : "Keyboard";
-    const bool has_menu = router.Sources().size() > 1 ||
-                          emu_.TryGet<KeyboardMap>() != nullptr;
-    if (has_menu) tip += " - click to configure input / see key mappings";
+    if (router.Sources().size() > 1) tip += " - click to configure input";
     return tip;
 }
 
@@ -85,14 +78,6 @@ std::vector<WidgetControl> KeyboardWidget::Controls() {
                 if (s->SourceName() == name) r.SetActive(s);
         };
         controls.push_back(WidgetControl{std::move(source)});
-    }
-
-    if (emu_.TryGet<KeyboardMap>() && emu_.TryGet<KeyboardMappingView>()) {
-        ActionControl see;
-        see.id    = "see_mapping";
-        see.label = "See keyboard mapping";
-        see.press = [this] { emu_.Get<KeyboardMappingView>().Show(); };
-        controls.push_back(WidgetControl{GroupControl{"", {WidgetControl{std::move(see)}}}});
     }
     return controls;
 }
