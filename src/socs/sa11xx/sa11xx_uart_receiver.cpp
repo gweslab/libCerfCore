@@ -10,6 +10,7 @@
 #include "sa1100_id.h"
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/host_request_channel.h>
+#include <cerfcore/state/hibernation.h>
 #include <cerfcore/state/state_stream.h>
 #include "sa11xx_dma.h"
 #include "sa11xx_uart_base.h"
@@ -51,6 +52,7 @@ void Sa11xxUartReceiver::OnReady() {
     line_     = &emu_.Get<Sa11xxUartRxLine>();
     requests_->RegisterListener([this] { OnHostRequest(); });
     clock_->RegisterRateListener([this] { OnCpuRate(); });
+    emu_.Get<Hibernation>().RegisterPreSaveListener([this] { OnHostRequest(); });
 }
 
 uint32_t Sa11xxUartReceiver::Attach(Sa11xxUartBase* owner, uint32_t utdr, uint32_t device_select,

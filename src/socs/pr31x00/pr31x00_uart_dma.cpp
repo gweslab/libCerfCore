@@ -7,6 +7,7 @@
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/host_request_channel.h>
+#include <cerfcore/state/hibernation.h>
 #include <cerfcore/state/state_stream.h>
 #include "pr31500_id.h"
 #include "pr31700_id.h"
@@ -34,6 +35,7 @@ void Pr31x00UartDma::OnReady() {
     clock_         = &emu_.Get<GuestCycleClock>();
     host_requests_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::HostRequestChannel>();
     host_requests_->RegisterListener([this] { OnHostRequest(); });
+    emu_.Get<Hibernation>().RegisterPreSaveListener([this] { OnHostRequest(); });
     clock_->RegisterRateListener([this] {
         const uint64_t now = clock_->Cycles();
         for (uint32_t i = 0; i < count_; ++i) {
