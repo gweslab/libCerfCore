@@ -60,6 +60,7 @@
         "down": ["VK_DOWN"],
         "left": ["VK_ESCAPE"],
         "right": ["VK_RETURN"],
+        "center": ["VK_RETURN"],
         "shape": "circle"
       }
     },
