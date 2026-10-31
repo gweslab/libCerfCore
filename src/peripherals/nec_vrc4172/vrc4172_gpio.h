@@ -15,7 +15,7 @@ public:
     void OnReady() override;
 
     uint32_t MmioBase() const override { return 0x15001080u; }
-    uint32_t MmioSize() const override { return 0x4Cu; }
+    uint32_t MmioSize() const override { return 0x10u; }
 
     uint8_t  ReadByte(uint32_t addr) override;
     uint16_t ReadHalf(uint32_t addr) override;
