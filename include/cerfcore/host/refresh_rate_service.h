@@ -10,11 +10,6 @@ public:
 
     int GetRefreshRate();
     int FrameIntervalMs();
-
-private:
-    int Decide();
-
-    int cached_ = 0;
 };
 
 }

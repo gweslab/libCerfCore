@@ -13,6 +13,7 @@ public:
 
     virtual void PanelEnabled() = 0;
     virtual void GuestRemoded(uint32_t guest_w, uint32_t guest_h) = 0;
+    virtual void GuestTurned(uint32_t quarters) = 0;
 
     virtual uint32_t SurfaceWidth() const = 0;
     virtual uint32_t SurfaceHeight() const = 0;

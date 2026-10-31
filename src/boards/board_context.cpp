@@ -3,7 +3,6 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
-#include <cerfcore/peripherals/cerf_virt/cerf_virt_addr_map.h>
 
 namespace cerfcore {
 
@@ -61,7 +60,7 @@ const char* BoardContext::SocName() const {
 }
 
 uint32_t BoardContext::GuestAdditionsWindowSize() const {
-    return CerfVirt::kTotalSize;
+    return board_->ga_window_size;
 }
 
 uint32_t BoardContext::ResolveGuestAdditionsColorDepth() const {

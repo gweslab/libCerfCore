@@ -1435,6 +1435,7 @@
         "height": 240
       },
       "ga_color_depth": 8,
+      "ga_window_size": 100663296,
       "rom_placing_mode": "flat_container"
     },
     {
@@ -1499,6 +1500,7 @@
         "height": 320
       },
       "ga_color_depth": 8,
+      "ga_window_size": 50331648,
       "rom_placing_mode": "flat_container"
     },
     {
@@ -1550,6 +1552,7 @@
         "height": 320
       },
       "ga_color_depth": 24,
+      "ga_window_size": 100663296,
       "rom_placing_mode": "flat_container"
     },
     {
@@ -1596,6 +1599,7 @@
         "height": 240
       },
       "ga_color_depth": 24,
+      "ga_window_size": 100663296,
       "rom_placing_mode": "flat_container"
     },
     {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cerfcore/peripherals/cerf_virt/cerf_virt_blt_descriptor.h>
+#include <cerfcore/peripherals/cerf_virt/cerf_virt_rotation.h>
 #include "cerf_virt_blt_pixelops.h"
 #include <cerfcore/peripherals/cerf_virt/cerf_virt_framebuffer.h>
 #include "cerf_virt_dma_arena.h"
@@ -95,18 +96,9 @@ inline bool BltSurfaceAccess::ResolveSurface(const CerfBltSurface& s, uint32_t b
 inline uint8_t* BltSurfaceAccess::RotatedPixelPtr(const Surface& s, int32_t x,
                                                   int32_t y) {
     const CerfBltSurface& d = *s.desc;
-    const int32_t stride = d.stride;
-    const int32_t bpp    = (int32_t)s.bpp;
-    const int32_t W = (int32_t)d.screen_w - 1;
-    const int32_t H = (int32_t)d.screen_h - 1;
-    int32_t off;
-    switch (d.rotate) {
-    case kCerfRotate90:  off = (H - x) * stride + y * bpp;            break;
-    case kCerfRotate180: off = (H - y) * stride + (W - x) * bpp;      break;
-    case kCerfRotate270: off = x * stride + (W - y) * bpp;            break;
-    default:             off = y * stride + x * bpp;                  break;
-    }
-    uint8_t* p = s.host_base + off;
+    const CerfRotatedLayout l = CerfRotatedLayoutFor(d.rotate, (int32_t)d.screen_w, (int32_t)d.screen_h,
+                                                     d.stride, (int32_t)s.bpp);
+    uint8_t* p = s.host_base + CerfRotatedOffset(l, x, y);
     if (p < s.host_lo || p + s.bpp > s.host_hi) return nullptr;
     return p;
 }

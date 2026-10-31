@@ -19,6 +19,7 @@ enum class RomPlacingMode { FlatContainer, Imx51Nand, Unknown };
 enum class SupportLevel { BootableFull, BootablePartial, UnknownPartial, NoSupport };
 
 inline constexpr uint32_t kDefaultGaColorDepth = 24u;
+inline constexpr uint32_t kDefaultGaWindowSize = 0x10000000u;
 
 struct DbLcdPanelSize { uint32_t width; uint32_t height; };
 
@@ -60,6 +61,7 @@ struct DbBoard {
     std::string                   soc_id;
     std::optional<DbLcdPanelSize> lcd_panel_size;
     uint32_t                      ga_color_depth;
+    uint32_t                      ga_window_size;
     int                           dynamic_scale_factor;
     RomPlacingMode                rom_placing_mode;
     bool                          configurable_screen;

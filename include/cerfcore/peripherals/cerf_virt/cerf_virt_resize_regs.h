@@ -1,0 +1,28 @@
+#pragma once
+
+#if defined(_MSC_VER) && _MSC_VER < 1600
+typedef unsigned int uint32_t;
+#else
+#include <cstdint>
+#endif
+
+namespace cerfcore {
+namespace CerfVirt {
+
+const uint32_t kRszWantW   = 0x00u;
+const uint32_t kRszWantH   = 0x04u;
+const uint32_t kRszWantGen = 0x0Cu;
+
+const uint32_t kRszAppliedW       = 0x10u;
+const uint32_t kRszAppliedH       = 0x14u;
+const uint32_t kRszAppliedGen     = 0x18u;
+const uint32_t kRszAppliedQuarter = 0x1Cu;
+
+const uint32_t kRszQuarterTurns = 4u;
+
+inline uint32_t QuarterTurnsFrom(uint32_t from, uint32_t to) {
+    return (to - from) & (kRszQuarterTurns - 1u);
+}
+
+}
+}

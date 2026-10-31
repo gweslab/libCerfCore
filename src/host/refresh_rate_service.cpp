@@ -21,18 +21,12 @@ int SnapUpToNormal(int hz) {
 
 }
 
-int RefreshRateService::GetRefreshRate() {
-    if (cached_) return cached_;
-    cached_ = Decide();
-    return cached_;
-}
-
 int RefreshRateService::FrameIntervalMs() {
     const int interval = 1000 / GetRefreshRate();
     return interval < 1 ? 1 : interval;
 }
 
-int RefreshRateService::Decide() {
+int RefreshRateService::GetRefreshRate() {
     auto& dc = emu_.Get<DeviceConfig>();
 
     if (dc.screen_refresh_rate != 0) {

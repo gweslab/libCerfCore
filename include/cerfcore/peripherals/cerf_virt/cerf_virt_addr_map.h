@@ -12,8 +12,6 @@ namespace CerfVirt {
 
 const uint32_t kBaseMagic = 0xCEF0BA5Eu;
 
-const uint32_t kTotalSize = 0x10000000u;
-
 const uint32_t kRegsOffset = 0u;
 const uint32_t kRegsSize   = 0x15000u;
 
@@ -103,7 +101,6 @@ const uint32_t kNicRxBufOffset = kNicTxBufOffset + kNicTxSlots * kNicSlotSize;
 const uint32_t kNicStageSize   = kNicRxBufOffset + kNicRxSlots * kNicSlotSize;
 
 const uint32_t kFramebufferMemOffset = kNicStageOffset + kNicStageSize;
-const uint32_t kFramebufferMemSize   = 0x02000000u;
 
 const uint32_t kDmaPartOwnerPid    = 0x0Cu;
 const uint32_t kDmaPartHdrSize     = 0x40u;

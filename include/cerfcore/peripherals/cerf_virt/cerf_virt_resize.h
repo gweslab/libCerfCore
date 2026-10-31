@@ -32,6 +32,7 @@ private:
     std::atomic<uint32_t> applied_w_{0};
     std::atomic<uint32_t> applied_h_{0};
     std::atomic<uint32_t> applied_gen_{0};
+    std::atomic<uint32_t> applied_quarter_{0};
 };
 
 }

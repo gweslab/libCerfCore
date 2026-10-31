@@ -24,18 +24,16 @@ public:
     }
 
     void PresentedSize(uint32_t& w, uint32_t& h) override {
-        auto& fb = emu_.Get<CerfVirtFramebuffer>();
-        w = fb.Width();
-        h = fb.Height();
+        emu_.Get<CerfVirtFramebuffer>().Geometry(w, h);
     }
 
     bool HasFrame() override {
         auto& fb = emu_.Get<CerfVirtFramebuffer>();
         if (!fb.HasContent()) return false;
         if (latch_.Latched()) return true;
-        const size_t bytes = fb.SizeBytes();
-        if (bytes == 0 || bytes > fb.Capacity()) return false;
-        return latch_.ProbeAndLatch(fb.Bytes(), bytes);
+        const CerfVirtScanout s = fb.Scanout();
+        return latch_.ProbeAndLatch(fb.Bytes() + s.offset,
+                                    static_cast<size_t>(s.height) * s.width * (s.bpp >> 3u));
     }
 
     void RearmContentLatch() override {
@@ -47,19 +45,19 @@ public:
                     uint32_t  host_w,
                     uint32_t  host_h) override {
         auto& fb = emu_.Get<CerfVirtFramebuffer>();
-        const uint32_t guest_w = fb.Width();
-        const uint32_t guest_h = fb.Height();
-        const uint8_t* src = fb.Bytes();
+        const CerfVirtScanout s = fb.Scanout();
+        const uint32_t guest_w = s.width;
+        const uint32_t bpp     = s.bpp;
+        const uint8_t* src     = fb.Bytes() + s.offset;
 
         std::memset(dib_bgra32, 0,
                     static_cast<size_t>(host_w) * host_h * 4u);
 
         const uint32_t copy_w = std::min(guest_w, host_w);
-        const uint32_t copy_h = std::min(guest_h, host_h);
+        const uint32_t copy_h = std::min(s.height, host_h);
         if (copy_w == 0 || copy_h == 0) return;
 
-        const uint32_t guest_stride = fb.Stride();
-        const uint32_t bpp = fb.Bpp();
+        const uint32_t guest_stride = guest_w * (bpp >> 3u);
         for (uint32_t y = 0; y < copy_h; ++y) {
             const uint8_t* src_row = src + static_cast<size_t>(y) * guest_stride;
             uint32_t* dst_row = dib_bgra32 + static_cast<size_t>(y) * host_w;

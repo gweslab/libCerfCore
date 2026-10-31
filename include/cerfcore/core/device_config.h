@@ -163,9 +163,6 @@ struct DeviceConfig : public Service {
 
     bool no_focus = false;
 
-    /* When true, ConfigLoader overwrites board_configurable_screen_* with the
-       host monitor size (host_w-10 x host_h-40, capped 3840x2160) so a
-       guest-additions display fills the host screen. Read from cerf.json. */
     bool adopt_guest_additions_resolution_for_host_screen = false;
 };
 

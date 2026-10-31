@@ -30,7 +30,7 @@ public:
     int      DynamicScaleFactor() const;
 
     virtual uint32_t GuestAdditionsWindowBase() const { return 0xF0000000u; }
-    virtual uint32_t GuestAdditionsWindowSize() const;
+    uint32_t         GuestAdditionsWindowSize() const;
 
 private:
     const DbBoard*     board_      = nullptr;
