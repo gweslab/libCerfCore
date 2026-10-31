@@ -3,6 +3,7 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 
 #include <cerfcore/boards/board_context.h>
+#include "floating_bus.h"
 
 #include <cstdint>
 #include <string_view>
@@ -26,9 +27,10 @@ public:
 
 protected:
     virtual std::string_view WindowBoardFamilyId() const = 0;
+    virtual bool             WindowOnBoard(const BoardContext& bd) const;
     virtual const char*      WindowTag()     const = 0;
 
-    void Trace(const char* op, uint32_t addr);
+    FloatingBus bus_;
 };
 
 }

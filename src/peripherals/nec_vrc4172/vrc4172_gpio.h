@@ -43,6 +43,7 @@ private:
 
     mutable std::mutex mtx_;
 
+    uint16_t out_     = 0;
     uint16_t dir_     = 0;
     uint16_t inten_   = 0;
     uint16_t intst_   = 0;

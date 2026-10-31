@@ -40,7 +40,7 @@ void Vrc4172Gpio::OnReady() {
     auto& reset = emu_.Get<GuestCpuReset>();
     reset.RegisterResetListener([this](ResetLineKind) {
         std::lock_guard<std::mutex> lk(mtx_);
-        dir_ = inten_ = intst_ = intclr_ = inttyp_ = intlv0l_ = intlv0h_ = 0;
+        out_ = dir_ = inten_ = intst_ = intclr_ = inttyp_ = intlv0l_ = intlv0h_ = 0;
     });
     reset.RegisterResetReleaseListener([this] {
         std::lock_guard<std::mutex> lk(mtx_);
@@ -64,6 +64,7 @@ void Vrc4172Gpio::WriteByte(uint32_t addr, uint8_t value) {
     if (off & 1u) HaltUnsupportedAccess("VRC4172 GPIO WriteByte (odd offset)", addr, value);
     std::lock_guard<std::mutex> lk(mtx_);
     switch (off) {
+        case kData0:   out_    = static_cast<uint16_t>((out_ & ~(dir_ & 0x00FFu)) | (value & dir_ & 0x00FFu)); return;
         case kDir0:    dir_    = static_cast<uint16_t>((dir_    & 0xFF00u) | value); return;
         case kInttyp0: inttyp_ = static_cast<uint16_t>((inttyp_ & 0xFF00u) | value); break;
         case kInten0:  inten_  = static_cast<uint16_t>((inten_  & 0xFF00u) | value); break;
@@ -77,6 +78,7 @@ void Vrc4172Gpio::WriteHalf(uint32_t addr, uint16_t value) {
     const uint32_t off = addr - kBase;
     std::lock_guard<std::mutex> lk(mtx_);
     switch (off) {
+        case kData0:   out_    = static_cast<uint16_t>((out_ & ~dir_) | (value & dir_)); return;
         case kDir0:    dir_    = value; return;
         case kInttyp0: inttyp_ = value; break;
         case kInten0:  inten_  = value; break;
@@ -91,7 +93,7 @@ void Vrc4172Gpio::WriteHalf(uint32_t addr, uint16_t value) {
 
 uint16_t Vrc4172Gpio::ReadReg16Locked(uint32_t off) {
     switch (off) {
-        case kData0:   return static_cast<uint16_t>(level_ & ~dir_);
+        case kData0:   return static_cast<uint16_t>((level_ & ~dir_) | (out_ & dir_));
         case kDir0:    return dir_;
         case kInten0:  return inten_;
         case kIntst0:  return intst_;
@@ -156,12 +158,14 @@ void Vrc4172Gpio::DriveGiuLocked() {
 
 void Vrc4172Gpio::SaveState(StateWriter& w) {
     std::lock_guard<std::mutex> lk(mtx_);
+    w.Write("out", out_);
     w.Write("dir", dir_); w.Write("inten", inten_); w.Write("intst", intst_); w.Write("intclr", intclr_);
     w.Write("inttyp", inttyp_);
     w.Write("intlv0l", intlv0l_); w.Write("intlv0h", intlv0h_); w.Write("level", level_);
 }
 void Vrc4172Gpio::RestoreState(StateReader& r) {
     std::lock_guard<std::mutex> lk(mtx_);
+    r.Read("out", out_);
     r.Read("dir", dir_); r.Read("inten", inten_); r.Read("intst", intst_); r.Read("intclr", intclr_);
     r.Read("inttyp", inttyp_);
     r.Read("intlv0l", intlv0l_); r.Read("intlv0h", intlv0h_); r.Read("level", level_);

@@ -22,11 +22,8 @@ public:
     /* NEC VR4121 UM Table 3-3 "Load/Store Instruction (Extended ISA)":
        "LD rt, offset (base)" Load Doubleword, "SD rt, offset (base)" Store
        Doubleword. */
-    uint64_t ReadDword(uint32_t addr) override {
-        Trace("r64", addr);
-        return 0xFFFFFFFFFFFFFFFFull;
-    }
-    void WriteDword(uint32_t addr, uint64_t) override { Trace("w64", addr); }
+    uint64_t ReadDword(uint32_t addr) override { return bus_.Read64(WindowTag(), addr); }
+    void WriteDword(uint32_t addr, uint64_t) override { bus_.Write(WindowTag(), 64u, addr); }
 
 protected:
     std::string_view WindowBoardFamilyId() const override { return BoardFamilyId::CasioPocketpostpet; }

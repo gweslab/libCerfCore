@@ -5,9 +5,13 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include "../../peripherals/nand/small_page_nand_flash.h"
+#include "s3c2410_nand_part.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
+#include <optional>
 
 namespace cerfcore {
 
@@ -29,49 +33,28 @@ constexpr uint32_t kOffStat = 0x10u;
    [11] nFCE (0 = L active), [10:8] TACLS, [6:4] TWRPH0, [2:0] TWRPH1;
    [14:13], [7] and [3] Reserved. */
 constexpr uint32_t kConfWritable = 0x00009F77u;
+constexpr uint32_t kConfNfce     = 1u << 11;
+constexpr uint32_t kConfEnable   = 1u << 15;
 
 /* UM p. 6-8 NFSTAT: [0] RnB, "1 = NAND flash memory ready to operate". */
 constexpr uint32_t kStatReady = 1u << 0;
-
-/* Linux 2.6.25 include/linux/mtd/nand.h:71-83, the legacy command set. */
-constexpr uint32_t kNoCommand = 0x100u;
-
-constexpr uint8_t kCmdRead0   = 0x00u;
-constexpr uint8_t kCmdRead1   = 0x01u;
-constexpr uint8_t kCmdReadOob = 0x50u;
-constexpr uint8_t kCmdReadId  = 0x90u;
-constexpr uint8_t kCmdReset   = 0xFFu;
-
-/* Linux 2.6.25 drivers/mtd/nand/nand_ids.c:57 gives device code 0x76 as the
-   64 MiB 3.3 V 8-bit part with a 512-byte page and a 0x4000 erase block;
-   nand.h:428 and nand_ids.c:137 give maker code 0xEC, Samsung. */
-constexpr uint8_t  kMakerCode  = 0xECu;
-constexpr uint8_t  kDeviceCode = 0x76u;
-constexpr uint32_t kPageData   = 512u;
-constexpr uint32_t kPageSpare  = 16u;
-constexpr uint32_t kPageBytes  = kPageData + kPageSpare;
-constexpr uint32_t kPageCount  = (64u * 1024u * 1024u) / kPageData;
-
-/* Linux 2.6.25 drivers/mtd/nand/nand_base.c nand_command(). */
-constexpr uint32_t kColumnBaseRead0   = 0u;
-constexpr uint32_t kColumnBaseRead1   = 256u;
-constexpr uint32_t kColumnBaseReadOob = kPageData;
-constexpr uint32_t kAddressCycles     = 4u;
-
-/* Linux 2.6.25 drivers/mtd/nand/nand_base.c nand_block_bad(). */
-constexpr uint8_t kErasedByte = 0xFFu;
 
 class S3C2410NandFlash : public Peripheral {
 public:
     using Peripheral::Peripheral;
 
     bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetSocId() == SocId::S3c2410;
+        return emu_.Get<BoardContext>().GetSocId() == SocId::S3c2410;
     }
 
     void OnReady() override {
+        if (auto* part = emu_.TryGet<S3c2410NandPart>())
+            chip_.emplace(emu_, "S3C2410 NAND", part->Geometry(), part->Store());
         emu_.Get<PeripheralDispatcher>().Register(this);
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            conf_ &= kConfNfce;
+            if (chip_ && kind == ResetLineKind::Rtc) chip_->PowerUp();
+        });
     }
 
     uint32_t MmioBase() const override { return kBase; }
@@ -84,50 +67,44 @@ public:
 
     void SaveState(StateWriter& w) override {
         w.Write<uint32_t>("conf", conf_);
-        w.Write<uint32_t>("command", command_);
-        w.Write<uint32_t>("id_index", id_index_);
-        w.Write<uint32_t>("addr_cycle", addr_cycle_);
-        w.Write<uint32_t>("column_base", column_base_);
-        w.Write<uint32_t>("column", column_);
-        w.Write<uint32_t>("page", page_);
+        if (chip_) chip_->SaveState(w);
     }
     void RestoreState(StateReader& r) override {
         r.Read("conf", conf_);
-        r.Read("command", command_);
-        r.Read("id_index", id_index_);
-        r.Read("addr_cycle", addr_cycle_);
-        r.Read("column_base", column_base_);
-        r.Read("column", column_);
-        r.Read("page", page_);
+        if (chip_) chip_->RestoreState(r);
     }
 
 private:
-    bool IsReadCommand() const {
-        return command_ == kCmdRead0 || command_ == kCmdRead1 ||
-               command_ == kCmdReadOob;
+    bool ChipSelected(const char* op, uint32_t addr) {
+        if (!chip_)
+            emu_.Get<Fatal>().Die("S3C2410 NAND: %s at 0x%08X with no NAND part on this board", op, addr);
+        if (!(conf_ & kConfEnable))
+            emu_.Get<Fatal>().Die("S3C2410 NAND: %s at 0x%08X with NFCONF enable clear (0x%04X)",
+                                  op, addr, conf_);
+        return !(conf_ & kConfNfce);
     }
 
-    uint32_t conf_        = 0;
-    uint32_t command_     = kNoCommand;
-    uint32_t id_index_    = 0;
-    uint32_t addr_cycle_  = 0;
-    uint32_t column_base_ = 0;
-    uint32_t column_      = 0;
-    uint32_t page_        = 0;
+    uint32_t                          conf_ = 0;
+    std::optional<SmallPageNandFlash> chip_;
 };
 
 void S3C2410NandFlash::WriteWord(uint32_t addr, uint32_t value) {
     const uint32_t off = addr - kBase;
     if (off != kOffConf)
         HaltUnsupportedAccess("WriteWord", addr, value);
+    const bool ce_rises = !(conf_ & kConfNfce) && (value & kConfNfce);
     conf_ = value & kConfWritable;
+    if (chip_ && ce_rises) chip_->Deselect();
 }
 
 uint32_t S3C2410NandFlash::ReadWord(uint32_t addr) {
     const uint32_t off = addr - kBase;
     switch (off) {
         case kOffConf: return conf_;
-        case kOffStat: return kStatReady;
+        case kOffStat:
+            if (!chip_)
+                emu_.Get<Fatal>().Die("S3C2410 NAND: NFSTAT read with no NAND part on this board");
+            return kStatReady;
         default:
             HaltUnsupportedAccess("ReadWord", addr, 0);
     }
@@ -135,83 +112,22 @@ uint32_t S3C2410NandFlash::ReadWord(uint32_t addr) {
 
 void S3C2410NandFlash::WriteByte(uint32_t addr, uint8_t value) {
     const uint32_t off = addr - kBase;
-    if (off == kOffCmd) {
-        switch (value) {
-            case kCmdReset:
-            case kCmdReadId:                                        break;
-            case kCmdRead0:   column_base_ = kColumnBaseRead0;      break;
-            case kCmdRead1:   column_base_ = kColumnBaseRead1;      break;
-            case kCmdReadOob: column_base_ = kColumnBaseReadOob;    break;
-            default:
-                emu_.Get<Fatal>().Die(
-                    "S3C2410 NAND: unimplemented command 0x%02X written to NFCMD",
-                    value);
-        }
-        command_    = value;
-        id_index_   = 0;
-        addr_cycle_ = 0;
-        column_     = 0;
-        page_       = 0;
-        return;
+    if (off != kOffCmd && off != kOffAddr && off != kOffData)
+        HaltUnsupportedAccess("WriteByte", addr, value);
+    if (!ChipSelected("WriteByte", addr)) return;
+    switch (off) {
+        case kOffCmd:  chip_->Command(value);   return;
+        case kOffAddr: chip_->Address(value);   return;
+        default:       chip_->WriteData(value); return;
     }
-    if (off == kOffAddr) {
-        if (command_ == kCmdReadId) {
-            if (value != 0x00u)
-                emu_.Get<Fatal>().Die(
-                    "S3C2410 NAND: READ ID address 0x%02X is unimplemented", value);
-            return;
-        }
-        if (!IsReadCommand())
-            emu_.Get<Fatal>().Die(
-                "S3C2410 NAND: address cycle under unimplemented command 0x%02X",
-                command_);
-        switch (addr_cycle_++) {
-            case 0: column_ = value;                             break;
-            case 1: page_   = value;                             break;
-            case 2: page_  |= static_cast<uint32_t>(value) << 8;  break;
-            case 3: page_  |= static_cast<uint32_t>(value) << 16; break;
-            default:
-                emu_.Get<Fatal>().Die(
-                    "S3C2410 NAND: address cycle %u past the %u this part takes",
-                    addr_cycle_ - 1u, kAddressCycles);
-        }
-        if (addr_cycle_ == kAddressCycles && page_ >= kPageCount)
-            emu_.Get<Fatal>().Die(
-                "S3C2410 NAND: page %u past the %u-page device", page_, kPageCount);
-        return;
-    }
-    HaltUnsupportedAccess("WriteByte", addr, value);
 }
 
 uint8_t S3C2410NandFlash::ReadByte(uint32_t addr) {
-    const uint32_t off = addr - kBase;
-    if (off != kOffData)
+    if (addr - kBase != kOffData)
         HaltUnsupportedAccess("ReadByte", addr, 0);
-    if (command_ == kCmdReadId) {
-        switch (id_index_++) {
-            case 0: return kMakerCode;
-            case 1: return kDeviceCode;
-            default:
-                emu_.Get<Fatal>().Die(
-                    "S3C2410 NAND: READ ID byte %u is unimplemented",
-                    id_index_ - 1u);
-        }
-    }
-    if (!IsReadCommand())
-        emu_.Get<Fatal>().Die(
-            "S3C2410 NAND: NFDATA read under unimplemented command 0x%02X",
-            command_);
-    if (addr_cycle_ != kAddressCycles)
-        emu_.Get<Fatal>().Die(
-            "S3C2410 NAND: NFDATA read after %u of %u address cycles",
-            addr_cycle_, kAddressCycles);
-    const uint32_t offset = column_base_ + column_;
-    if (offset >= kPageBytes)
-        emu_.Get<Fatal>().Die(
-            "S3C2410 NAND: read at offset %u past the %u-byte page",
-            offset, kPageBytes);
-    ++column_;
-    return kErasedByte;
+    if (!ChipSelected("ReadByte", addr))
+        emu_.Get<Fatal>().Die("S3C2410 NAND: NFDATA read with nFCE inactive (NFCONF 0x%04X)", conf_);
+    return chip_->ReadData();
 }
 
 }  /* namespace */

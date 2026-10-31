@@ -17,7 +17,7 @@ public:
     }
 
     int      GiuIntPin() const override { return 10; }
-    uint16_t InitialInputLevels() const override { return 0x3010u; }
+    uint16_t InitialInputLevels() const override { return 0x3210u; }
 };
 
 }
