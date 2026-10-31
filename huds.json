@@ -589,7 +589,7 @@
     {
       "id": "device_emulator_pocket_pc",
       "name": "Pocket PC",
-      "board_ids": ["devemu", "devemu_vga", "devemu_wqvga", "devemu_wvga", "devemu_1st_gen", "devemu_1st_gen_vga"],
+      "board_ids": ["devemu", "devemu_vga", "devemu_wqvga", "devemu_wvga", "devemu_gen1", "devemu_gen1_vga"],
       "gap": 0.02,
       "panels": [
         { "side": "bottom", "align": "center", "width": 1.0, "height": 0.48, "content": "device_emulator_keys" }
@@ -598,7 +598,7 @@
     {
       "id": "device_emulator_smartphone",
       "name": "Smartphone",
-      "board_ids": ["devemu_smartphone", "devemu_smartphone_qvga", "devemu_1st_gen_smartphone"],
+      "board_ids": ["devemu_sp", "devemu_sp_qvga", "devemu_gen1_sp", "devemu_gen1_sp_qvga"],
       "gap": 0.02,
       "panels": [
         { "side": "bottom", "align": "center", "width": 1.0, "height": 0.48, "content": "device_emulator_smartphone_keys" },

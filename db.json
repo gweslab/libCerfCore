@@ -2039,7 +2039,7 @@
       }
     },
     {
-      "id": "devemu_smartphone",
+      "id": "devemu_sp",
       "name": "Device Emulator 2008 Smartphone (QCIF+)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
@@ -2051,21 +2051,21 @@
       "dynamic_scale_factor": 1
     },
     {
-      "id": "devemu_smartphone_qvga",
+      "id": "devemu_sp_qvga",
       "name": "Device Emulator 2008 Smartphone (QVGA)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full"
     },
     {
-      "id": "devemu_1st_gen",
+      "id": "devemu_gen1",
       "name": "Device Emulator 2003 (QVGA)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full"
     },
     {
-      "id": "devemu_1st_gen_vga",
+      "id": "devemu_gen1_vga",
       "name": "Device Emulator 2003 (VGA)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
@@ -2077,7 +2077,7 @@
       "dynamic_scale_factor": -1
     },
     {
-      "id": "devemu_1st_gen_smartphone",
+      "id": "devemu_gen1_sp",
       "name": "Device Emulator 2003 Smartphone (QCIF+)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
@@ -2089,8 +2089,26 @@
       "dynamic_scale_factor": 1
     },
     {
+      "id": "devemu_gen1_sp_qvga",
+      "name": "Device Emulator 2003 Smartphone (QVGA)",
+      "short_name": "Device Emulator",
+      "board_family_id": "samsung_smdk2410",
+      "support_level": "bootable_full"
+    },
+    {
       "id": "devemu_wince_svga",
       "name": "Device Emulator 2008 WinCE (SVGA)",
+      "short_name": "Device Emulator",
+      "board_family_id": "samsung_smdk2410",
+      "support_level": "bootable_full",
+      "lcd_panel_size": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "id": "devemu_gen1_wince_svga",
+      "name": "Device Emulator 2003 WinCE (SVGA)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full",

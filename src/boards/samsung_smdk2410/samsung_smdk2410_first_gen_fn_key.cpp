@@ -2,9 +2,11 @@
 
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
-#include "devemu_1st_gen_id.h"
-#include "devemu_1st_gen_smartphone_id.h"
-#include "devemu_1st_gen_vga_id.h"
+#include "devemu_gen1_id.h"
+#include "devemu_gen1_sp_id.h"
+#include "devemu_gen1_sp_qvga_id.h"
+#include "devemu_gen1_vga_id.h"
+#include "devemu_gen1_wince_svga_id.h"
 
 namespace cerfcore {
 
@@ -16,7 +18,8 @@ public:
 
     bool ShouldRegister() override {
         const std::string_view id = emu_.Get<BoardContext>().GetBoardId();
-        return id == BoardId::Devemu1stGen || id == BoardId::Devemu1stGenSmartphone || id == BoardId::Devemu1stGenVga;
+        return id == BoardId::DevemuGen1 || id == BoardId::DevemuGen1Vga || id == BoardId::DevemuGen1Sp ||
+               id == BoardId::DevemuGen1SpQvga || id == BoardId::DevemuGen1WinceSvga;
     }
 
     uint8_t Scancode() const override { return 0x63; }

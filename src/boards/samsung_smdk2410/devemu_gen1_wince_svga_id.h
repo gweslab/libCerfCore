@@ -6,7 +6,7 @@ namespace cerfcore {
 
 namespace BoardId {
 
-inline constexpr std::string_view Devemu1stGen = "devemu_1st_gen";
+inline constexpr std::string_view DevemuGen1WinceSvga = "devemu_gen1_wince_svga";
 
 }
 
