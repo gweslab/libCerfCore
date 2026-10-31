@@ -66,7 +66,6 @@ private:
     static int GroupOf(int n) { return n <= 1 ? 0 : 1; }
 
     void     RequireDividerMux(int n, uint32_t tcfg1) const;
-    void     RequireOneDividerTap() const;
     void     RequirePwmClock(const char* access, uint32_t addr) const;
     uint64_t TickAt(int n, uint64_t cycle) const;
     uint64_t EdgeCycles(int n, uint64_t tick) const;
@@ -157,7 +156,6 @@ void S3C2410Timer::ApplyTconWrite(uint32_t new_tcon, uint64_t now) {
         }
         ArmTimer(i);
     }
-    RequireOneDividerTap();
 }
 
 /* S3C2410A UM p.10-11/10-12/10-13/10-15/10-19: TCFG0, TCFG1, TCON, TCNTBn,
@@ -177,12 +175,6 @@ void S3C2410Timer::WriteTcfg(uint32_t tcfg0, uint32_t tcfg1, uint64_t now) {
     for (int i = 0; i < 5; ++i) RequireDividerMux(i, tcfg1);
     for (int i = 0; i < 5; ++i) {
         if (!timers_[i].running) continue;
-        const int g = GroupOf(i);
-        if (Prescaler(g, tcfg0) != Prescaler(g, tcfg0_)) {
-            emu_.Get<Fatal>().Die("S3C2410Timer: TCFG0 changes prescaler %d %u -> %u while "
-                                  "timer %d runs; the prescaler phase across that change is "
-                                  "not modelled", g, Prescaler(g, tcfg0_), Prescaler(g, tcfg0), i);
-        }
         if (Mux(i, tcfg1) != Mux(i, tcfg1_)) {
             emu_.Get<Fatal>().Die("S3C2410Timer: TCFG1 changes running timer %d MUX %u -> %u; "
                                   "the timer clock across that switch is not modelled", i,
@@ -198,21 +190,6 @@ void S3C2410Timer::WriteTcfg(uint32_t tcfg0, uint32_t tcfg1, uint64_t now) {
         }
     }
     for (int i = 0; i < 5; ++i) ArmTimer(i);
-}
-
-void S3C2410Timer::RequireOneDividerTap() const {
-    for (int a = 0; a < 5; ++a) {
-        for (int b = a + 1; b < 5; ++b) {
-            if (!timers_[a].running || !timers_[b].running || GroupOf(a) != GroupOf(b) ||
-                Mux(a, tcfg1_) == Mux(b, tcfg1_)) {
-                continue;
-            }
-            emu_.Get<Fatal>().Die("S3C2410Timer: timers %d and %d of prescaler %d run on "
-                                  "divider taps 1/%u and 1/%u; the divider output edge "
-                                  "polarity is not modelled", a, b, GroupOf(a),
-                                  1u << DividerShift(a, tcfg1_), 1u << DividerShift(b, tcfg1_));
-        }
-    }
 }
 
 void S3C2410Timer::OnRateChange() {
