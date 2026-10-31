@@ -2059,14 +2059,14 @@
     },
     {
       "id": "devemu_1st_gen",
-      "name": "Device Emulator 2003 (1st gen, QVGA)",
+      "name": "Device Emulator 2003 (QVGA)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full"
     },
     {
       "id": "devemu_1st_gen_vga",
-      "name": "Device Emulator 2003 (1st gen, VGA)",
+      "name": "Device Emulator 2003 (VGA)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full",
@@ -2078,7 +2078,7 @@
     },
     {
       "id": "devemu_1st_gen_smartphone",
-      "name": "Device Emulator 2003 Smartphone (1st gen, QCIF+)",
+      "name": "Device Emulator 2003 Smartphone (QCIF+)",
       "short_name": "Device Emulator",
       "board_family_id": "samsung_smdk2410",
       "support_level": "bootable_full",
