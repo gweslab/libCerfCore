@@ -1325,6 +1325,14 @@
         {
           "feature_id": "mic",
           "supported": false
+        },
+        {
+          "feature_id": "keyboard",
+          "supported": true
+        },
+        {
+          "feature_id": "serial",
+          "supported": false
         }
       ],
       "notes": [],
