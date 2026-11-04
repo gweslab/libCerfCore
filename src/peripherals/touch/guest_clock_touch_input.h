@@ -2,7 +2,7 @@
 
 #include <cerfcore/host/touch_input.h>
 #include "../../execution/guest_cycle_clock.h"
-#include "../../socs/rated_tick_count.h"
+#include "../../socs/guest_sample_clock.h"
 
 #include <cstdint>
 #include <mutex>
@@ -56,22 +56,14 @@ protected:
 
 private:
     void OnHostRequest();
-    void OnSampleEvent();
-    void RescaleSamples();
-    void ArmNextSample();
 
     std::mutex           host_mtx_;
     std::vector<HostPen> host_pens_;
     int                  last_x_ = 0;
     int                  last_y_ = 0;
 
-    GuestCycleClock*        clock_         = nullptr;
-    GuestCycleClock::Event* sample_event_  = nullptr;
-    cerfengine::HostRequestChannel*     host_requests_ = nullptr;
-    RatedTickCount          samples_{emu_};
-    GuestCycleClock::Rate   rate_{};
-    uint64_t                next_sample_ = 0;
-    bool                    sampling_    = false;
+    cerfengine::HostRequestChannel* host_requests_ = nullptr;
+    GuestSampleClock                samples_{emu_};
 };
 
 }

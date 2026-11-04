@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <cerfcore/core/service.h>
+#include "../../socs/guest_sample_clock.h"
 #include "../ps2_keyboard/ps2_keyboard.h"
 #include "../ps2_mouse/ps2_mouse.h"
 
@@ -20,6 +21,7 @@ public:
     explicit I8042Controller(CerfEmulator& emu);
 
     bool ShouldRegister() override;
+    void OnReady() override;
 
     uint8_t ReadData();              /* port 0x60 read */
     uint8_t ReadStatus();            /* port 0x64 read */
@@ -45,6 +47,7 @@ private:
     int  LoadOutputLocked();      /* 0=none, 1=kbd channel, 2=aux/mouse */
     void RaiseLoadedIrq(int which);
     void PumpAndRaise();
+    void OnMouseSample();
 
     std::mutex mtx_;
     uint8_t    cmd_byte_ = 0;
@@ -60,6 +63,8 @@ private:
 
     Ps2Keyboard kbd_;
     Ps2Mouse    mouse_;
+
+    GuestSampleClock mouse_samples_{emu_};
 };
 
 }

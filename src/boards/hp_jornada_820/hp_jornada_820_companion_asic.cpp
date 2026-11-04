@@ -39,6 +39,13 @@ void HpJornada820CompanionAsic::OnReady() {
        any queued pre-suspend motion that would otherwise sit ahead of the F6 ACK
        and desync the re-init handshake. */
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { mouse_.Reset(); });
+    ps2_samples_.Attach([this] { OnPs2Sample(); });
+    ps2_samples_.Start({mouse_.SampleRate(), 1u});
+}
+
+void HpJornada820CompanionAsic::OnPs2Sample() {
+    mouse_.Sample();
+    ps2_samples_.SetRate({mouse_.SampleRate(), 1u});
 }
 
 uint8_t HpJornada820CompanionAsic::ReadByte(uint32_t addr) {
@@ -109,12 +116,14 @@ void HpJornada820CompanionAsic::SaveState(StateWriter& w) {
     w.WriteBytes("store", store_.data(), store_.size());
     w.Write("intr_pending", intr_pending_);
     mouse_.SaveState(w);
+    ps2_samples_.Save(w, "glidepad_");
 }
 
 void HpJornada820CompanionAsic::RestoreState(StateReader& r) {
     r.ReadBytes("store", store_.data(), store_.size());
     r.Read("intr_pending", intr_pending_);
     mouse_.RestoreState(r);
+    ps2_samples_.Restore(r, "glidepad_");
 }
 
 REGISTER_SERVICE(HpJornada820CompanionAsic);

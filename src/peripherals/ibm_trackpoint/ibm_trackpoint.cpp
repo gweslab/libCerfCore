@@ -4,7 +4,6 @@
 #include <cerfcore/state/state_stream.h>
 
 #include <algorithm>
-#include <utility>
 #include <vector>
 
 namespace cerfcore {
@@ -24,9 +23,18 @@ constexpr uint8_t kE2Ps2Mode     = 0x53u;
 constexpr uint8_t kE2RamRead     = 0x80u;
 constexpr uint8_t kE2RamWrite    = 0x81u;
 
-constexpr uint32_t kSerialBaud     = 1200u;
-constexpr uint32_t kPs2BaudClock   = 14745600u;
-constexpr uint32_t kPs2BaudDivisor = 384u;
+constexpr uint32_t kSerialBaud = 1200u;
+
+constexpr uint32_t kSerialReportHz = 40u;
+constexpr int32_t  kReportMin      = -128;
+constexpr int32_t  kReportMax      = 127;
+constexpr uint32_t kXmitGapWrap    = 256u;
+constexpr uint8_t  kSerialSync     = 0x40u;
+constexpr uint8_t  kSerialLeft     = 0x20u;
+constexpr uint8_t  kSerialRight    = 0x10u;
+constexpr uint8_t  kSerialLowBits  = 0x3Fu;
+constexpr unsigned kSerialHighShift = 6u;
+constexpr unsigned kSerialYHighPos  = 2u;
 
 constexpr uint8_t kRamConfig      = 0x2Cu;
 constexpr uint8_t kRamXmitGap     = 0x62u;
@@ -48,6 +56,8 @@ constexpr std::array<uint8_t, 13> kUnmodeledE2 = {0x40, 0x41, 0x44, 0x45, 0x46, 
 constexpr std::array<uint8_t, 11> kWritableRam = {0x41, 0x42, 0x4A, 0x58, 0x59, 0x5A,
                                                   0x5C, 0x5D, 0x5E, 0x60, 0x62};
 
+static_assert(IbmTrackpoint::kLineTickHz % kSerialBaud == 0u);
+
 template <size_t N>
 bool Contains(const std::array<uint8_t, N>& set, uint8_t b) {
     return std::find(set.begin(), set.end(), b) != set.end();
@@ -55,11 +65,10 @@ bool Contains(const std::array<uint8_t, N>& set, uint8_t b) {
 
 }
 
-IbmTrackpoint::IbmTrackpoint(HostFormatFn host_format, SendFn send, HaltFn halt)
-    : host_format_(std::move(host_format)),
-      send_(std::move(send)),
-      halt_(std::move(halt)),
-      ps2_(nullptr, [this](const char* what, unsigned value) { halt_(what, value); },
+IbmTrackpoint::IbmTrackpoint(IbmTrackpointHost& host, GuestSampleClock& samples)
+    : host_(host),
+      samples_(samples),
+      ps2_(nullptr, [this](const char* what, unsigned value) { host_.Halt(what, value); },
            kTrackpointTraits) {}
 
 void IbmTrackpoint::PowerOn() {
@@ -72,38 +81,73 @@ void IbmTrackpoint::PowerOn() {
     ram_[kRamXmitGap]       = kXmitGapDefault;
     ram_known_[kRamXmitGap] = 1;
     ps2_.Reset();
+    ps2_.StartStreamReporting();
     parse_          = Parse::kCommand;
     e2_command_     = 0;
     e2_arg1_        = 0;
     id_in_progress_ = false;
+    sample_due_     = false;
     pending_ps2_    = false;
     pending_param_  = 0;
     tx_queue_.clear();
+    has_last_land_ = false;
+    last_land_     = 0;
+    Disarm();
 }
 
 void IbmTrackpoint::SetLines(bool dtr_high, bool rts_high) {
     const bool rts_fell = rts_high_ && !rts_high;
     dtr_high_ = dtr_high;
     rts_high_ = rts_high;
-    if (rts_fell) SerialMouseReset();
-    Flush();
+    if (rts_fell) {
+        SerialMouseReset();
+    } else if (dtr_high_ && armed_ && start_ > Now()) {
+        Disarm();
+    }
+    StartTransmit();
+}
+
+void IbmTrackpoint::HostMotion(int dx, int dy, uint32_t buttons) {
+    ps2_.QueueMotion(dx, dy, buttons);
+}
+
+void IbmTrackpoint::OnLineTick() {
+    while (armed_ && land_ <= Now()) LandHead();
+}
+
+void IbmTrackpoint::OnSample() {
+    if (LineBusy()) {
+        sample_due_ = true;
+    } else {
+        TakeReport();
+    }
+    samples_.SetRate({SampleRateHz(), 1u});
+}
+
+uint32_t IbmTrackpoint::SampleRateHz() const {
+    return mode_ == Mode::kSerial ? kSerialReportHz : ps2_.SampleRate();
+}
+
+void IbmTrackpoint::RearmTransmit() {
+    host_.ArmLineTick(armed_ ? static_cast<uint64_t>(std::max<int64_t>(land_, 0))
+                             : IbmTrackpointHost::kNoEvent);
 }
 
 void IbmTrackpoint::OnGuestTx(uint8_t byte) {
-    const SerialLine::LineConfig host = host_format_();
+    const SerialLine::LineConfig host = host_.HostFormat();
     const SerialLine::LineConfig own  = Format();
-    if (host.baud != own.baud) halt_("host baud rate", host.baud);
+    if (host.baud != own.baud) host_.Halt("host baud rate", host.baud);
     if (id_in_progress_) return;
-    if (pending_ps2_) halt_("byte before the PS/2 mode ACK was sent", byte);
-    tx_queue_.clear();
+    if (pending_ps2_) host_.Halt("byte before the PS/2 mode ACK was sent", byte);
+    DiscardUntransmitted();
     const UartDecodedFrame frame = DecodeUartFrame(host, byte, own);
     if (frame.parity_error || frame.framing_error) {
         Reject();
     } else {
         OnByte(frame.data);
     }
-    while (ps2_.HasData()) tx_queue_.push_back(ps2_.ReadData());
-    Flush();
+    QueueResponse(true);
+    StartTransmit();
 }
 
 SerialLine::LineConfig IbmTrackpoint::Format() const {
@@ -120,6 +164,22 @@ SerialLine::LineConfig IbmTrackpoint::Format() const {
     return f;
 }
 
+int64_t IbmTrackpoint::Now() const {
+    return static_cast<int64_t>(host_.LineTickNow());
+}
+
+int64_t IbmTrackpoint::FrameTicks() const {
+    const uint64_t bit = mode_ == Mode::kSerial
+                             ? kLineTickHz / kSerialBaud
+                             : kLineTickHz * kPs2BaudDivisor * (256u - baud_param_) / kPs2BaudClock;
+    return static_cast<int64_t>(bit * UartFrameBits(Format()));
+}
+
+int64_t IbmTrackpoint::GapTicks() const {
+    const uint32_t units = ram_[kRamXmitGap] != 0u ? ram_[kRamXmitGap] : kXmitGapWrap;
+    return static_cast<int64_t>(units * kLineTickHz * kXmitGapUnitUs / kUsPerSecond);
+}
+
 void IbmTrackpoint::SerialMouseReset() {
     mode_           = Mode::kSerial;
     pending_ps2_    = false;
@@ -127,7 +187,10 @@ void IbmTrackpoint::SerialMouseReset() {
     id_in_progress_ = true;
     ps2_.AbortCommand();
     while (ps2_.HasData()) ps2_.ReadData();
-    tx_queue_.assign(kSerialMouseId.begin(), kSerialMouseId.end());
+    ps2_.StartStreamReporting();
+    tx_queue_.clear();
+    Disarm();
+    for (const uint8_t b : kSerialMouseId) tx_queue_.push_back({b, false});
 }
 
 void IbmTrackpoint::OnByte(uint8_t b) {
@@ -146,7 +209,7 @@ void IbmTrackpoint::OnCommand(uint8_t b) {
             parse_ = Parse::kE2Sub;
             return;
         }
-        if (b == kReadExtendedId || b == kReadSecondaryId) halt_("command", b);
+        if (b == kReadExtendedId || b == kReadSecondaryId) host_.Halt("command", b);
     }
     ps2_.WriteCommand(b);
 }
@@ -163,7 +226,7 @@ void IbmTrackpoint::OnE2Sub(uint8_t b) {
         parse_ = Parse::kE2Arg1;
         return;
     }
-    if (Contains(kUnmodeledE2, b)) halt_("E2 command", b);
+    if (Contains(kUnmodeledE2, b)) host_.Halt("E2 command", b);
     Reject();
 }
 
@@ -188,10 +251,10 @@ void IbmTrackpoint::OnE2Arg1(uint8_t b) {
 void IbmTrackpoint::OnE2Arg2(uint8_t b) {
     const unsigned operands = (static_cast<unsigned>(e2_arg1_) << 8) | b;
     if (e2_command_ == kE2BitToggle) {
-        if (e2_arg1_ != kRamConfig || b != kPressToSelect) halt_("E2 47 bit toggle", operands);
+        if (e2_arg1_ != kRamConfig || b != kPressToSelect) host_.Halt("E2 47 bit toggle", operands);
         ram_[kRamConfig] = static_cast<uint8_t>(ram_[kRamConfig] ^ b);
     } else {
-        if (!Contains(kWritableRam, e2_arg1_)) halt_("E2 81 RAM write", operands);
+        if (!Contains(kWritableRam, e2_arg1_)) host_.Halt("E2 81 RAM write", operands);
         ram_[e2_arg1_]       = b;
         ram_known_[e2_arg1_] = 1;
     }
@@ -203,13 +266,76 @@ void IbmTrackpoint::Reject() {
     if (ps2_.Reject()) parse_ = Parse::kCommand;
 }
 
-void IbmTrackpoint::Flush() {
-    if (dtr_high_) return;
-    while (!tx_queue_.empty()) {
-        uint8_t b = tx_queue_.front();
-        tx_queue_.pop_front();
-        if (mode_ == Mode::kSerial) b = static_cast<uint8_t>(b | kSerialBit7);
-        send_(b, Format());
+void IbmTrackpoint::QueueResponse(bool reply) {
+    for (bool first = reply; ps2_.HasData(); first = false) tx_queue_.push_back({ps2_.ReadData(), first});
+}
+
+bool IbmTrackpoint::LineBusy() const {
+    return !tx_queue_.empty() || id_in_progress_ || pending_ps2_;
+}
+
+void IbmTrackpoint::TakeReport() {
+    if (mode_ == Mode::kSerial) {
+        Ps2MouseSample s;
+        if (ps2_.TakeSample(s)) QueueSerialReport(s);
+    } else {
+        ps2_.Sample();
+        QueueResponse(false);
+    }
+    StartTransmit();
+}
+
+void IbmTrackpoint::QueueSerialReport(const Ps2MouseSample& s) {
+    const uint8_t x = static_cast<uint8_t>(std::clamp<int32_t>(s.x, kReportMin, kReportMax));
+    const uint8_t y = static_cast<uint8_t>(std::clamp<int32_t>(-s.y, kReportMin, kReportMax));
+    uint8_t       head = kSerialSync;
+    if (s.buttons & Ps2Mouse::kButtonLeft) head = static_cast<uint8_t>(head | kSerialLeft);
+    if (s.buttons & Ps2Mouse::kButtonRight) head = static_cast<uint8_t>(head | kSerialRight);
+    head = static_cast<uint8_t>(head | ((y >> kSerialHighShift) << kSerialYHighPos) |
+                                (x >> kSerialHighShift));
+    tx_queue_.push_back({head, false});
+    tx_queue_.push_back({static_cast<uint8_t>(x & kSerialLowBits), false});
+    tx_queue_.push_back({static_cast<uint8_t>(y & kSerialLowBits), false});
+}
+
+void IbmTrackpoint::DiscardUntransmitted() {
+    if (armed_ && start_ <= Now()) {
+        tx_queue_.erase(tx_queue_.begin() + 1, tx_queue_.end());
+        return;
+    }
+    tx_queue_.clear();
+    Disarm();
+}
+
+void IbmTrackpoint::StartTransmit() {
+    if (armed_ || dtr_high_ || tx_queue_.empty()) return;
+    ArmHead(Now());
+}
+
+void IbmTrackpoint::ArmHead(int64_t ready) {
+    start_ = has_last_land_ ? std::max(ready, last_land_ + GapTicks()) : ready;
+    land_  = tx_queue_.front().first ? start_ : start_ + FrameTicks();
+    armed_ = true;
+    RearmTransmit();
+}
+
+void IbmTrackpoint::Disarm() {
+    armed_ = false;
+    RearmTransmit();
+}
+
+void IbmTrackpoint::LandHead() {
+    armed_ = false;
+    const SerialLine::LineConfig format = Format();
+    uint8_t                      b      = tx_queue_.front().data;
+    tx_queue_.pop_front();
+    if (mode_ == Mode::kSerial) b = static_cast<uint8_t>(b | kSerialBit7);
+    has_last_land_ = true;
+    last_land_     = land_;
+    host_.Receive(b, format);
+    if (!tx_queue_.empty()) {
+        if (!dtr_high_) ArmHead(last_land_);
+        return;
     }
     id_in_progress_ = false;
     if (pending_ps2_) {
@@ -217,15 +343,25 @@ void IbmTrackpoint::Flush() {
         baud_param_  = pending_param_;
         pending_ps2_ = false;
     }
+    if (sample_due_) {
+        sample_due_ = false;
+        TakeReport();
+    }
 }
 
 uint8_t IbmTrackpoint::ReadRam(uint8_t addr) {
-    if (ram_known_[addr] == 0u) halt_("RAM read", addr);
+    if (ram_known_[addr] == 0u) host_.Halt("RAM read", addr);
     return ram_[addr];
 }
 
 void IbmTrackpoint::SaveState(StateWriter& w) {
-    const std::vector<uint8_t> queued(tx_queue_.begin(), tx_queue_.end());
+    const int64_t        now = Now();
+    std::vector<uint8_t> queued;
+    std::vector<uint8_t> first;
+    for (const Output& o : tx_queue_) {
+        queued.push_back(o.data);
+        first.push_back(o.first ? 1u : 0u);
+    }
     w.Write("tp_mode", mode_);
     w.Write("tp_baud_param", baud_param_);
     w.Write("tp_ram", ram_);
@@ -235,17 +371,31 @@ void IbmTrackpoint::SaveState(StateWriter& w) {
     w.Write("tp_e2_arg1", e2_arg1_);
     w.Write<uint32_t>("tp_tx_queue_size", static_cast<uint32_t>(queued.size()));
     w.WriteBytes("tp_tx_queue", queued.data(), queued.size());
+    w.WriteBytes("tp_tx_first", first.data(), first.size());
+    w.Write<uint8_t>("tp_tx_armed", armed_ ? 1u : 0u);
+    w.Write<int64_t>("tp_tx_start_rel", start_ - now);
+    w.Write<int64_t>("tp_tx_land_rel", land_ - now);
+    w.Write<uint8_t>("tp_tx_has_last_land", has_last_land_ ? 1u : 0u);
+    w.Write<int64_t>("tp_tx_last_land_rel", last_land_ - now);
     w.Write<uint8_t>("tp_id_in_progress", id_in_progress_ ? 1u : 0u);
+    w.Write<uint8_t>("tp_sample_due", sample_due_ ? 1u : 0u);
     w.Write<uint8_t>("tp_pending_ps2", pending_ps2_ ? 1u : 0u);
     w.Write("tp_pending_param", pending_param_);
     w.Write<uint8_t>("tp_dtr_high", dtr_high_ ? 1u : 0u);
     w.Write<uint8_t>("tp_rts_high", rts_high_ ? 1u : 0u);
     ps2_.SaveState(w);
+    samples_.Save(w, "tp_");
 }
 
 void IbmTrackpoint::RestoreState(StateReader& r) {
     uint32_t tx_queue_size  = 0;
+    uint8_t  armed          = 0;
+    int64_t  start_rel      = 0;
+    int64_t  land_rel       = 0;
+    uint8_t  has_last_land  = 0;
+    int64_t  last_land_rel  = 0;
     uint8_t  id_in_progress = 0;
+    uint8_t  sample_due     = 0;
     uint8_t  pending_ps2    = 0;
     uint8_t  dtr_high       = 0;
     uint8_t  rts_high       = 0;
@@ -258,18 +408,36 @@ void IbmTrackpoint::RestoreState(StateReader& r) {
     r.Read("tp_e2_arg1", e2_arg1_);
     r.Read("tp_tx_queue_size", tx_queue_size);
     std::vector<uint8_t> queued(tx_queue_size);
+    std::vector<uint8_t> first(tx_queue_size);
     r.ReadBytes("tp_tx_queue", queued.data(), queued.size());
-    tx_queue_.assign(queued.begin(), queued.end());
+    r.ReadBytes("tp_tx_first", first.data(), first.size());
+    r.Read("tp_tx_armed", armed);
+    r.Read("tp_tx_start_rel", start_rel);
+    r.Read("tp_tx_land_rel", land_rel);
+    r.Read("tp_tx_has_last_land", has_last_land);
+    r.Read("tp_tx_last_land_rel", last_land_rel);
     r.Read("tp_id_in_progress", id_in_progress);
+    r.Read("tp_sample_due", sample_due);
     r.Read("tp_pending_ps2", pending_ps2);
     r.Read("tp_pending_param", pending_param_);
     r.Read("tp_dtr_high", dtr_high);
     r.Read("tp_rts_high", rts_high);
+    tx_queue_.clear();
+    for (uint32_t i = 0; i < tx_queue_size; ++i) tx_queue_.push_back({queued[i], first[i] != 0u});
+    const int64_t now = Now();
+    armed_          = armed != 0u;
+    start_          = now + start_rel;
+    land_           = now + land_rel;
+    has_last_land_  = has_last_land != 0u;
+    last_land_      = now + last_land_rel;
     id_in_progress_ = id_in_progress != 0u;
+    sample_due_     = sample_due != 0u;
     pending_ps2_    = pending_ps2 != 0u;
     dtr_high_       = dtr_high != 0u;
     rts_high_       = rts_high != 0u;
     ps2_.RestoreState(r);
+    samples_.Restore(r, "tp_");
+    RearmTransmit();
 }
 
 }

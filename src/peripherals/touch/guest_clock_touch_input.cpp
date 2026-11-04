@@ -19,9 +19,7 @@ uint16_t MapAxis(int v, int v_max, uint16_t lo, uint16_t hi) {
 }
 
 void GuestClockTouchInput::OnReady() {
-    clock_        = &emu_.Get<GuestCycleClock>();
-    sample_event_ = clock_->Add([this] { OnSampleEvent(); });
-    clock_->RegisterRateListener([this] { RescaleSamples(); });
+    samples_.Attach([this] { OnSample(); });
     host_requests_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::HostRequestChannel>();
     host_requests_->RegisterListener([this] { OnHostRequest(); });
     OnTouchReady();
@@ -82,45 +80,21 @@ void GuestClockTouchInput::MapToPanel(int x, int y, const PanelRange& range, uin
 }
 
 void GuestClockTouchInput::StartSamples(GuestCycleClock::Rate rate) {
-    rate_ = rate;
-    samples_.SetRate(clock_->ClockRate(), rate_);
-    samples_.Start(clock_->Cycles());
-    next_sample_ = 1u;
-    sampling_    = true;
-    ArmNextSample();
+    samples_.Start(rate);
 }
 
 void GuestClockTouchInput::SetSampleRate(GuestCycleClock::Rate rate) {
-    rate_ = rate;
-    RescaleSamples();
-}
-
-void GuestClockTouchInput::RescaleSamples() {
-    if (!sampling_) return;
-    samples_.Rescale(clock_->Cycles(), clock_->ClockRate(), rate_);
-    ArmNextSample();
+    samples_.SetRate(rate);
 }
 
 void GuestClockTouchInput::StopSamples() {
-    sampling_ = false;
-    clock_->Disarm(sample_event_);
+    samples_.Stop();
 }
 
 void GuestClockTouchInput::ClearOnRestore() {
     StopSamples();
     std::lock_guard<std::mutex> lk(host_mtx_);
     host_pens_.clear();
-}
-
-void GuestClockTouchInput::ArmNextSample() {
-    clock_->Arm(sample_event_, samples_.CycleOfTick(next_sample_));
-}
-
-void GuestClockTouchInput::OnSampleEvent() {
-    if (!sampling_) return;
-    next_sample_ = samples_.TicksAt(clock_->Cycles()) + 1u;
-    OnSample();
-    if (sampling_) ArmNextSample();
 }
 
 }

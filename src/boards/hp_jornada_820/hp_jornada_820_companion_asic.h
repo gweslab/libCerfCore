@@ -3,6 +3,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../../peripherals/ps2_mouse/ps2_mouse.h"
+#include "../../socs/guest_sample_clock.h"
 
 #include <cstdint>
 #include <vector>
@@ -67,12 +68,14 @@ private:
     void RaiseIrq();   /* mouse 8042 IRQ (bit11) */
     void RaiseIntrSource(uint32_t bit);
     void PulseGpio14();
+    void OnPs2Sample();
     uint32_t IntrMask() const { return cerf::le::U32(store_.data(), kIntrMask); }
     uint8_t Ps2StatusByte() { return 0x80u | (mouse_.HasData() ? 0x20u : 0u); }
 
     std::vector<uint8_t> store_;
     uint32_t             intr_pending_ = 0;
     Ps2Mouse             mouse_;
+    GuestSampleClock     ps2_samples_{emu_};
 };
 
 }

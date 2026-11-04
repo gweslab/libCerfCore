@@ -1,4 +1,4 @@
-#include <cerfcore/host/relative_mouse_input.h>
+#include "../../peripherals/relative_mouse/queued_relative_mouse_input.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/boards/board_context.h>
@@ -9,20 +9,25 @@ namespace cerfcore {
 
 namespace {
 
-class HpJornada820RelativeMouse : public RelativeMouseInput {
+class HpJornada820RelativeMouse : public QueuedRelativeMouseInput {
 public:
-    using RelativeMouseInput::RelativeMouseInput;
+    using QueuedRelativeMouseInput::QueuedRelativeMouseInput;
 
     bool ShouldRegister() override {
         auto* bd = emu_.TryGet<BoardContext>();
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::HpJornada820;
     }
 
-    void OnRelativeMove(int dx, int dy, uint32_t button_mask) override {
-        emu_.Get<HpJornada820CompanionAsic>().QueuePs2Motion(dx, dy, button_mask);
+    std::string SourceName() const override { return "Stock PS/2 mouse"; }
+
+private:
+    void OnMouseReady() override { asic_ = &emu_.Get<HpJornada820CompanionAsic>(); }
+
+    void ApplyHostMotion(int dx, int dy, uint32_t button_mask) override {
+        asic_->QueuePs2Motion(dx, dy, button_mask);
     }
 
-    std::string SourceName() const override { return "Stock PS/2 mouse"; }
+    HpJornada820CompanionAsic* asic_ = nullptr;
 };
 
 }  /* namespace */

@@ -16,6 +16,14 @@ struct Ps2MouseTraits {
     bool applies_scaling            = true;
 };
 
+struct Ps2MouseSample {
+    int32_t  x          = 0;
+    int32_t  y          = 0;
+    bool     overflow_x = false;
+    bool     overflow_y = false;
+    uint32_t buttons    = 0;
+};
+
 class Ps2Mouse {
 public:
     static constexpr uint32_t kButtonLeft  = 0x1u;
@@ -29,11 +37,15 @@ public:
     bool    HasData() const;
     uint8_t ReadData();
     void    QueueMotion(int dx, int dy, uint32_t button_mask);
+    void    Sample();
+    bool    TakeSample(Ps2MouseSample& sample);
+    uint8_t SampleRate() const;
 
     bool AwaitsCommand() const;
     void Acknowledge(std::vector<uint8_t> data = {});
     bool Reject();
     void AbortCommand();
+    void StartStreamReporting();
 
     void SaveState(StateWriter& w) const;
     void RestoreState(StateReader& r);
@@ -47,6 +59,7 @@ private:
     void                 SetDefaultsLocked();
     void                 ResetCountersLocked();
     bool                 StreamingLocked() const;
+    bool                 TakeSampleLocked(Ps2MouseSample& sample);
     uint8_t              StatusLocked() const;
     uint8_t              ButtonBitsLocked() const;
     std::vector<uint8_t> AccumulatedPacketLocked() const;
@@ -68,6 +81,8 @@ private:
     uint8_t              sample_rate_     = 100;
     uint8_t              resolution_      = 2;
     uint32_t             buttons_         = 0;
+    uint32_t             sticky_buttons_  = 0;
+    uint32_t             reported_buttons_ = 0;
     int32_t              count_x_         = 0;
     int32_t              count_y_         = 0;
     bool                 overflow_x_      = false;

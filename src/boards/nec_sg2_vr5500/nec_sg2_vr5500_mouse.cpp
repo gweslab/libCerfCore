@@ -1,6 +1,6 @@
 #include <cerfcore/core/cerf_emulator.h>
-#include <cerfcore/host/relative_mouse_input.h>
 #include "../../peripherals/intel_i8042/i8042_controller.h"
+#include "../../peripherals/relative_mouse/queued_relative_mouse_input.h"
 #include <cerfcore/boards/board_context.h>
 #include "nec_sg2_vr5500_family_id.h"
 
@@ -10,18 +10,23 @@ namespace {
 
 /* kRelMouseLeft/Right (0x1/0x2) match Ps2Mouse::kButtonLeft/Right, so the button
    mask passes through unchanged. */
-class NecSg2Vr5500Mouse : public RelativeMouseInput {
+class NecSg2Vr5500Mouse : public QueuedRelativeMouseInput {
 public:
-    using RelativeMouseInput::RelativeMouseInput;
+    using QueuedRelativeMouseInput::QueuedRelativeMouseInput;
 
     bool ShouldRegister() override {
         auto* bd = emu_.TryGet<BoardContext>();
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::NecSg2Vr5500;
     }
 
-    void OnRelativeMove(int dx, int dy, uint32_t button_mask) override {
-        emu_.Get<I8042Controller>().HostMouseMotion(dx, dy, button_mask);
+private:
+    void OnMouseReady() override { i8042_ = &emu_.Get<I8042Controller>(); }
+
+    void ApplyHostMotion(int dx, int dy, uint32_t button_mask) override {
+        i8042_->HostMouseMotion(dx, dy, button_mask);
     }
+
+    I8042Controller* i8042_ = nullptr;
 };
 
 }  /* namespace */
