@@ -9,6 +9,7 @@
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 
@@ -16,7 +17,7 @@ namespace cerfcore {
 
 namespace {
 
-/* Unpopulated DRAM above the board's populated top, up to 0x04000000. DRAM is
+/* DRAM is
    0x0-0x03FFFFFF and 0x04000000-0x09FFFFFF is reserved per VR4102 UM Table 5-6 and
    VR4111 UM Table 6-6 p.166; that window is illegal-access-notified per VR4121 UM
    11.4.7 and VR4111 UM 11.4.6 p.284. Probe: casio_toricomail_ce212 nk.exe sub_9F0B7200. */
@@ -38,13 +39,20 @@ public:
     }
 
     void OnReady() override {
+        auto regions = emu_.Get<PageTableBuilder>().CachedDramRegions();
+        std::sort(regions.begin(), regions.end(),
+                  [](const DramRegion& a, const DramRegion& b) { return a.pa_base < b.pa_base; });
         uint32_t top = 0;
-        for (const auto& r : emu_.Get<PageTableBuilder>().CachedDramRegions()) {
-            const uint32_t r_top = r.pa_base + r.size;
-            if (r_top > top) top = r_top;
+        uint32_t end = kReservedEnd;
+        for (const auto& r : regions) {
+            if (r.pa_base > top) {
+                end = std::min(end, r.pa_base);
+                break;
+            }
+            top = std::max(top, r.pa_base + r.size);
         }
         base_ = top;
-        size_ = (top < kReservedEnd) ? (kReservedEnd - top) : 0u;
+        size_ = (top < end) ? (end - top) : 0u;
         if (size_ != 0u) emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

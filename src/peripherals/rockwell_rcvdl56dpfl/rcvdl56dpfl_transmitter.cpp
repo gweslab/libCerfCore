@@ -1,5 +1,6 @@
 #include "rcvdl56dpfl_transmitter.h"
 
+#include "rcvdl56dpfl_v54_pattern.h"
 #include "../serial/uart_frame.h"
 #include <cerfcore/state/state_stream.h>
 
@@ -10,14 +11,8 @@ namespace {
 constexpr uint32_t kCharBits        = 8u;
 constexpr uint32_t kFlagBits        = 8u;
 constexpr uint32_t kAbortBits       = 8u;
-constexpr uint8_t  kOnesBeforeStuff = 5u;
 constexpr uint8_t  kEntryLast       = 0x01u;
 constexpr uint8_t  kEntryNinth      = 0x02u;
-constexpr uint8_t  kV54Preparatory  = 0x04u;
-constexpr uint8_t  kV54Acknowledge  = 0x08u;
-constexpr uint32_t kV54PreparatoryBits = 2048u;
-constexpr uint32_t kV54AcknowledgeBits = 1948u;
-constexpr uint32_t kV54TerminationBits = 8192u + 64u;
 constexpr uint8_t  kParityStuff = 0u;
 constexpr uint8_t  kParitySpace = 1u;
 constexpr uint8_t  kParityEven  = 2u;
@@ -160,9 +155,10 @@ void Rcvdl56dpflTransmitter::ScheduleIdle(const Rcvdl56dpflLineConfig& c, uint64
         event_ = start;
         return;
     }
-    if (!c.loop_listens) return;
+    if (!c.loop_listens && !c.far_end_listens) return;
     if (c.hdlc) {
-        if (idle_ == Idle::kFill && flag_seen_ == 0u) event_ = NextBoundary(now);
+        const bool every_boundary = c.far_end_listens && idle_ != Idle::kPrbs;
+        if (every_boundary || (idle_ == Idle::kFill && flag_seen_ == 0u)) event_ = NextBoundary(now);
         return;
     }
     if (!c.async && idle_ != Idle::kPrbs) event_ = NextBoundary(now);
@@ -173,6 +169,8 @@ void Rcvdl56dpflTransmitter::IdleBoundary(const Rcvdl56dpflLineConfig& c, uint64
         if (idle_ == Idle::kFill) {
             out->Send(Rcvdl56dpflSymbol::Kind::kFlag);
             flag_seen_ = 1u;
+        } else if (idle_ == Idle::kHold) {
+            out->Send(Rcvdl56dpflSymbol::Kind::kMarkByte, 0xFFu);
         }
     } else if (!c.async && idle_ != Idle::kPrbs) {
         out->Send(Rcvdl56dpflSymbol::Kind::kMarkByte, 0xFFu);
@@ -242,19 +240,16 @@ void Rcvdl56dpflTransmitter::StartData(const Rcvdl56dpflLineConfig& c, uint64_t 
         fcs_.Update(shift_);
         bits = StuffedBits(shift_);
     } else if (c.async) {
-        bits = 1u + c.data_bits + (c.parity ? 1u : 0u) + c.stop_bits;
+        bits = c.AsyncCharBits();
     }
     event_ = tick + bits;
 }
 
 void Rcvdl56dpflTransmitter::StartPattern(const Rcvdl56dpflLineConfig& c, uint64_t tick) {
     pattern_bit_ = static_cast<uint8_t>(c.v54_pattern & (0u - c.v54_pattern));
-    uint32_t bits = kV54TerminationBits;
-    if (pattern_bit_ == kV54Preparatory) bits = kV54PreparatoryBits;
-    if (pattern_bit_ == kV54Acknowledge) bits = kV54AcknowledgeBits;
     ClearFrame();
     state_ = State::kPattern;
-    event_ = tick + bits;
+    event_ = tick + Rcvdl56dpflV54Pattern::Of(pattern_bit_).Bits();
 }
 
 uint64_t Rcvdl56dpflTransmitter::DataStart(const Rcvdl56dpflLineConfig& c, uint64_t now) const {
@@ -281,17 +276,8 @@ uint8_t Rcvdl56dpflTransmitter::ParityBit(const Rcvdl56dpflLineConfig& c, uint8_
 }
 
 uint32_t Rcvdl56dpflTransmitter::StuffedBits(uint8_t value) {
-    uint32_t bits = kCharBits;
-    for (uint32_t i = 0; i < kCharBits; ++i) {
-        if ((value >> i) & 1u) {
-            if (++ones_run_ == kOnesBeforeStuff) {
-                ++bits;
-                ones_run_ = 0u;
-            }
-        } else {
-            ones_run_ = 0u;
-        }
-    }
+    uint32_t bits = 0u;
+    zero_insertion_.Byte(value, [&bits](uint8_t) { ++bits; });
     return bits;
 }
 
@@ -303,7 +289,7 @@ bool Rcvdl56dpflTransmitter::SameStateExceptEventTick(const Rcvdl56dpflTransmitt
 
 void Rcvdl56dpflTransmitter::ClearFrame() {
     in_frame_ = 0u;
-    ones_run_ = 0u;
+    zero_insertion_.Reset();
     fcs_.Clear();
 }
 
@@ -318,7 +304,7 @@ void Rcvdl56dpflTransmitter::SaveState(StateWriter& w) const {
     w.Write("tx_count", count_);
     w.Write("tx_shift", shift_);
     w.Write("tx_shift_flags", shift_flags_);
-    w.Write("tx_ones_run", ones_run_);
+    w.Write("tx_ones_run", zero_insertion_.Ones());
     w.Write("tx_in_frame", in_frame_);
     w.Write("tx_flag_seen", flag_seen_);
     w.Write("tx_pattern_bit", pattern_bit_);
@@ -339,7 +325,7 @@ void Rcvdl56dpflTransmitter::RestoreState(StateReader& r) {
     r.Read("tx_count", count_);
     r.Read("tx_shift", shift_);
     r.Read("tx_shift_flags", shift_flags_);
-    r.Read("tx_ones_run", ones_run_);
+    r.Read("tx_ones_run", zero_insertion_.Ones());
     r.Read("tx_in_frame", in_frame_);
     r.Read("tx_flag_seen", flag_seen_);
     r.Read("tx_pattern_bit", pattern_bit_);

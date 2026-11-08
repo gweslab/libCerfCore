@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace cerfcore {
@@ -12,7 +13,7 @@ struct SerialPortSettings {
     enum class Parity : uint8_t { kNone, kOdd, kEven, kMark, kSpace };
     enum class StopBits : uint8_t { kOne, kOnePointFive, kTwo };
 
-    uint32_t baud      = 0;
+    std::optional<uint32_t> baud;
     uint8_t  data_bits = 8;
     Parity   parity    = Parity::kNone;
     StopBits stop      = StopBits::kOne;

@@ -1,7 +1,6 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../socs/pr31x00/pr31x00_io_pins.h"
 #include <cerfcore/boards/board_context.h>
-#include "philips_velo_1_dram_card_profile.h"
 #include "philips_velo_1_family_id.h"
 
 #include <cstdint>
@@ -43,7 +42,7 @@ public:
     }
 
     void OnReady() override {
-        const bool card = FindPhilipsVelo1DramCard(emu_.Get<BoardContext>().GetBoardId());
+        const bool card = emu_.Get<BoardContext>().DramCardBytes() != 0u;
         io_din_ = kMModuleAttached | kMiniCardSlot2 | (card ? 0u : kMiniCardSlot1);
     }
 

@@ -6,7 +6,7 @@ namespace cerfcore {
 
 namespace BoardId {
 
-inline constexpr std::string_view PhilipsVelo1Dram1mb = "philips_velo_1_dram_1mb";
+inline constexpr std::string_view IbmWorkpadZ50Dram32mb = "ibm_workpad_z50_dram_32mb";
 
 }
 

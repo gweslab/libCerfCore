@@ -66,7 +66,7 @@ SerialConfigureResult HostSerialPort::Configure(const SerialPortSettings& s, uin
     dcb.DCBlength = sizeof(dcb);
     if (!GetCommState(impl_->handle, &dcb)) return SerialConfigureResult::kStateUnreadable;
 
-    dcb.BaudRate = s.baud;
+    if (s.baud) dcb.BaudRate = *s.baud;
     dcb.ByteSize = s.data_bits;
     switch (s.parity) {
         case SerialPortSettings::Parity::kNone:  dcb.Parity = NOPARITY;    break;

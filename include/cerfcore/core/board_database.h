@@ -69,6 +69,7 @@ struct DbBoard {
     std::optional<DbLcdPanelSize> lcd_panel_size;
     uint32_t                      ga_color_depth;
     uint32_t                      ga_window_size;
+    uint32_t                      dram_card_bytes;
     int                           dynamic_scale_factor;
     RomPlacingMode                rom_placing_mode;
     bool                          configurable_screen;

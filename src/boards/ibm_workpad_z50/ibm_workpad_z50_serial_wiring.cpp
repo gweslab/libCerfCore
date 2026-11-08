@@ -4,9 +4,6 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include "ibm_workpad_z50_family_id.h"
-#include "ibm_workpad_z50_gpio_buffers.h"
-
-#include <utility>
 
 namespace cerfcore {
 
@@ -24,11 +21,9 @@ public:
         return Vr41xxSerialModem("COM1", Vr41xxGiu::kDcdPin);
     }
 
-    bool SupplyOn() override { return emu_.Get<IbmWorkpadZ50GpioBuffers>().SerialDriversPowered(); }
+    bool SupplyOn() override { return true; }
 
-    void RegisterSupplyListener(std::function<void()> fn) override {
-        emu_.Get<IbmWorkpadZ50GpioBuffers>().RegisterOutputListener(std::move(fn));
-    }
+    void RegisterSupplyListener(std::function<void()>) override {}
 };
 
 }

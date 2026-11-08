@@ -75,17 +75,17 @@ void Vr41xxAiuPath::SetEnabled(bool enabled) {
         OnStop();
         enabled_ = false;
         ClearPipeline();
-        dma_started_ = false;
-        stop_page1_  = false;
-        stop_page2_  = false;
+        dma_started_   = false;
+        stop_one_page_ = false;
+        stop_full_     = false;
         clock_->Disarm(event_);
         return;
     }
     ticks_.SetOscRate(RateHz(), 1u);
-    enabled_     = true;
-    dma_started_ = false;
-    stop_page1_  = false;
-    stop_page2_  = false;
+    enabled_       = true;
+    dma_started_   = false;
+    stop_one_page_ = false;
+    stop_full_     = false;
     start_tick_  = ticks_.Now();
     done_        = 0u;
     OnStart();
@@ -109,27 +109,27 @@ void Vr41xxAiuPath::Settle() {
 }
 
 void Vr41xxAiuPath::ReleaseStops(uint16_t cleared_bits) {
-    if (cleared_bits & config_.page1_int) stop_page1_ = false;
-    if (cleared_bits & config_.page2_int) stop_page2_ = false;
+    if (cleared_bits & config_.one_page_int) stop_one_page_ = false;
+    if (cleared_bits & config_.two_page_int) stop_full_ = false;
 }
 
 bool Vr41xxAiuPath::RequestPending() const {
-    return enabled_ && WantsDma() && !stop_page1_ && !stop_page2_ && !dcu_->DmaEnabled(config_.dma_msk_bit);
+    return enabled_ && WantsDma() && !stop_one_page_ && !stop_full_ && !dcu_->DmaEnabled(config_.dma_msk_bit);
 }
 
 void Vr41xxAiuPath::Reset() {
     if (enabled_) OnStop();
     enabled_     = false;
-    rate_code_   = 0u;
-    dma_started_ = false;
-    stop_page1_  = false;
-    stop_page2_  = false;
+    rate_code_     = 0u;
+    dma_started_   = false;
+    stop_one_page_ = false;
+    stop_full_     = false;
     ClearPipeline();
     clock_->Disarm(event_);
 }
 
 bool Vr41xxAiuPath::DmaAllowed() const {
-    return enabled_ && dcu_->DmaEnabled(config_.dma_msk_bit) && !stop_page1_ && !stop_page2_;
+    return enabled_ && dcu_->DmaEnabled(config_.dma_msk_bit) && !stop_one_page_ && !stop_full_;
 }
 
 uint32_t Vr41xxAiuPath::Page1End(uint32_t base) const {
@@ -155,16 +155,24 @@ uint32_t Vr41xxAiuPath::TakeDmaAddress() {
     }
     uint32_t next = addr + 2u;
     if (next == page1_end) {
-        host_.RaiseAiuInt(config_.page1_int);
+        PageBoundary();
         next = base + kPageBytes;
-        if (host_.StopAtFirstPage(config_.channel)) stop_page1_ = true;
     } else if (next == page2_end) {
-        host_.RaiseAiuInt(config_.page2_int);
-        next        = base;
-        stop_page2_ = true;
+        PageBoundary();
+        next = base;
     }
     dmaau_->SetAddress(config_.channel, next);
     return addr;
+}
+
+void Vr41xxAiuPath::PageBoundary() {
+    const bool unserviced = host_.AiuIntPending(config_.one_page_int);
+    host_.RaiseAiuInt(config_.one_page_int);
+    if (unserviced) {
+        host_.RaiseAiuInt(config_.two_page_int);
+        stop_full_ = true;
+    }
+    if (host_.StopAfterOnePage(config_.channel)) stop_one_page_ = true;
 }
 
 uint64_t Vr41xxAiuPath::HalfwordsToBoundary() const {
@@ -195,8 +203,8 @@ void Vr41xxAiuPath::Save(StateWriter& w) {
     w.Write<uint8_t>((p + "enabled").c_str(), enabled_ ? 1u : 0u);
     w.Write<uint8_t>((p + "clock_running").c_str(), clock_running_ ? 1u : 0u);
     w.Write<uint8_t>((p + "dma_started").c_str(), dma_started_ ? 1u : 0u);
-    w.Write<uint8_t>((p + "stop_page1").c_str(), stop_page1_ ? 1u : 0u);
-    w.Write<uint8_t>((p + "stop_page2").c_str(), stop_page2_ ? 1u : 0u);
+    w.Write<uint8_t>((p + "stop_one_page").c_str(), stop_one_page_ ? 1u : 0u);
+    w.Write<uint8_t>((p + "stop_full").c_str(), stop_full_ ? 1u : 0u);
     w.Write((p + "start_tick").c_str(), start_tick_);
     w.Write((p + "done").c_str(), done_);
     ticks_.Save(w, p.c_str());
@@ -205,13 +213,13 @@ void Vr41xxAiuPath::Save(StateWriter& w) {
 
 void Vr41xxAiuPath::Restore(StateReader& r) {
     const std::string p = std::string(config_.name) + "_";
-    uint8_t enabled = 0u, running = 0u, started = 0u, stop1 = 0u, stop2 = 0u;
+    uint8_t enabled = 0u, running = 0u, started = 0u, stop_one = 0u, stop_full = 0u;
     r.Read((p + "rate").c_str(), rate_code_);
     r.Read((p + "enabled").c_str(), enabled);
     r.Read((p + "clock_running").c_str(), running);
     r.Read((p + "dma_started").c_str(), started);
-    r.Read((p + "stop_page1").c_str(), stop1);
-    r.Read((p + "stop_page2").c_str(), stop2);
+    r.Read((p + "stop_one_page").c_str(), stop_one);
+    r.Read((p + "stop_full").c_str(), stop_full);
     r.Read((p + "start_tick").c_str(), start_tick_);
     r.Read((p + "done").c_str(), done_);
     ticks_.Restore(r, p.c_str());
@@ -219,8 +227,8 @@ void Vr41xxAiuPath::Restore(StateReader& r) {
     enabled_       = enabled != 0u;
     clock_running_ = running != 0u;
     dma_started_   = started != 0u;
-    stop_page1_    = stop1 != 0u;
-    stop_page2_    = stop2 != 0u;
+    stop_one_page_ = stop_one != 0u;
+    stop_full_     = stop_full != 0u;
     clock_->Disarm(event_);
 }
 

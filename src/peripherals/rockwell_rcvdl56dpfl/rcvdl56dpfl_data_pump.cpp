@@ -1,10 +1,15 @@
 #include "rcvdl56dpfl_data_pump.h"
 
+#include "../phone_line/phone_line.h"
 #include "rcvdl56dpfl_bit_tick.h"
+#include "rcvdl56dpfl_download_check.h"
 #include "rcvdl56dpfl_registers.h"
 
 #include <cerfcore/core/byte_order.h>
+#include <cerfcore/core/crc32.h>
 #include <cerfcore/state/state_stream.h>
+
+#include <cstdio>
 
 namespace cerfcore {
 
@@ -16,10 +21,13 @@ constexpr uint8_t kBufferControl = kTdbie | kRdbie;
 
 constexpr uint8_t kDownloadByteMode = 79u;
 constexpr uint8_t kDownloadWordMode = 95u;
-constexpr uint8_t kDownloadReady    = 0xFFu;
-constexpr uint8_t kDownloadChecksum = 0x00u;
+constexpr uint8_t kDownloadReady     = 0xFFu;
 constexpr uint8_t kNoDtmfReported   = 0x00u;
 constexpr uint8_t kConfDialing      = 0x81u;
+constexpr uint8_t kLastDialDigit    = 0x0Fu;
+constexpr uint8_t kLastCallingTone  = 0x11u;
+constexpr uint8_t kStopCallingTone  = 0xFFu;
+constexpr uint32_t kV8DetectionStatus = 0x301u;
 
 uint8_t HostNewStatusByte(uint8_t old, uint8_t value) {
     uint8_t next = static_cast<uint8_t>((old & (kNsia | kNcia)) | (value & ~(kNsia | kNcia)));
@@ -44,13 +52,14 @@ constexpr Rcvdl56dpflConfiguration::Registers kPowerOnDefaults = {
 
 }
 
-Rcvdl56dpflDataPump::Rcvdl56dpflDataPump(Rcvdl56dpflDataPumpHost& host) : host_(host) {
+Rcvdl56dpflDataPump::Rcvdl56dpflDataPump(Rcvdl56dpflDataPumpHost& host, PhoneLine& phone)
+    : host_(host), phone_(phone) {
     ram_.PowerOn();
     line_.Reset(kPowerOnDefaults);
 }
 
 uint8_t Rcvdl56dpflDataPump::Read(uint32_t reg) {
-    if (reset_held_) return line_.Regs()[reg];
+    if (reset_held_ || asleep_) return line_.Regs()[reg];
     AdvanceSelfTest();
     if (InSelfTest()) {
         const uint8_t value = line_.Regs()[reg];
@@ -59,6 +68,11 @@ uint8_t Rcvdl56dpflDataPump::Read(uint32_t reg) {
         return value;
     }
     CatchUp();
+    if (const char* refused = AdvanceHandshake()) host_.Halt(refused);
+    if (reg == kToneStatus) {
+        UpdateToneStatus();
+        call_progress_.UpdateAnswerToneStatus(line_, phone_, host_.GuestNs());
+    }
     const uint8_t value = line_.Regs()[reg];
     if (reg == kRbuffer) {
         line_.HostReadReceiveBuffer();
@@ -74,6 +88,16 @@ const char* Rcvdl56dpflDataPump::Write(uint32_t reg, uint8_t value) {
         PublishIrq();
         return nullptr;
     }
+    if (asleep_) {
+        if (reg != kMemAccess && (line_.Regs()[kPower] & kHwrwk)) {
+            Reset();
+            RearmTimer();
+            PublishIrq();
+            return nullptr;
+        }
+        line_.Regs()[reg] = value;
+        return nullptr;
+    }
     AdvanceSelfTest();
     if (InSelfTest()) {
         const char* refused = WriteDuringSelfTest(reg, value);
@@ -81,14 +105,24 @@ const char* Rcvdl56dpflDataPump::Write(uint32_t reg, uint8_t value) {
         return refused;
     }
     CatchUp();
-    const char* refused = WriteRegister(reg, value);
+    const char* refused = AdvanceHandshake();
+    if (refused == nullptr) refused = WriteRegister(reg, value);
+    if (refused == nullptr) {
+        handshake_.FollowControls(line_, phone_);
+        refused = AdvanceHandshake();
+    }
     if (refused == nullptr) {
         line_.RefreshLine();
+        ExchangeRemote();
         SyncBitRate();
         RearmTimer();
     }
     PublishIrq();
     return refused;
+}
+
+const char* Rcvdl56dpflDataPump::AdvanceHandshake() {
+    return handshake_.Advance(line_, ram_, phone_, host_.GuestNs());
 }
 
 void Rcvdl56dpflDataPump::TimerElapsed() {
@@ -98,12 +132,30 @@ void Rcvdl56dpflDataPump::TimerElapsed() {
 }
 
 void Rcvdl56dpflDataPump::RearmTimer() {
-    host_.ArmTimer(reset_held_ ? kRcvdl56dpflNoEvent : line_.InterruptRiseTick());
+    host_.ArmTimer(reset_held_ || asleep_ ? kRcvdl56dpflNoEvent : line_.InterruptRiseTick());
 }
 
 void Rcvdl56dpflDataPump::CatchUp() {
     const uint64_t elapsed = host_.BitTicksElapsed();
     line_.CatchUp(elapsed, host_.BitTickNow());
+    ExchangeRemote();
+}
+
+void Rcvdl56dpflDataPump::ExchangeRemote() {
+    const std::vector<uint8_t> out = line_.TakeOutbound();
+    if (!out.empty()) phone_.SendData(out.data(), out.size());
+    if (line_.TakeRemoteDrained()) phone_.IncomingDrained();
+}
+
+void Rcvdl56dpflDataPump::ServiceHostData() {
+    if (reset_held_ || asleep_) return;
+    CatchUp();
+    handshake_.FollowControls(line_, phone_);
+    line_.RefreshLine();
+    SyncBitRate();
+    line_.QueueRemoteBytes(phone_.TakeIncoming());
+    RearmTimer();
+    PublishIrq();
 }
 
 void Rcvdl56dpflDataPump::SyncBitRate() {
@@ -121,19 +173,49 @@ const char* Rcvdl56dpflDataPump::WriteRegister(uint32_t reg, uint8_t value) {
         case kTbuffer:   return WriteTransmitBuffer(value);
         case kDownload:  WriteDownloadControl(value);      return nullptr;
         case kMode:      WriteModeRegister(value);         return nullptr;
+        case kControl02: WriteControl02(value);            return nullptr;
+        case kLoopback:  WriteLoopbackRegister(value);     return nullptr;
         default:
             line_.Regs()[reg] = value;
             return nullptr;
     }
 }
 
+void Rcvdl56dpflDataPump::WriteControl02(uint8_t value) {
+    auto& regs = line_.Regs();
+    const bool detectors_changed = ((regs[kControl02] ^ value) & kTde) != 0u;
+    if (!detectors_changed) UpdateToneStatus();
+    regs[kControl02] = value;
+    if (!detectors_changed) return;
+    call_progress_.Stop();
+    line_.SetStatus(kToneStatus, static_cast<uint8_t>(regs[kToneStatus] & ~kToneBits));
+}
+
+void Rcvdl56dpflDataPump::WriteLoopbackRegister(uint8_t value) {
+    UpdateToneStatus();
+    line_.Regs()[kLoopback] = value;
+    phone_.SetOffHook((value & kRa) != 0u);
+}
+
+void Rcvdl56dpflDataPump::UpdateToneStatus() {
+    call_progress_.UpdateToneStatus(line_, ram_, phone_, host_.GuestNs());
+}
+
 void Rcvdl56dpflDataPump::PowerOn() {
-    reset_held_  = false;
-    downloading_ = false;
-    ram_.PowerOn();
-    line_.Reset(kPowerOnDefaults);
+    Reset();
     StartSelfTest();
     RearmTimer();
+}
+
+void Rcvdl56dpflDataPump::Reset() {
+    reset_held_  = false;
+    asleep_      = false;
+    downloading_ = false;
+    call_progress_.Stop();
+    handshake_.Reset();
+    phone_.SetOffHook(false);
+    ram_.PowerOn();
+    line_.Reset(kPowerOnDefaults);
 }
 
 void Rcvdl56dpflDataPump::StartSelfTest() {
@@ -204,7 +286,14 @@ void Rcvdl56dpflDataPump::SaveState(StateWriter& w) const {
     line_.SaveState(w);
     ram_.SaveState(w);
     w.Write<uint8_t>("reset_held", reset_held_ ? 1u : 0u);
+    w.Write<uint8_t>("asleep", asleep_ ? 1u : 0u);
     w.Write<uint8_t>("downloading", downloading_ ? 1u : 0u);
+    w.Write<uint8_t>("download_mode", download_mode_);
+    w.Write<uint32_t>("download_crc", download_crc_);
+    w.Write<uint32_t>("download_bytes", download_bytes_);
+    call_progress_.SaveState(w);
+    handshake_.SaveState(w);
+    phone_.SaveLineState(w, host_.GuestNs());
     w.Write<uint8_t>("self_test_phase", static_cast<uint8_t>(self_test_phase_));
     w.Write<int64_t>("self_test_remaining_ns", InSelfTest() ? self_test_end_ns_ - host_.GuestNs() : 0);
 }
@@ -215,9 +304,22 @@ void Rcvdl56dpflDataPump::RestoreState(StateReader& r) {
     uint8_t held = 0u;
     r.Read("reset_held", held);
     reset_held_ = held != 0u;
+    uint8_t asleep = 0u;
+    r.Read("asleep", asleep);
+    asleep_ = asleep != 0u;
     uint8_t downloading = 0u;
     r.Read("downloading", downloading);
     downloading_ = downloading != 0u;
+    r.Read("download_mode", download_mode_);
+    r.Read("download_crc", download_crc_);
+    r.Read("download_bytes", download_bytes_);
+    call_progress_.RestoreState(r);
+    handshake_.RestoreState(r);
+    phone_.RestoreLineState(r, host_.GuestNs());
+    if (handshake_.Connected()) {
+        handshake_.Reset();
+        line_.RefreshLine();
+    }
     uint8_t phase = 0u;
     r.Read("self_test_phase", phase);
     self_test_phase_ = static_cast<SelfTestPhase>(phase);
@@ -267,13 +369,22 @@ void Rcvdl56dpflDataPump::WriteBufferStatusRegister(uint8_t value) {
 const char* Rcvdl56dpflDataPump::WriteMemoryAccessRegister(uint8_t value) {
     if (value & kMemcr) return "MEMCR (continuous RAM read) set";
     line_.Regs()[kMemAccess] = value;
-    if (value & kMeacc) ProcessRamAccess();
+    if (value & kMeacc) return ProcessRamAccess();
     return nullptr;
 }
 
 const char* Rcvdl56dpflDataPump::WriteTransmitBuffer(uint8_t value) {
     line_.Regs()[kTbuffer] = value;
-    const bool taken_at_once = downloading_ || line_.ActiveConf() == kConfDialing;
+    if (downloading_) {
+        download_crc_ = Crc32::Update(download_crc_, value);
+        ++download_bytes_;
+    }
+    const bool dialing       = !downloading_ && line_.ActiveConf() == kConfDialing;
+    const bool taken_at_once = downloading_ || dialing;
+    if (dialing) {
+        if (value > kLastCallingTone && value != kStopCallingTone) return "dial code with no digit or calling tone";
+        if (value <= kLastDialDigit) phone_.DialDigit(host_.GuestNs());
+    }
     if (!taken_at_once)
         if (const char* refused = line_.QueueTransmitByte(value)) return refused;
     line_.SetTransmitBufferEmpty(false);
@@ -285,16 +396,28 @@ const char* Rcvdl56dpflDataPump::WriteTransmitBuffer(uint8_t value) {
 void Rcvdl56dpflDataPump::WriteDownloadControl(uint8_t value) {
     line_.Regs()[kDownload] = value;
     if (!downloading_ && (value == kDownloadByteMode || value == kDownloadWordMode)) {
-        downloading_ = true;
+        downloading_    = true;
+        download_mode_  = value;
+        download_crc_   = 0u;
+        download_bytes_ = 0u;
         line_.SetStatus(kDtmfStatus, value);
         line_.SetStatus(kSecrxb, kDownloadReady);
         return;
     }
     if (downloading_ && value == 0u) {
+        const auto&    regs    = line_.Regs();
+        const uint16_t address = static_cast<uint16_t>((regs[kSectxb] << 8) | regs[kSecrxb]);
+        const auto     check   = Rcvdl56dpflDownloadCheck({download_mode_, address, download_bytes_, download_crc_});
+        if (!check) {
+            char reason[128];
+            std::snprintf(reason, sizeof(reason), "download block mode %u address %04Xh length %u crc32 %08X has no check byte",
+                          download_mode_, address, download_bytes_, download_crc_);
+            host_.Halt(reason);
+        }
         downloading_ = false;
         line_.SetStatus(kDtmfStatus, kNoDtmfReported);
         line_.SetStatus(kSectxb, kDownloadReady);
-        line_.SetStatus(kSecrxb, kDownloadChecksum);
+        line_.SetStatus(kSecrxb, *check);
     }
 }
 
@@ -313,25 +436,30 @@ const char* Rcvdl56dpflDataPump::ProcessNewConfiguration() {
         return nullptr;
     }
     if (regs[kMode] & kLeasedLine) return "NEWC with LL (leased line) set";
-    if (regs[kPower] & kSleep) return "NEWC with SLEEP set";
     const uint8_t txclk = regs[kControl13] & kTxclkMask;
     if (txclk != kTxclkInternal && txclk != kTxclkSlave) return "NEWC with TXCLK (13h:1-0) external or reserved";
     line_.LatchConfiguration();
+    if (const char* refused = handshake_.OnNewConfiguration(line_, phone_)) return refused;
     ram_.ApplyNewConfiguration(line_.ActiveConf(), (regs[kControl03] & kGts) != 0u, (regs[kControl05] & kCeq) != 0u);
     regs[kNewStatus] &= static_cast<uint8_t>(~kNewc);
     if (regs[kNewStatus] & kNcie) regs[kNewStatus] |= kNcia;
+    if (regs[kPower] & kSleep) asleep_ = true;
     return nullptr;
 }
 
-void Rcvdl56dpflDataPump::ProcessRamAccess() {
+const char* Rcvdl56dpflDataPump::ProcessRamAccess() {
     auto& regs = line_.Regs();
     const uint32_t code = RamCode();
-    if (regs[kMemAccess] & kMemw)
+    if (regs[kMemAccess] & kMemw) {
         ram_.Write(code, cerf::le::U16(regs.data(), kMedal));
-    else
+    } else {
+        if (handshake_.Active() && code == kV8DetectionStatus)
+            return "V.8 detection status RAM 301h read during a V.8 / V.34 handshake or connection";
         cerf::le::Put16(regs.data() + kMedal, ram_.Read(code));
+    }
     regs[kMemAccess] &= static_cast<uint8_t>(~kMeacc);
     if (!ram_.MemoryAccessNewsMasked()) line_.NoteNewStatus();
+    return nullptr;
 }
 
 uint32_t Rcvdl56dpflDataPump::RamCode() const {

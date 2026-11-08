@@ -20,7 +20,7 @@ host_platform::SerialPortSettings ToPortSettings(const SerialLine::LineConfig& c
                                                  bool dtr, bool rts) {
     using Settings = host_platform::SerialPortSettings;
     Settings s;
-    s.baud      = c.baud;
+    if (c.baud) s.baud = c.baud;
     s.data_bits = c.data_bits;
     switch (c.parity) {
         case SerialLine::LineConfig::Parity::None:  s.parity = Settings::Parity::kNone;  break;

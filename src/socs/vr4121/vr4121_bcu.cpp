@@ -2,6 +2,7 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/execution/jit_runner.h>
 #include "vr4121_bcu_board.h"
 #include "vr4121_bcu_regs.h"
 #include "vr4121_clock_state.h"
@@ -111,6 +112,7 @@ public:
         Vr41xxBcuBase::OnReady();
         emu_.Get<Vr4121DramDecode>().Begin(StoredReg(kIdxCnt1), StoredReg(kIdxCnt3),
                                            StoredReg(kIdxRamSize));
+        emu_.Get<JitRunner>().RegisterPreStartHook([this] { ApplyExpansionAccess(); });
     }
 
     uint16_t ReadHalf(uint32_t addr) override {
@@ -122,6 +124,11 @@ public:
     void WriteHalf(uint32_t addr, uint16_t value) override {
         const uint32_t off = addr - kModel.base;
         if (off == kOffCnt3) value = SettableCnt3(value);
+        if (off == kOffCnt3 && (StoredReg(kIdxCnt3) & kCnt3ExtMem) != 0u &&
+            (value & kCnt3ExtMem) == 0u && emu_.Get<Vr4121DramDecode>().ExpansionChipFitted()) {
+            HaltUnsupportedAccess("BCUCNTREG3 WriteHalf clears EXT_MEM with expansion DRAM fitted",
+                                  addr, value);
+        }
         if (off == kOffCnt1 &&
             ((value ^ StoredReg(kIdxCnt1)) & (kCnt1Rom64 | kCnt1Rd64d)) != 0u) {
             HaltUnsupportedAccess("BCUCNTREG1 WriteHalf changes ROM64 or RD64D", addr, value);
@@ -131,6 +138,12 @@ public:
         }
         Vr41xxBcuBase::WriteHalf(addr, value);
         if (off == kOffCnt1 || off == kOffRamSize || off == kOffCnt3) CheckDecode();
+        if (off == kOffCnt3) ApplyExpansionAccess();
+    }
+
+    void PostRestore() override {
+        Vr41xxBcuBase::PostRestore();
+        ApplyExpansionAccess();
     }
 
     void RestoreState(StateReader& r) override {
@@ -157,6 +170,7 @@ protected:
     void AfterReset() override {
         Vr41xxBcuBase::AfterReset();
         CheckDecode();
+        ApplyExpansionAccess();
     }
 
     std::vector<Vr41xxBcuBootWrite> KernelEntryWrites() const override {
@@ -203,6 +217,10 @@ private:
     void CheckDecode() const {
         emu_.Get<Vr4121DramDecode>().Check(StoredReg(kIdxCnt1), StoredReg(kIdxCnt3),
                                            StoredReg(kIdxRamSize));
+    }
+
+    void ApplyExpansionAccess() const {
+        emu_.Get<Vr4121DramDecode>().ApplyExpansionAccess(StoredReg(kIdxCnt3));
     }
 };
 

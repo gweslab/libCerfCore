@@ -45,6 +45,7 @@ constexpr char kWidth[]                    = "width";
 constexpr char kHeight[]                   = "height";
 constexpr char kGaColorDepth[]             = "ga_color_depth";
 constexpr char kGaWindowSize[]             = "ga_window_size";
+constexpr char kDramCardBytes[]            = "dram_card_bytes";
 constexpr char kDynamicScaleFactor[]       = "dynamic_scale_factor";
 constexpr char kRomPlacingMode[]           = "rom_placing_mode";
 constexpr char kConfigurableScreen[]       = "configurable_screen";
@@ -161,6 +162,7 @@ void BoardDatabase::OnReady() {
         }
         row.ga_color_depth      = v.ValueOr(kGaColorDepth, kDefaultGaColorDepth);
         row.ga_window_size      = v.ValueOr(kGaWindowSize, kDefaultGaWindowSize);
+        row.dram_card_bytes     = v.ValueOr(kDramCardBytes, 0u);
         row.dynamic_scale_factor = v.ValueOr(kDynamicScaleFactor, 0);
         row.rom_placing_mode    = ValueByName(kRomPlacingModes, v.Value<std::string>(kRomPlacingMode));
         row.configurable_screen = v.ValueOr(kConfigurableScreen, false);

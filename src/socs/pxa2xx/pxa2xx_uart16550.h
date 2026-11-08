@@ -16,7 +16,7 @@ namespace cerfcore {
    STISR 0x4070_0020. */
 class Pxa2xxUart16550 : public Uart16550 {
 public:
-    Pxa2xxUart16550(CerfEmulator& emu, Config cfg) : Uart16550(emu, cfg) {}
+    Pxa2xxUart16550(CerfEmulator& emu, Config cfg, Clock clock) : Uart16550(emu, cfg, clock) {}
 
     void SaveState(StateWriter& w) override {
         Uart16550::SaveState(w);

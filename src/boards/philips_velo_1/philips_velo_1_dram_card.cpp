@@ -5,7 +5,6 @@
 #include "../../socs/pr31x00/pr31x00_io.h"
 #include <cerfcore/boards/board_context.h>
 #include "philips_velo_1_dram_card_id_eeprom.h"
-#include "philips_velo_1_dram_card_profile.h"
 #include "philips_velo_1_family_id.h"
 
 #include <cstdint>
@@ -30,8 +29,7 @@ public:
 
     bool ShouldRegister() override {
         auto& bd = emu_.Get<BoardContext>();
-        return bd.GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1 &&
-               FindPhilipsVelo1DramCard(bd.GetBoardId()) != nullptr;
+        return bd.GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1 && bd.DramCardBytes() != 0u;
     }
 
     void OnReady() override {

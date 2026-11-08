@@ -18,7 +18,8 @@ public:
     explicit IsaDebugUart(CerfEmulator& emu)
         : Uart16550(emu, Config{0x0Fu,
                                 0u,
-                                0u}) {}
+                                0u},
+                    Clock{1843200u, 1u}) {}
 
     bool ShouldRegister() override {
         return emu_.TryGet<IsaDebugPortConfig>() != nullptr;

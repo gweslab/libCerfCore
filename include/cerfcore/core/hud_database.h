@@ -39,13 +39,14 @@ struct HudDpad {
 };
 
 struct HudNode {
-    enum class Kind : uint8_t { kRow, kColumn, kButton, kDpad, kSpace };
+    enum class Kind : uint8_t { kRow, kColumn, kButton, kDpad, kSticker, kSpace };
 
     Kind                 kind = Kind::kSpace;
     double               grow = 1.0;
     std::vector<HudNode> children;
     HudButton            button;
     HudDpad              dpad;
+    HudFace              sticker;
 };
 
 enum class HudSide : uint8_t { kTop, kBottom, kLeft, kRight };

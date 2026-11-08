@@ -1,6 +1,6 @@
 #include "ppp_terminator.h"
 
-#include "serial_line.h"
+#include "ppp_link.h"
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
@@ -64,7 +64,7 @@ void AppendArpFrame(std::vector<uint8_t>& out, const uint8_t* eth_dst,
 
 }  /* namespace */
 
-PppTerminator::PppTerminator(CerfEmulator& emu, SerialLine& uart, std::string net_id)
+PppTerminator::PppTerminator(CerfEmulator& emu, PppLink& uart, std::string net_id)
     : emu_(emu), net_id_(std::move(net_id)), uart_(uart) {
     hdlc_.SetFrameSink([this](uint16_t proto, const uint8_t* p, size_t len) {
         OnPppFrame(proto, p, len);

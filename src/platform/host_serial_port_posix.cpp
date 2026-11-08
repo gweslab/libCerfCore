@@ -175,9 +175,11 @@ SerialConfigureResult HostSerialPort::Configure(const SerialPortSettings& s, uin
         return SerialConfigureResult::kRejected;
     }
 
-    const speed_t speed = SpeedFor(s.baud);
-    ::cfsetispeed(&tty, speed);
-    ::cfsetospeed(&tty, speed);
+    if (s.baud) {
+        const speed_t speed = SpeedFor(*s.baud);
+        ::cfsetispeed(&tty, speed);
+        ::cfsetospeed(&tty, speed);
+    }
     tty.c_iflag &= ~static_cast<tcflag_t>(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR |
                                           ICRNL | IXON | IXOFF);
     tty.c_oflag &= ~static_cast<tcflag_t>(OPOST);

@@ -88,15 +88,20 @@ bool EmulatedMemory::OverlapsRegion(uint32_t base, uint32_t size) const {
     return false;
 }
 
-EmulatedMemory::Region* EmulatedMemory::FindRegion(uint32_t vaddr) {
+EmulatedMemory::Region* EmulatedMemory::FindBackingRegion(uint32_t pa) {
     const size_t n = count_.load(std::memory_order_acquire);
     for (size_t i = 0; i < n; ++i) {
         Region& r = regions_[i];
-        if (vaddr >= r.base && vaddr - r.base < r.span) {
+        if (pa >= r.base && pa - r.base < r.span) {
             return &r;
         }
     }
     return nullptr;
+}
+
+EmulatedMemory::Region* EmulatedMemory::FindRegion(uint32_t vaddr) {
+    Region* r = FindBackingRegion(vaddr);
+    return r && r->bus_access.load(std::memory_order_acquire) ? r : nullptr;
 }
 
 EmulatedMemory::~EmulatedMemory() {
@@ -132,7 +137,7 @@ uint8_t* EmulatedMemory::EnsureBacked(Region* r) {
 }
 
 void EmulatedMemory::SetAddressDecode(uint32_t region_base, const AddressDecode* decode) {
-    Region* r = FindRegion(region_base);
+    Region* r = FindBackingRegion(region_base);
     if (!r || r->base != region_base || r->span != r->size ||
         (r->size & (r->size - 1u)) != 0u)
         emu_.Get<Fatal>().Die("EmulatedMemory::SetAddressDecode needs a power-of-two "
@@ -152,6 +157,18 @@ void EmulatedMemory::SetAddressDecode(uint32_t region_base, const AddressDecode*
     LOG(Mem, "SetAddressDecode region 0x%08X pass 0x%08X gather 0x%08X\n", region_base,
         decode ? decode->pass_mask : 0xFFFFFFFFu, decode ? decode->gather_mask : 0u);
     for (auto& fn : decode_listeners_) fn();
+}
+
+void EmulatedMemory::SetBusAccess(uint32_t region_base, bool enabled) {
+    const size_t n = count_.load(std::memory_order_acquire);
+    for (size_t i = 0; i < n; ++i) {
+        Region& r = regions_[i];
+        if (r.base != region_base) continue;
+        if (r.bus_access.exchange(enabled, std::memory_order_acq_rel) == enabled) return;
+        LOG(Mem, "SetBusAccess region 0x%08X %s\n", region_base, enabled ? "on" : "off");
+        for (auto& fn : decode_listeners_) fn();
+        return;
+    }
 }
 
 void EmulatedMemory::RegisterDecodeListener(std::function<void()> fn) {
@@ -420,7 +437,7 @@ void EmulatedMemory::RestoreRegions(StateReader& r, bool flash, bool write) {
         uint32_t base = 0, size = 0;
         r.Read("base", base);
         r.Read("region_size", size);
-        Region* reg = FindRegion(base);
+        Region* reg = FindBackingRegion(base);
         if (!reg || reg->base != base || reg->size != size || IsFlash(*reg) != flash)
             r.Reject("%s region base=0x%08X size=0x%X is not in this memory map",
                      kind, base, size);

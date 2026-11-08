@@ -92,13 +92,19 @@ void IbmTrackpoint::PowerOn() {
     tx_queue_.clear();
     has_last_land_ = false;
     last_land_     = 0;
+    post_end_      = Now() + static_cast<int64_t>(kLineTickHz * kPostMs / kMsPerSecond);
     Disarm();
 }
+
+void IbmTrackpoint::FinishSelfTest() { post_end_ = Now(); }
+
+bool IbmTrackpoint::InPost() const { return Now() < post_end_; }
 
 void IbmTrackpoint::SetLines(bool dtr_high, bool rts_high) {
     const bool rts_fell = rts_high_ && !rts_high;
     dtr_high_ = dtr_high;
     rts_high_ = rts_high;
+    if (InPost()) return;
     if (rts_fell) {
         SerialMouseReset();
     } else if (dtr_high_ && armed_ && start_ > Now()) {
@@ -116,10 +122,9 @@ void IbmTrackpoint::OnLineTick() {
 }
 
 void IbmTrackpoint::OnSample() {
-    if (LineBusy()) {
-        sample_due_ = true;
-    } else {
-        TakeReport();
+    if (!InPost()) {
+        if (LineBusy()) sample_due_ = true;
+        else            TakeReport();
     }
     samples_.SetRate({SampleRateHz(), 1u});
 }
@@ -136,6 +141,7 @@ void IbmTrackpoint::RearmTransmit() {
 void IbmTrackpoint::OnGuestTx(uint8_t byte) {
     const SerialLine::LineConfig host = host_.HostFormat();
     const SerialLine::LineConfig own  = Format();
+    if (InPost()) return;
     if (host.baud != own.baud) host_.Halt("host baud rate", host.baud);
     if (id_in_progress_) return;
     if (pending_ps2_) host_.Halt("byte before the PS/2 mode ACK was sent", byte);
@@ -377,6 +383,7 @@ void IbmTrackpoint::SaveState(StateWriter& w) {
     w.Write<int64_t>("tp_tx_land_rel", land_ - now);
     w.Write<uint8_t>("tp_tx_has_last_land", has_last_land_ ? 1u : 0u);
     w.Write<int64_t>("tp_tx_last_land_rel", last_land_ - now);
+    w.Write<int64_t>("tp_post_end_rel", post_end_ - now);
     w.Write<uint8_t>("tp_id_in_progress", id_in_progress_ ? 1u : 0u);
     w.Write<uint8_t>("tp_sample_due", sample_due_ ? 1u : 0u);
     w.Write<uint8_t>("tp_pending_ps2", pending_ps2_ ? 1u : 0u);
@@ -394,6 +401,7 @@ void IbmTrackpoint::RestoreState(StateReader& r) {
     int64_t  land_rel       = 0;
     uint8_t  has_last_land  = 0;
     int64_t  last_land_rel  = 0;
+    int64_t  post_end_rel   = 0;
     uint8_t  id_in_progress = 0;
     uint8_t  sample_due     = 0;
     uint8_t  pending_ps2    = 0;
@@ -416,6 +424,7 @@ void IbmTrackpoint::RestoreState(StateReader& r) {
     r.Read("tp_tx_land_rel", land_rel);
     r.Read("tp_tx_has_last_land", has_last_land);
     r.Read("tp_tx_last_land_rel", last_land_rel);
+    r.Read("tp_post_end_rel", post_end_rel);
     r.Read("tp_id_in_progress", id_in_progress);
     r.Read("tp_sample_due", sample_due);
     r.Read("tp_pending_ps2", pending_ps2);
@@ -430,6 +439,7 @@ void IbmTrackpoint::RestoreState(StateReader& r) {
     land_           = now + land_rel;
     has_last_land_  = has_last_land != 0u;
     last_land_      = now + last_land_rel;
+    post_end_       = now + post_end_rel;
     id_in_progress_ = id_in_progress != 0u;
     sample_due_     = sample_due != 0u;
     pending_ps2_    = pending_ps2 != 0u;

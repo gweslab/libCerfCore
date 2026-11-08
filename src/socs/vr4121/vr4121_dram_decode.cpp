@@ -8,6 +8,9 @@
 #include "vr4121_bcu_regs.h"
 #include "vr4121_id.h"
 
+#include <cerfcore/cpu/emulated_memory.h>
+
+#include <algorithm>
 #include <cstdarg>
 #include <cstdio>
 
@@ -26,6 +29,8 @@ constexpr uint32_t kMb4  = 0x00400000u;
 constexpr uint32_t kMb8  = 0x00800000u;
 constexpr uint32_t kMb16 = 0x01000000u;
 constexpr uint32_t kMb32 = 0x02000000u;
+
+bool ExpansionBank(bool dbus32, uint32_t bank) { return dbus32 && bank >= 2u; }
 
 std::string Format(const char* fmt, ...) {
     char buf[256];
@@ -107,6 +112,7 @@ std::string Vr4121DramDecode::Mismatch(uint16_t cnt1, uint16_t cnt3,
         }
     }
     for (const Chip& chip : chips_) {
+        if (ExpansionBank(wiring->dbus32, chip.bank) && (cnt3 & kCnt3ExtMem) == 0u) continue;
         std::string why;
         uint32_t base = 0;
         for (uint32_t lower = 0; lower < chip.bank; ++lower) {
@@ -122,6 +128,37 @@ std::string Vr4121DramDecode::Mismatch(uint16_t cnt1, uint16_t cnt3,
         }
     }
     return {};
+}
+
+std::vector<Vr4121DramDecode::Chip> Vr4121DramDecode::ExpansionChips() const {
+    std::vector<Chip> out;
+    const auto wiring = emu_.Get<Vr4121BcuBoard>().DramWiring();
+    if (!wiring) return out;
+    for (const Chip& chip : chips_) {
+        if (ExpansionBank(wiring->dbus32, chip.bank)) out.push_back(chip);
+    }
+    return out;
+}
+
+bool Vr4121DramDecode::ExpansionChipFitted() const {
+    return !ExpansionChips().empty();
+}
+
+uint32_t Vr4121DramDecode::ExpansionBase() const {
+    uint32_t base = 0xFFFFFFFFu;
+    for (const Chip& chip : ExpansionChips()) base = std::min(base, chip.base);
+    return base;
+}
+
+uint32_t Vr4121DramDecode::ExpansionEnd() const {
+    uint32_t end = 0u;
+    for (const Chip& chip : ExpansionChips()) end = std::max(end, chip.base + chip.bytes);
+    return end;
+}
+
+void Vr4121DramDecode::ApplyExpansionAccess(uint16_t cnt3) const {
+    auto& memory = emu_.Get<EmulatedMemory>();
+    for (const Chip& chip : ExpansionChips()) memory.SetBusAccess(chip.base, (cnt3 & kCnt3ExtMem) != 0u);
 }
 
 uint32_t Vr4121DramDecode::SizeCodeBytes(bool dbus32, uint32_t code) const {
@@ -146,7 +183,7 @@ uint32_t Vr4121DramDecode::SizeCodeBytes(bool dbus32, uint32_t code) const {
 uint32_t Vr4121DramDecode::BankCapacity(bool dbus32, uint32_t bank, uint16_t cnt1,
                                         uint16_t cnt3, uint16_t ramsize,
                                         std::string& why) const {
-    const bool expansion = dbus32 && bank >= 2u;
+    const bool expansion = ExpansionBank(dbus32, bank);
     if (expansion && (cnt3 & kCnt3ExtMem) == 0u) {
         why = Format("bank %u is expansion space and BCUCNTREG3 0x%04X leaves EXT_MEM clear",
                      bank, cnt3);

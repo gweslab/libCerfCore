@@ -63,9 +63,9 @@ size_t Serial16550::RxTriggerLocked() const {
     return cfg_.rx_trigger[(fcr_ >> 6) & 3u];
 }
 
-Serial16550::Serial16550(SerialEndpoint* endpoint, IrqLineFn irq_line, Config cfg,
+Serial16550::Serial16550(SerialEndpoint* endpoint, IrqLineFn irq_line, Config cfg, Clock clock,
                          SerialLineTimer& timer)
-    : irq_line_(std::move(irq_line)), cfg_(cfg), timer_(timer), endpoint_(endpoint) {
+    : irq_line_(std::move(irq_line)), cfg_(cfg), clock_(clock), timer_(timer), endpoint_(endpoint) {
     Reset();
 }
 
@@ -175,16 +175,10 @@ void Serial16550::ResendEndpointInputs() {
     if (endpoint_) endpoint_->ResendModemInputs();
 }
 
-uint32_t Serial16550::BaudRate() const {
-    std::lock_guard<std::mutex> lk(mu_);
-    const uint32_t div = (uint32_t)dll_ | ((uint32_t)dlm_ << 8);
-    return div ? (115200u / div) : 115200u;
-}
-
 Serial16550::LineConfig Serial16550::GetLineConfigLocked() const {
     LineConfig c;
     const uint32_t div = (uint32_t)dll_ | ((uint32_t)dlm_ << 8);
-    c.baud = div ? (115200u / div) : 115200u;
+    c.baud = div ? (uint32_t)(clock_.source_hz / ((uint64_t)clock_.divide * 16u * div)) : 0u;
     c.data_bits = (uint8_t)(5u + (lcr_ & 0x03u));
     if (!(lcr_ & 0x08u)) {
         c.parity = LineConfig::Parity::None;        /* parity disabled */

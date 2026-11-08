@@ -44,6 +44,7 @@ public:
     };
 
     void SetAddressDecode(uint32_t region_base, const AddressDecode* decode);
+    void SetBusAccess(uint32_t region_base, bool enabled);
     void RegisterDecodeListener(std::function<void()> fn);
 
     uint8_t* Translate(uint32_t vaddr);
@@ -109,6 +110,7 @@ private:
         std::atomic<const AddressDecode*> decode{nullptr};
         MemoryKind            kind         = MemoryKind::kRam;
         std::atomic<uint8_t*> host_ptr{nullptr};  /* lazy first-touch */
+        std::atomic<bool>     bus_access{true};
     };
 
     static uint32_t BackedOffset(const Region& r, uint32_t offset) {
@@ -134,6 +136,7 @@ private:
 
     /* Lock-free read: load_acquire count_, linear scan regions_[0..n). */
     Region*  FindRegion(uint32_t vaddr);
+    Region*  FindBackingRegion(uint32_t pa);
     /* Shared CopyIn/CopyOut gate: region containing [vaddr, vaddr+size)
        or fatal (unmapped / boundary-crossing). */
     Region*  BulkRegionFor(uint32_t vaddr, size_t size, const char* op);

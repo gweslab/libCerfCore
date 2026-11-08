@@ -15,6 +15,7 @@ constexpr Vr41xxKiuModel kModel = {
     .scanstart_auto_clear     = true,
     .keyen_scanline_interlock = true,
     .keyen_stop_deferred      = true,
+    .scanstart_while_running_defined = true,
     .gpen_retained_on_other_reset = true,
     .gpen_survives_kiurst         = true,
     .scanline_none_drives_all     = true,

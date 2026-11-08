@@ -18,7 +18,7 @@ class Vr41xxAiuPathHost {
 public:
     virtual void RaiseAiuInt(uint16_t bits)                 = 0;
     virtual bool AiuIntPending(uint16_t bits) const         = 0;
-    virtual bool StopAtFirstPage(Vr41xxAiuChannel channel)  = 0;
+    virtual bool StopAfterOnePage(Vr41xxAiuChannel channel) const = 0;
     virtual bool ConverterEnabled(Vr41xxAiuChannel channel) const = 0;
 
 protected:
@@ -28,8 +28,8 @@ protected:
 struct Vr41xxAiuPathConfig {
     Vr41xxAiuChannel channel;
     uint16_t         dma_msk_bit;
-    uint16_t         page1_int;
-    uint16_t         page2_int;
+    uint16_t         one_page_int;
+    uint16_t         two_page_int;
     const char*      name;
 };
 
@@ -84,6 +84,7 @@ protected:
 
 private:
     void     Rearm();
+    void     PageBoundary();
     uint32_t Page1End(uint32_t base) const;
 
     StoppableOscillatorTicks ticks_;
@@ -95,8 +96,8 @@ private:
     bool                     enabled_    = false;
     bool                     clock_running_ = true;
     bool                     dma_started_ = false;
-    bool                     stop_page1_ = false;
-    bool                     stop_page2_ = false;
+    bool                     stop_one_page_ = false;
+    bool                     stop_full_  = false;
     uint64_t                 start_tick_ = 0u;
     uint64_t                 done_       = 0u;
 };

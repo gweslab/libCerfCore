@@ -29,7 +29,6 @@ public:
     void RestoreState(StateReader& r) override;
 
     bool MicEnabled() const;
-    bool SerialDriversPowered() const;
     void RegisterOutputListener(std::function<void()> fn);
 
 private:
@@ -42,6 +41,7 @@ private:
 
     const IbmWorkpadZ50MemberStraps* straps_  = nullptr;
     const IbmWorkpadZ50Battery*      battery_ = nullptr;
+    uint8_t                          extension_ram_strap_ = 0;
     std::atomic<uint8_t> cs0_out_{0};
     std::atomic<uint8_t> cs1_out_{0};
     std::vector<std::function<void()>> output_listeners_;

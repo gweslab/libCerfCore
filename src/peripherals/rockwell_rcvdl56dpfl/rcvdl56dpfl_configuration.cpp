@@ -33,6 +33,12 @@ constexpr uint8_t kFaxConfs[] = {
 };
 
 constexpr uint8_t kFskDataStateConfs[] = {0xA0u, 0xA4u, 0xA1u, 0x60u};
+constexpr uint8_t kV25AnswerToneConfs[] = {
+    0xAAu, 0x76u, 0x72u, 0x74u, 0x75u, 0x78u, 0x71u, 0x84u, 0x82u, 0x52u,
+    0x51u, 0xA4u, 0xA1u, 0xA0u, 0xA8u, 0x80u, 0x81u, 0x83u,
+};
+constexpr uint8_t kK56flexFirstConf = 0x91u;
+constexpr uint8_t kK56flexLastConf  = 0x9Du;
 constexpr uint8_t kV22FamilyConfs[]    = {0x84u, 0x82u, 0x52u, 0x51u, 0x62u};
 constexpr uint8_t kV32Confs[]          = {0x76u, 0x72u, 0x74u, 0x75u, 0x78u, 0x71u};
 constexpr uint8_t kV22bisConfs[]       = {0x84u, 0x82u};
@@ -53,10 +59,11 @@ constexpr uint8_t kSpeedUpTo300 = 0x00u;
 
 constexpr uint8_t kV32Cleardown = 0x70u;
 constexpr uint8_t kV34Cleardown = 0xC0u;
+constexpr uint8_t kV8Cleardown  = 0xAFu;
 
 constexpr std::array<uint8_t, 32> kUnmodeledBits = {
-    0x00u, 0x38u, 0x98u, 0x6Cu, 0xEEu, 0xE7u, 0xA0u, 0x14u, 0x00u, 0x42u, 0x00u, 0x04u, 0x00u, 0x05u, 0x00u, 0x00u,
-    0x00u, 0x9Cu, 0x00u, 0x0Cu, 0x00u, 0x70u, 0x00u, 0x00u, 0x00u, 0x00u, 0x7Fu, 0x00u, 0x00u, 0x00u, 0x12u, 0x22u,
+    0x00u, 0x38u, 0x18u, 0x64u, 0xEEu, 0xE7u, 0xA0u, 0x14u, 0x00u, 0x42u, 0x00u, 0x04u, 0x00u, 0x05u, 0x00u, 0x00u,
+    0x00u, 0x9Cu, 0x00u, 0x0Cu, 0x00u, 0x40u, 0x00u, 0x00u, 0x00u, 0x00u, 0x7Fu, 0x00u, 0x00u, 0x00u, 0x12u, 0x22u,
 };
 
 constexpr std::array<uint8_t, 4> kWdszDataBits = {5u, 7u, 6u, 8u};
@@ -112,6 +119,15 @@ bool Rcvdl56dpflConfiguration::RenegotiatesRate(uint8_t conf) {
     return mode == RetrainMode::kV34 || mode == RetrainMode::kV32;
 }
 
+bool Rcvdl56dpflConfiguration::ReportsV25AnswerTone(uint8_t conf) {
+    if (conf >= kK56flexFirstConf && conf <= kK56flexLastConf) return true;
+    return Listed(std::begin(kV25AnswerToneConfs), std::end(kV25AnswerToneConfs), conf);
+}
+
+bool Rcvdl56dpflConfiguration::V8OrV34(uint8_t conf) {
+    return conf == kConfV8 || ModeOf(conf) == RetrainMode::kV34;
+}
+
 bool Rcvdl56dpflConfiguration::SameRetrainMode(uint8_t a, uint8_t b) {
     return ModeOf(a) != RetrainMode::kNone && ModeOf(a) == ModeOf(b);
 }
@@ -124,6 +140,10 @@ Rcvdl56dpflCleardown Rcvdl56dpflConfiguration::CleardownOf(uint8_t conf) {
         case RetrainMode::kNone:   break;
     }
     return {};
+}
+
+Rcvdl56dpflCleardown Rcvdl56dpflConfiguration::V8Cleardown() {
+    return {true, kV8Cleardown, false};
 }
 
 uint8_t Rcvdl56dpflConfiguration::UnmodeledBits(uint32_t reg) {

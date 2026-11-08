@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ppp_link.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -12,22 +14,8 @@ class SerialEndpoint;
    a PC-Card PC16550D (Serial16550) or an on-SoC UART implements it, and a
    SerialEndpoint personality pushes RX + modem-status back and reads the guest's
    line discipline through it without knowing which drives the wire. */
-class SerialLine {
+class SerialLine : public PppLink {
 public:
-    virtual ~SerialLine() = default;
-
-    /* Personality -> RX. Any thread. Asserts the RX interrupt per the engine's
-       enable/trigger state. */
-    virtual void PushRx(const uint8_t* data, size_t n) = 0;
-
-    /* True once the guest has read every queued RX byte. */
-    virtual bool RxEmpty() const = 0;
-
-    /* Fired off-lock when a guest read empties the RX queue, so a flow-
-       controlled feeder can push the next frame. */
-    using RxDrainFn = std::function<void()>;
-    virtual void SetRxDrainCallback(RxDrainFn cb) = 0;
-
     /* Personality -> modem inputs (CTS/DSR/RI/DCD line levels). Any thread. */
     virtual void SetModemInputs(bool cts, bool dsr, bool ri, bool dcd) = 0;
 

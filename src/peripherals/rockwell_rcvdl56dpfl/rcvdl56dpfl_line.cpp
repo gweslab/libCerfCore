@@ -38,8 +38,39 @@ void Rcvdl56dpflLine::Reset(const Registers& defaults) {
     loop3_        = false;
     v21_sync_     = false;
     cleared_down_ = false;
+    DisconnectRemote();
     transmitter_.Reset();
     receiver_.Reset();
+}
+
+void Rcvdl56dpflLine::ConnectRemote(uint8_t conf, uint8_t speed) {
+    active_conf_ = conf;
+    far_end_.Connect(now_);
+    SetStatus(kConf, conf);
+    SetStatus(kStatus0E, static_cast<uint8_t>((regs_[kStatus0E] & ~kSpeedMask) | speed));
+}
+
+void Rcvdl56dpflLine::DisconnectRemote() {
+    far_end_.Disconnect();
+}
+
+void Rcvdl56dpflLine::ReportCleardown(const Rcvdl56dpflCleardown& cleardown) {
+    cleared_down_ = true;
+    SetStatus(kConf, cleardown.conf);
+    if (cleardown.abort_code) SetStatus(kDownload, kAbcodeCleardown);
+}
+
+void Rcvdl56dpflLine::QueueRemoteBytes(const std::vector<uint8_t>& bytes) {
+    far_end_.Queue(LineConfig(), bytes, now_);
+}
+
+void Rcvdl56dpflLine::DeliverFarEnd(uint64_t tick) {
+    const Rcvdl56dpflLineConfig c = LineConfig();
+    bool overrun = false;
+    bool v54     = false;
+    receiver_.Accept(c, far_end_.Deliver(c, tick), now_, &overrun, &v54);
+    if (overrun) SetStatus(kStatus0A, WithBits(regs_[kStatus0A], kOe, true));
+    if (v54) SetStatus(kStatus0F, WithBits(regs_[kStatus0F], kV54dt, true));
 }
 
 void Rcvdl56dpflLine::LatchConfiguration() {
@@ -50,7 +81,9 @@ void Rcvdl56dpflLine::LatchConfiguration() {
 }
 
 Rcvdl56dpflLineConfig Rcvdl56dpflLine::LineConfig() const {
-    return Rcvdl56dpflConfiguration::Line(regs_, *ram_, active_conf_, InternalLoop(), v21_sync_);
+    Rcvdl56dpflLineConfig c = Rcvdl56dpflConfiguration::Line(regs_, *ram_, active_conf_, InternalLoop(), v21_sync_);
+    c.far_end_listens       = far_end_.Connected();
+    return c;
 }
 
 bool Rcvdl56dpflLine::InternalLoop() const {
@@ -64,11 +97,12 @@ bool Rcvdl56dpflLine::CarrierWanted() const {
     const bool rts  = (regs_[kTransmit] & kRts) != 0u;
     if (Rcvdl56dpflConfiguration::Fax(active_conf_)) return rts && data;
     if (Rcvdl56dpflConfiguration::FskDataState(active_conf_)) return data && dtr;
-    return loop3_ && data && dtr;
+    return (loop3_ || far_end_.Connected()) && data && dtr;
 }
 
 uint64_t Rcvdl56dpflLine::NextEventTick() const {
-    return std::min(transmitter_.EventTick(), receiver_.EventTick());
+    const uint64_t far_end = far_end_.NextTick(LineConfig(), now_);
+    return std::min({transmitter_.EventTick(), receiver_.EventTick(), far_end});
 }
 
 void Rcvdl56dpflLine::CatchUp(uint64_t elapsed, uint64_t now) {
@@ -80,7 +114,10 @@ void Rcvdl56dpflLine::CatchUp(uint64_t elapsed, uint64_t now) {
 }
 
 void Rcvdl56dpflLine::ProcessDueEvent() {
-    if (transmitter_.EventTick() <= receiver_.EventTick()) {
+    const uint64_t far_end = far_end_.NextTick(LineConfig(), now_);
+    if (far_end != kRcvdl56dpflNoEvent && far_end <= transmitter_.EventTick() && far_end <= receiver_.EventTick()) {
+        DeliverFarEnd(far_end);
+    } else if (transmitter_.EventTick() <= receiver_.EventTick()) {
         const Rcvdl56dpflLineConfig c = LineConfig();
         Rcvdl56dpflTxOut out;
         transmitter_.EventDue(c, &out);
@@ -144,11 +181,7 @@ void Rcvdl56dpflLine::CompleteRateChange(uint32_t reg, uint8_t bit, bool renegot
             active_conf_ = requested;
         } else {
             const Rcvdl56dpflCleardown cleardown = Rcvdl56dpflConfiguration::CleardownOf(active_conf_);
-            if (cleardown.documented) {
-                cleared_down_ = true;
-                SetStatus(kConf, cleardown.conf);
-                if (cleardown.abort_code) SetStatus(kDownload, kAbcodeCleardown);
-            }
+            if (cleardown.documented) ReportCleardown(cleardown);
         }
     }
     if (!renegotiation && !cleared_down_) {
@@ -163,6 +196,7 @@ void Rcvdl56dpflLine::ApplyTxOut(const Rcvdl56dpflLineConfig& c, const Rcvdl56dp
     bool v54     = false;
     if (c.loop_listens)
         for (uint8_t i = 0; i < out.sent_count; ++i) receiver_.Accept(c, out.sent[i], out.tick, &overrun, &v54);
+    for (uint8_t i = 0; i < out.sent_count; ++i) far_end_.FromGuest(c, out.sent[i]);
     if (overrun) SetStatus(kStatus0A, WithBits(regs_[kStatus0A], kOe, true));
     if (v54) SetStatus(kStatus0F, WithBits(regs_[kStatus0F], kV54dt, true));
     if (out.underrun_abort) SetStatus(kDownload, kAbcodeTxAbort);
@@ -210,15 +244,18 @@ void Rcvdl56dpflLine::UpdateClearToSend() {
     const bool rts_data = (regs_[kTransmit] & kRts) && (regs_[kMode] & kData);
     const bool dtr = (regs_[kMode] & kDtr) != 0u;
     const bool remote_loop = Rcvdl56dpflConfiguration::RemoteLoopRequested(regs_, active_conf_);
-    const bool cts = rts_data && CarrierWanted() && (fax || (fsk && dtr) || (loop3_ && dtr)) && !remote_loop;
+    const bool cts = rts_data && CarrierWanted() &&
+                     (fax || (fsk && dtr) || ((loop3_ || far_end_.Connected()) && dtr)) && !remote_loop;
     SetStatus(kStatus0F, WithBits(regs_[kStatus0F], kCts, cts));
     UpdateLoopStatus();
 }
 
 void Rcvdl56dpflLine::UpdateLoopStatus() {
-    const bool dtr  = (regs_[kMode] & kDtr) != 0u;
-    const bool energy = InternalLoop() && CarrierWanted() && !(regs_[kControl05] & kTxsq);
-    uint8_t status = WithBits(regs_[kStatus0F], kDsr, loop3_ && dtr);
+    const bool dtr    = (regs_[kMode] & kDtr) != 0u;
+    const bool looped = InternalLoop() && CarrierWanted() && !(regs_[kControl05] & kTxsq);
+    const bool remote = far_end_.Connected();
+    const bool energy = looped || (remote && dtr);
+    uint8_t status = WithBits(regs_[kStatus0F], kDsr, (loop3_ || remote) && dtr);
     status = WithBits(status, kFed, energy);
     SetStatus(kStatus0F, WithBits(status, kRlsd, energy));
 }
@@ -264,7 +301,7 @@ uint8_t Rcvdl56dpflLine::RaisedInterrupts() const {
 
 bool Rcvdl56dpflLine::SameStateAs(const Rcvdl56dpflLine& other) const {
     return regs_ == other.regs_ && active_conf_ == other.active_conf_ && loop3_ == other.loop3_ &&
-           v21_sync_ == other.v21_sync_ && cleared_down_ == other.cleared_down_ && receiver_ == other.receiver_ &&
+           far_end_.SameStateExceptDueTick(other.far_end_) && v21_sync_ == other.v21_sync_ && cleared_down_ == other.cleared_down_ && receiver_ == other.receiver_ &&
            transmitter_.SameStateExceptEventTick(other.transmitter_);
 }
 
@@ -300,6 +337,7 @@ void Rcvdl56dpflLine::RestoreState(StateReader& r) {
     uint8_t loop3 = 0u;
     r.Read("loop3", loop3);
     loop3_ = loop3 != 0u;
+    far_end_.Disconnect();
     uint8_t v21_sync = 0u;
     r.Read("v21_sync", v21_sync);
     v21_sync_ = v21_sync != 0u;

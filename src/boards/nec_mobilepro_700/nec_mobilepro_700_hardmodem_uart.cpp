@@ -22,7 +22,7 @@ constexpr uint32_t kModemChipSelect = 2u;
 class Vr4102HardModemUart : public Vrc4172ChipSelected<Uart16550> {
 public:
     explicit Vr4102HardModemUart(CerfEmulator& emu)
-        : Vrc4172ChipSelected<Uart16550>(emu, Config{0x0Fu, 0x08u, 0u}) {}
+        : Vrc4172ChipSelected<Uart16550>(emu, Config{0x0Fu, 0x08u, 0u}, Clock{1843200u, 1u}) {}
 
     bool ShouldRegister() override {
         return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::NecMobilepro700;

@@ -19,9 +19,13 @@ constexpr uint8_t kCs0AcOffline      = 0x80u;
 constexpr uint8_t kCs0KeyboardShift  = 5u;
 constexpr uint8_t kCs0KeyboardMask   = 0x60u;
 constexpr uint8_t kCs0NoExtensionRam = 0x18u;
+constexpr uint8_t kCs0Extension32Mb  = 0x00u;
 constexpr uint8_t kCs1ModemFitted    = 0x40u;
 constexpr uint8_t kCs1MicEnable      = 0x02u;
-constexpr uint8_t kCs1SerialDrivers  = 0x04u;
+
+uint8_t ExtensionRamStrap(uint32_t card_bytes) {
+    return card_bytes == 0u ? kCs0NoExtensionRam : kCs0Extension32Mb;
+}
 
 }
 
@@ -34,6 +38,7 @@ bool IbmWorkpadZ50GpioBuffers::ShouldRegister() {
 void IbmWorkpadZ50GpioBuffers::OnReady() {
     straps_  = &emu_.Get<IbmWorkpadZ50MemberStraps>();
     battery_ = &emu_.Get<IbmWorkpadZ50Battery>();
+    extension_ram_strap_ = ExtensionRamStrap(emu_.Get<BoardContext>().DramCardBytes());
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
         cs0_out_.store(0u, std::memory_order_release);
         cs1_out_.store(0u, std::memory_order_release);
@@ -43,7 +48,7 @@ void IbmWorkpadZ50GpioBuffers::OnReady() {
 }
 
 uint8_t IbmWorkpadZ50GpioBuffers::Cs0Inputs() const {
-    return static_cast<uint8_t>((battery_->OnAc() ? 0u : kCs0AcOffline) | kCs0NoExtensionRam |
+    return static_cast<uint8_t>((battery_->OnAc() ? 0u : kCs0AcOffline) | extension_ram_strap_ |
                                 ((straps_->KeyboardId() << kCs0KeyboardShift) & kCs0KeyboardMask));
 }
 
@@ -74,10 +79,6 @@ void IbmWorkpadZ50GpioBuffers::WriteByte(uint32_t addr, uint8_t value) {
 
 bool IbmWorkpadZ50GpioBuffers::MicEnabled() const {
     return (cs1_out_.load(std::memory_order_acquire) & kCs1MicEnable) != 0u;
-}
-
-bool IbmWorkpadZ50GpioBuffers::SerialDriversPowered() const {
-    return (cs1_out_.load(std::memory_order_acquire) & kCs1SerialDrivers) != 0u;
 }
 
 void IbmWorkpadZ50GpioBuffers::RegisterOutputListener(std::function<void()> fn) {

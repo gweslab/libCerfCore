@@ -56,7 +56,13 @@ public:
         uint16_t divisor_reset = 0;
     };
 
-    Serial16550(SerialEndpoint* endpoint, IrqLineFn irq_line, Config cfg, SerialLineTimer& timer);
+    struct Clock {
+        uint32_t source_hz;
+        uint32_t divide;
+    };
+
+    Serial16550(SerialEndpoint* endpoint, IrqLineFn irq_line, Config cfg, Clock clock,
+                SerialLineTimer& timer);
 
     uint8_t ReadReg8 (uint32_t offset);
     void SaveState(StateWriter& w) const;
@@ -76,8 +82,6 @@ public:
     /* Personality -> modem inputs (CTS/DSR/RI/DCD line levels). Any thread; a
        changed level sets the matching MSR delta bit and (per IER.MS) an IRQ. */
     void SetModemInputs(bool cts, bool dsr, bool ri, bool dcd) override;
-
-    uint32_t BaudRate() const;   /* derived from the divisor latch + 115200 base */
 
     LineConfig GetLineConfig() const override;
 
@@ -123,6 +127,7 @@ private:
 
     IrqLineFn        irq_line_;
     Config           cfg_;
+    Clock            clock_;
     SerialLineTimer& timer_;
     HostWidget*      activity_ = nullptr;
 

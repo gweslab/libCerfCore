@@ -34,9 +34,8 @@ namespace cerfcore {
 class Vr41xxSiu : public Uart16550 {
 public:
     explicit Vr41xxSiu(CerfEmulator& emu)
-        : Uart16550(emu, Config{/*ier_mask=*/0x0Fu,
-                                /*irq_gate_mcr=*/0u,
-                                /*irq_gate_ier=*/0u}) {}
+        : Uart16550(emu, Config{.ier_mask = 0x0Fu, .irq_gate_mcr = 0u, .irq_gate_ier = 0u},
+                    Clock{18432000u, 1u}) {}
 
     uint32_t MmioBase() const override { return 0x0C000000u; }
     uint32_t MmioSize() const override { return 0x20u; }   /* SIU block; HSP follows at +0x20 */

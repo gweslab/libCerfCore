@@ -9,13 +9,10 @@
 
 namespace cerfcore {
 
-/* Reusable cross-board battery status-bar widget (charge level + AC/battery
-   toggle, icon/tooltip/menu). Owner holds one as a member and reads the getters
-   to drive its hardware model. */
 class BatteryWidget : public HostWidget {
 public:
     int  FillPercent() const;   /* 0..100, 100 = full */
-    bool IsOnBattery() const;   /* true = on battery, false = on AC */
+    bool IsOnBattery() const;
 
     void SetChangeHandler(std::function<void()> cb) { on_change_ = std::move(cb); }
 

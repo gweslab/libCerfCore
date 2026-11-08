@@ -3,6 +3,7 @@
 #include "rcvdl56dpfl_bit_tick.h"
 #include "rcvdl56dpfl_fifo.h"
 #include "rcvdl56dpfl_frame_check.h"
+#include "rcvdl56dpfl_hdlc_bits.h"
 #include "rcvdl56dpfl_line_config.h"
 #include "rcvdl56dpfl_line_symbol.h"
 
@@ -70,7 +71,7 @@ private:
     uint16_t count_ = 0u;
     uint8_t  shift_       = 0u;
     uint8_t  shift_flags_ = 0u;
-    uint8_t  ones_run_    = 0u;
+    Rcvdl56dpflZeroInsertion zero_insertion_;
     uint8_t  in_frame_    = 0u;
     uint8_t  flag_seen_   = 0u;
     uint8_t  pattern_bit_ = 0u;

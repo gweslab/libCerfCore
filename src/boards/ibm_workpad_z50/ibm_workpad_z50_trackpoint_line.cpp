@@ -51,6 +51,10 @@ private:
         });
         auto& reset = emu_.Get<GuestCpuReset>();
         reset.RegisterResetListener([this, &reset](ResetLineKind kind) {
+            if (reset.DeliveredResetReportedWarm()) {
+                trackpoint_.FinishSelfTest();
+                return;
+            }
             if (kind == ResetLineKind::Rtc || reset.DeliveredResetWasResume()) trackpoint_.PowerOn();
         });
     }

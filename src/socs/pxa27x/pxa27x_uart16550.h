@@ -31,7 +31,7 @@ public:
                  (Source IIR[TOD])". */
               .cti_ier_bit = 0x10u,
               .divisor_reset = 0x0002u,
-          }) {}
+          }, Clock{312000000u, 21u}) {}
 
     bool ShouldRegister() override {
         auto* bd = emu_.TryGet<BoardContext>();

@@ -20,7 +20,7 @@ public:
 
 protected:
     const char* ChipName() const override { return "RF5C396"; }
-    uint8_t     IndexReadLocked(uint32_t port) override;
+    uint8_t     UnbankedIndexReadLocked(uint32_t port) override;
     uint8_t     UnbankedDataReadLocked(uint32_t port) override;
     void        UnbankedDataWriteLocked(uint8_t) override {}
     bool        ChipOwns(uint8_t sub) const override { return RicohRf5c396ChipRegisters::Owns(sub); }

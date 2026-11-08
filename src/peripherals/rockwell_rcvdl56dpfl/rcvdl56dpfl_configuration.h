@@ -26,8 +26,11 @@ public:
     static bool     V22Family(uint8_t conf);
     static bool     Retrains(uint8_t conf);
     static bool     RenegotiatesRate(uint8_t conf);
+    static bool     V8OrV34(uint8_t conf);
+    static bool     ReportsV25AnswerTone(uint8_t conf);
     static bool     SameRetrainMode(uint8_t a, uint8_t b);
     static Rcvdl56dpflCleardown CleardownOf(uint8_t conf);
+    static Rcvdl56dpflCleardown V8Cleardown();
     static uint8_t  SpeedCode(uint32_t bit_rate);
     static uint8_t  UnmodeledBits(uint32_t reg);
     static bool     RemoteLoopRequested(const Registers& regs, uint8_t conf);

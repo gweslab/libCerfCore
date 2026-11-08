@@ -15,9 +15,7 @@ SlotEntry HpPalmtopVgaInsertEntry::BuildInsertEntry(PcmciaCardCatalog::CardInser
         inserter(std::make_unique<HpPalmtopVgaCard>(emu_));
     };
     entry.details = {
-        WidgetControl{InfoControl{"External VGA monitor output, in its own window."}},
-        WidgetControl{InfoControl{"Works on the HP Jornada series."}},
-        WidgetControl{InfoControl{"Verified on the HP Jornada 720."}},
+        WidgetControl{InfoControl{"Only HP Jornada devices include the driver"}},
     };
     return entry;
 }

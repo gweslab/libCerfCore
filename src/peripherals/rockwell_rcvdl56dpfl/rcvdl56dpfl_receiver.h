@@ -3,6 +3,7 @@
 #include "rcvdl56dpfl_bit_tick.h"
 #include "rcvdl56dpfl_fifo.h"
 #include "rcvdl56dpfl_frame_check.h"
+#include "rcvdl56dpfl_hdlc_bits.h"
 #include "rcvdl56dpfl_line_config.h"
 #include "rcvdl56dpfl_line_symbol.h"
 
@@ -45,6 +46,10 @@ private:
     void Push(const Rcvdl56dpflLineConfig& c, uint8_t value, uint8_t status, uint64_t tick, bool* overrun);
     void DeliverHeld(const Rcvdl56dpflLineConfig& c, uint8_t last_status, uint64_t tick, bool* overrun);
     void TakeFrameByte(const Rcvdl56dpflLineConfig& c, uint8_t value, uint64_t tick, bool* overrun);
+    void FrameByte(const Rcvdl56dpflLineConfig& c, uint8_t value, uint64_t tick, bool* overrun);
+    void FlagReceived(const Rcvdl56dpflLineConfig& c, uint64_t tick, bool* overrun);
+    void AbortReceived(const Rcvdl56dpflLineConfig& c, uint64_t tick, bool* overrun);
+    void DeframeBits(const Rcvdl56dpflLineConfig& c, uint8_t bits, uint64_t tick, bool* overrun);
     void CloseFrame();
 
     std::array<uint8_t, kRcvdl56dpflExtendedFifoDepth> data_{};
@@ -57,6 +62,7 @@ private:
     uint8_t  flags_detected_ = 0u;
     uint8_t  rdbf_           = 0u;
     uint64_t idle_event_     = kRcvdl56dpflNoEvent;
+    Rcvdl56dpflHdlcDeframer deframer_;
 };
 
 }

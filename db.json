@@ -1147,6 +1147,11 @@
       "id": "serial",
       "name": "Serial Port",
       "icon": "serial_com"
+    },
+    {
+      "id": "phone_line",
+      "name": "Built-in Phone Line",
+      "icon": "serial_modem"
     }
   ],
   "board_families": [
@@ -1344,6 +1349,10 @@
         {
           "feature_id": "serial",
           "supported": false
+        },
+        {
+          "feature_id": "phone_line",
+          "supported": false
         }
       ],
       "notes": [],
@@ -1398,6 +1407,10 @@
         },
         {
           "feature_id": "serial",
+          "supported": false
+        },
+        {
+          "feature_id": "phone_line",
           "supported": false
         }
       ],
@@ -1595,6 +1608,10 @@
         {
           "feature_id": "suspend",
           "supported": true
+        },
+        {
+          "feature_id": "phone_line",
+          "supported": false
         }
       ],
       "notes": [],
@@ -1646,6 +1663,10 @@
         {
           "feature_id": "suspend",
           "supported": true
+        },
+        {
+          "feature_id": "phone_line",
+          "supported": false
         }
       ],
       "notes": [],
@@ -1685,6 +1706,10 @@
         },
         {
           "feature_id": "serial",
+          "supported": true
+        },
+        {
+          "feature_id": "phone_line",
           "supported": true
         },
         {
@@ -1894,6 +1919,10 @@
           "supported": false
         },
         {
+          "feature_id": "phone_line",
+          "supported": true
+        },
+        {
           "feature_id": "network",
           "supported": false
         },
@@ -1911,6 +1940,7 @@
         "width": 640,
         "height": 480
       },
+      "ga_window_size": 100663296,
       "rom_placing_mode": "flat_container"
     },
     {
@@ -1998,6 +2028,10 @@
         {
           "feature_id": "microphone",
           "supported": true
+        },
+        {
+          "feature_id": "phone_line",
+          "supported": false
         }
       ],
       "notes": [],
@@ -2049,6 +2083,10 @@
         {
           "feature_id": "serial",
           "supported": true
+        },
+        {
+          "feature_id": "phone_line",
+          "supported": false
         }
       ],
       "notes": [],
@@ -2100,6 +2138,10 @@
         {
           "feature_id": "serial",
           "supported": true
+        },
+        {
+          "feature_id": "phone_line",
+          "supported": false
         }
       ],
       "notes": [],
@@ -2208,6 +2250,10 @@
         {
           "feature_id": "suspend",
           "supported": true
+        },
+        {
+          "feature_id": "phone_line",
+          "supported": false
         }
       ],
       "notes": [],
@@ -2879,6 +2925,60 @@
       "internal__spec_divergences": "32 MB ROM, Japanese keyboard, Japanese ROM"
     },
     {
+      "id": "ibm_workpad_z50_dram_32mb",
+      "name": "IBM WorkPad z50 (32 MB DRAM card)",
+      "short_name": "WorkPad z50",
+      "board_family_id": "ibm_workpad_z50",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB DRAM card, 48 MB RAM",
+      "dram_card_bytes": 33554432
+    },
+    {
+      "id": "ibm_workpad_z50_canada_dram_32mb",
+      "name": "IBM WorkPad z50 (Canada, 32 MB DRAM card)",
+      "short_name": "WorkPad z50",
+      "board_family_id": "ibm_workpad_z50",
+      "support_level": "no_support",
+      "internal__spec_divergences": "Canadian French keyboard, 32 MB DRAM card, 48 MB RAM",
+      "dram_card_bytes": 33554432
+    },
+    {
+      "id": "ibm_workpad_z50_uk_dram_32mb",
+      "name": "IBM WorkPad z50 (UK, 32 MB DRAM card)",
+      "short_name": "WorkPad z50",
+      "board_family_id": "ibm_workpad_z50",
+      "support_level": "no_support",
+      "internal__spec_divergences": "EMEA main board, no modem, UK keyboard, 32 MB DRAM card, 48 MB RAM",
+      "dram_card_bytes": 33554432
+    },
+    {
+      "id": "ibm_workpad_z50_france_dram_32mb",
+      "name": "IBM WorkPad z50 (France, 32 MB DRAM card)",
+      "short_name": "WorkPad z50",
+      "board_family_id": "ibm_workpad_z50",
+      "support_level": "no_support",
+      "internal__spec_divergences": "EMEA main board, no modem, French keyboard, French ROM, 32 MB DRAM card, 48 MB RAM",
+      "dram_card_bytes": 33554432
+    },
+    {
+      "id": "ibm_workpad_z50_germany_dram_32mb",
+      "name": "IBM WorkPad z50 (Germany, 32 MB DRAM card)",
+      "short_name": "WorkPad z50",
+      "board_family_id": "ibm_workpad_z50",
+      "support_level": "no_support",
+      "internal__spec_divergences": "EMEA main board, no modem, German keyboard, German ROM, 32 MB DRAM card, 48 MB RAM",
+      "dram_card_bytes": 33554432
+    },
+    {
+      "id": "ibm_workpad_z50_japan_dram_32mb",
+      "name": "IBM WorkPad z50 (Japan, 32 MB DRAM card)",
+      "short_name": "WorkPad z50",
+      "board_family_id": "ibm_workpad_z50",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB ROM, Japanese keyboard, Japanese ROM, 32 MB DRAM card, 48 MB RAM",
+      "dram_card_bytes": 33554432
+    },
+    {
       "id": "nec_rockhopper",
       "name": "NEC Rockhopper SG2_VR5500",
       "short_name": "Rockhopper",
@@ -2939,7 +3039,8 @@
       "short_name": "Velo 1",
       "board_family_id": "philips_velo_1",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "1 MB DRAM Miniature Card in slot 1"
+      "internal__spec_divergences": "1 MB DRAM Miniature Card in slot 1",
+      "dram_card_bytes": 1048576
     },
     {
       "id": "philips_velo_1_dram_2mb",
@@ -2947,7 +3048,8 @@
       "short_name": "Velo 1",
       "board_family_id": "philips_velo_1",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "2 MB DRAM Miniature Card in slot 1"
+      "internal__spec_divergences": "2 MB DRAM Miniature Card in slot 1",
+      "dram_card_bytes": 2097152
     },
     {
       "id": "philips_velo_1_dram_4mb",
@@ -2955,7 +3057,8 @@
       "short_name": "Velo 1",
       "board_family_id": "philips_velo_1",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "4 MB DRAM Miniature Card in slot 1"
+      "internal__spec_divergences": "4 MB DRAM Miniature Card in slot 1",
+      "dram_card_bytes": 4194304
     },
     {
       "id": "philips_velo_1_dram_8mb",
@@ -2963,7 +3066,8 @@
       "short_name": "Velo 1",
       "board_family_id": "philips_velo_1",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "8 MB DRAM Miniature Card in slot 1"
+      "internal__spec_divergences": "8 MB DRAM Miniature Card in slot 1",
+      "dram_card_bytes": 8388608
     },
     {
       "id": "philips_velo_1_dram_16mb",
@@ -2971,7 +3075,8 @@
       "short_name": "Velo 1",
       "board_family_id": "philips_velo_1",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "16 MB DRAM Miniature Card in slot 1"
+      "internal__spec_divergences": "16 MB DRAM Miniature Card in slot 1",
+      "dram_card_bytes": 16777216
     },
     {
       "id": "sharp_mobilon_hc4100",

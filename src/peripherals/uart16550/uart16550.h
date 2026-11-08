@@ -17,9 +17,9 @@ namespace cerfcore {
 
 class Uart16550 : public Peripheral, public SerialLineTimer, public Serial16550 {
 public:
-    Uart16550(CerfEmulator& emu, Config cfg)
+    Uart16550(CerfEmulator& emu, Config cfg, Clock clock)
         : Peripheral(emu),
-          Serial16550(nullptr, [this](bool pending) { SetInterruptLine(pending); }, cfg, *this) {}
+          Serial16550(nullptr, [this](bool pending) { SetInterruptLine(pending); }, cfg, clock, *this) {}
 
     void OnReady() override;
 

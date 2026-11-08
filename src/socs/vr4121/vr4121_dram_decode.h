@@ -18,6 +18,10 @@ public:
     void Begin(uint16_t cnt1, uint16_t cnt3, uint16_t ramsize);
     void Check(uint16_t cnt1, uint16_t cnt3, uint16_t ramsize) const;
     std::string Mismatch(uint16_t cnt1, uint16_t cnt3, uint16_t ramsize) const;
+    bool        ExpansionChipFitted() const;
+    uint32_t    ExpansionBase() const;
+    uint32_t    ExpansionEnd() const;
+    void        ApplyExpansionAccess(uint16_t cnt3) const;
 
 private:
     struct Chip {
@@ -26,6 +30,7 @@ private:
         uint32_t bytes = 0;
     };
 
+    std::vector<Chip> ExpansionChips() const;
     static uint64_t Signature(uint16_t cnt1, uint16_t cnt3, uint16_t ramsize);
     uint32_t SizeCodeBytes(bool dbus32, uint32_t code) const;
     uint32_t BankCapacity(bool dbus32, uint32_t bank, uint16_t cnt1, uint16_t cnt3,

@@ -4,7 +4,10 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/state/hibernation.h>
 #include <cerfcore/state/state_stream.h>
+#include <cerfengine/host_request_channel.h>
+#include "../../execution/engine_bridge.h"
 
 namespace cerfcore {
 
@@ -13,6 +16,19 @@ void Rcvdl56dpflDataPumpPeripheral::StartDataPump(const Rcvdl56dpflSelfTest& sel
     clock_ = &emu_.Get<GuestCycleClock>();
     event_ = clock_->Add([this] { pump_.TimerElapsed(); });
     clock_->RegisterRateListener([this] { RescaleBitClock(); });
+    requests_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::HostRequestChannel>();
+    requests_->RegisterListener([this] { pump_.ServiceHostData(); });
+    emu_.Get<Hibernation>().RegisterPreSaveListener([this] { pump_.ServiceHostData(); });
+    phone_.SetWake([this] { requests_->Request(); });
+    phone_.RegisterWidget();
+}
+
+void Rcvdl56dpflDataPumpPeripheral::OnShutdown() {
+    phone_.Shutdown();
+}
+
+void Rcvdl56dpflDataPumpPeripheral::Halt(const char* reason) {
+    emu_.Get<Fatal>().Die("[MDP] %s", reason);
 }
 
 uint8_t Rcvdl56dpflDataPumpPeripheral::ReadA1AddressedRegister(uint32_t addr) {

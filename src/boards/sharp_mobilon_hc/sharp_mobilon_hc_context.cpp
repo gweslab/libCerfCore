@@ -12,8 +12,6 @@ public:
     using BoardContext::BoardContext;
 
     std::string_view GetBoardFamilyId() const override { return BoardFamilyId::SharpMobilonHc; }
-
-    uint32_t GuestAdditionsWindowBase() const override { return 0x20000000u; }
 };
 
 }  /* namespace */

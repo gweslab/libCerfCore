@@ -39,7 +39,8 @@ void CasioJx670Modem::OnReady() {
     device_clock_ = &emu_.Get<ExternalDeviceClock>();
     line_timer_   = &device_clock_->AddTimer([this] { uart_->OnLineTimer(); });
     uart_ = std::make_unique<Serial16550>(
-        nullptr, [this](bool a) { OnUartIrq(a); }, Serial16550::Config{}, *this);
+        nullptr, [this](bool a) { OnUartIrq(a); }, Serial16550::Config{},
+        Serial16550::Clock{1843200u, 1u}, *this);
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
         ctrl_8600_   = 0;
         socket_a1c0_ = 0;

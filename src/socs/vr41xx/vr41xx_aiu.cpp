@@ -102,7 +102,7 @@ private:
         Publish();
     }
     bool AiuIntPending(uint16_t bits) const override { return (int_ & bits) == bits; }
-    bool StopAtFirstPage(Vr41xxAiuChannel channel) override { return (CntReg(channel) & kCntStopOpen) != 0u; }
+    bool StopAfterOnePage(Vr41xxAiuChannel channel) const override { return (CntReg(channel) & kCntStopOpen) != 0u; }
     bool ConverterEnabled(Vr41xxAiuChannel channel) const override { return (CntReg(channel) & kCntEnable) != 0u; }
     uint16_t CntReg(Vr41xxAiuChannel channel) const { return channel == Vr41xxAiuChannel::Out ? scnt_ : mcnt_; }
 

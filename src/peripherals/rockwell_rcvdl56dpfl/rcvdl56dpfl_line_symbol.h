@@ -6,7 +6,7 @@
 namespace cerfcore {
 
 struct Rcvdl56dpflSymbol {
-    enum class Kind : uint8_t { kChar, kFlag, kAbort, kMarkByte, kPattern };
+    enum class Kind : uint8_t { kChar, kFlag, kAbort, kMarkByte, kPattern, kBits };
     Kind    kind  = Kind::kChar;
     uint8_t value = 0u;
     uint8_t extra = 0u;

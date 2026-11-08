@@ -21,6 +21,8 @@ class IbmTrackpoint : public UartEndpoint {
     static constexpr uint32_t kPs2BaudDivisor = 384u;
     static constexpr uint32_t kXmitGapUnitUs  = 11u;
     static constexpr uint32_t kUsPerSecond    = 1000000u;
+    static constexpr uint32_t kPostMs         = 500u;
+    static constexpr uint32_t kMsPerSecond    = 1000u;
 
 public:
     static constexpr uint64_t kLineTickHz =
@@ -29,6 +31,7 @@ public:
     IbmTrackpoint(IbmTrackpointHost& host, GuestSampleClock& samples);
 
     void     PowerOn();
+    void     FinishSelfTest();
     void     SetLines(bool dtr_high, bool rts_high);
     void     HostMotion(int dx, int dy, uint32_t buttons);
     void     OnLineTick();
@@ -53,6 +56,7 @@ private:
     int64_t                Now() const;
     int64_t                FrameTicks() const;
     int64_t                GapTicks() const;
+    bool                   InPost() const;
 
     void    SerialMouseReset();
     void    OnByte(uint8_t b);
@@ -89,6 +93,7 @@ private:
     int64_t                  land_           = 0;
     bool                     has_last_land_  = false;
     int64_t                  last_land_      = 0;
+    int64_t                  post_end_       = 0;
     bool                     id_in_progress_ = false;
     bool                     sample_due_     = false;
     bool                     pending_ps2_    = false;

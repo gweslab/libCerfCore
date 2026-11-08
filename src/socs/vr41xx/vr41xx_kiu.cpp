@@ -37,7 +37,8 @@ void Vr41xxKiu::OnReady() {
     key_pins_ = &emu_.Get<Vr41xxKiuKeyPins>();
     key_matrix_.Configure(Model().scanline_none_drives_all, Model().scan_pins_drive_piod);
     seq_.Configure(Model().stprep_zero_count, Model().scanstart_auto_clear,
-                   Model().keyen_scanline_interlock, Model().keyen_stop_deferred);
+                   Model().keyen_scanline_interlock, Model().keyen_stop_deferred,
+                   Model().scanstart_while_running_defined);
     giu_ = &emu_.Get<Vr41xxGiu>();
     giu_->RegisterOutputDataLowListener([this](uint16_t previous) {
         std::lock_guard<std::mutex> lk(mtx_);

@@ -58,7 +58,10 @@ void IsaExcaSocketPair::ResetController() {
 
 uint8_t IsaExcaSocketPair::ReadPcicByte(uint32_t port) {
     std::lock_guard<std::mutex> lk(state_mutex_);
-    if (port == kPortIndex) return IndexReadLocked(port);
+    if (port == kPortIndex) {
+        if ((index_ >> kIndexBankShift) >= kSockets) return UnbankedIndexReadLocked(port);
+        return index_;
+    }
     const uint8_t result = ReadDataLocked(port);
     UpdateIrqLineLocked();
     return result;

@@ -27,6 +27,7 @@ struct Vr41xxKiuModel {
     bool     scanstart_auto_clear;
     bool     keyen_scanline_interlock;
     bool     keyen_stop_deferred;
+    bool     scanstart_while_running_defined;
     bool     gpen_retained_on_other_reset;
     bool     gpen_survives_kiurst;
     bool     scanline_none_drives_all;

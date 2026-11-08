@@ -16,7 +16,7 @@ namespace {
 class SharpMobilonHcDebugUart : public Uart16550 {
 public:
     explicit SharpMobilonHcDebugUart(CerfEmulator& emu)
-        : Uart16550(emu, Config{}) {}
+        : Uart16550(emu, Config{}, Clock{1843200u, 1u}) {}
 
     bool ShouldRegister() override {
         return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::SharpMobilonHc;

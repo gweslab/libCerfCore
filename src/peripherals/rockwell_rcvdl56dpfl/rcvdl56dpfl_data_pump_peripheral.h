@@ -3,10 +3,13 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../../execution/guest_cycle_clock.h"
 #include "../../socs/rated_tick_count.h"
+#include "../phone_line/phone_line.h"
 #include "rcvdl56dpfl_data_pump.h"
 #include "rcvdl56dpfl_data_pump_host.h"
 
 #include <cstdint>
+
+namespace cerfengine { class HostRequestChannel; }
 
 namespace cerfcore {
 
@@ -14,6 +17,7 @@ class Rcvdl56dpflDataPumpPeripheral : public Peripheral, private Rcvdl56dpflData
 public:
     using Peripheral::Peripheral;
 
+    void OnShutdown() override;
     void SaveState(StateWriter& w) override;
     void RestoreState(StateReader& r) override;
 
@@ -32,15 +36,18 @@ private:
     uint64_t BitTicksElapsed() override;
     void     ArmTimer(uint64_t tick) override;
     int64_t  GuestNs() override;
+    [[noreturn]] void Halt(const char* reason) override;
     void     RescaleBitClock();
     uint32_t A1AddressedRegister(uint32_t addr, uint8_t value);
 
-    GuestCycleClock*        clock_ = nullptr;
-    GuestCycleClock::Event* event_ = nullptr;
+    GuestCycleClock*                clock_    = nullptr;
+    GuestCycleClock::Event*         event_    = nullptr;
+    cerfengine::HostRequestChannel* requests_ = nullptr;
     RatedTickCount          bit_ticks_{emu_};
     GuestCycleClock::Rate   bit_rate_{};
     bool                    timed_ = false;
-    Rcvdl56dpflDataPump     pump_{*this};
+    PhoneLine               phone_{emu_, "Modem"};
+    Rcvdl56dpflDataPump     pump_{*this, phone_};
 };
 
 }

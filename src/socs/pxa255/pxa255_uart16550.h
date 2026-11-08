@@ -26,7 +26,8 @@ public:
                                       /*irq_gate_ier=*/0x40u,
                                       /*rx_trigger=*/{1u, 8u, 16u, 32u},
                                       0x10u,
-                                      0x0002u}) {}
+                                      0x0002u},
+                          Clock{14745600u, 1u}) {}
 
     bool ShouldRegister() override {
         auto* bd = emu_.TryGet<BoardContext>();

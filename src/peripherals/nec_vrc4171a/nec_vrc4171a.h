@@ -24,7 +24,7 @@ public:
 
 protected:
     const char* ChipName() const override { return "VRC4171A"; }
-    uint8_t     IndexReadLocked(uint32_t port) override;
+    uint8_t     UnbankedIndexReadLocked(uint32_t port) override;
     uint8_t     UnbankedDataReadLocked(uint32_t port) override;
     void        UnbankedDataWriteLocked(uint8_t value) override;
     bool        ChipOwns(uint8_t sub) const override;

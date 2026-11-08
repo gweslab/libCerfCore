@@ -1,5 +1,7 @@
 #include "rcvdl56dpfl_dsp_ram.h"
 
+#include "rcvdl56dpfl_registers.h"
+
 #include <cerfcore/state/state_stream.h>
 
 #include <algorithm>
@@ -65,6 +67,8 @@ constexpr StatusMaskCode kStatusMaskCodes[] = {
     {0x14u, 0x38Au}, {0x16u, 0x370u}, {0x17u, 0x371u}, {0x1Bu, 0x27Cu},
 };
 
+using rcvdl56dpfl_reg::kConfV8;
+
 constexpr uint32_t kMaskControlCode     = 0x089u;
 constexpr uint8_t  kMaskMemoryAccess    = 0x40u;
 constexpr uint8_t  kMaskConfChange      = 0x80u;
@@ -74,7 +78,6 @@ constexpr uint32_t kGuardToneLevel      = 0xB46u;
 constexpr uint32_t kFskTransmitGain     = 0xB57u;
 constexpr uint32_t kAnswerToneCodes[]   = {0x228u, 0x229u, 0x22Au, 0x22Bu};
 constexpr uint32_t kV8StatusCodes[]     = {0x301u, 0x302u, 0x303u};
-constexpr uint8_t  kConfV8              = 0xAAu;
 
 constexpr uint16_t kGuardTone1800Ceq = 0x036Cu;
 constexpr uint16_t kGuardTone1800    = 0x05E0u;

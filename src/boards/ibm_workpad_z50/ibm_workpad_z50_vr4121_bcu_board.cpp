@@ -4,15 +4,20 @@
 #include "../../socs/vr41xx/vr41xx_bcu_regs.h"
 #include "../../socs/vr4121/vr4121_bcu_regs.h"
 #include <cerfcore/boards/board_context.h>
+#include "ibm_workpad_z50_dram_layout.h"
 #include "ibm_workpad_z50_family_id.h"
 
+#include <algorithm>
 #include <cstdint>
 
 namespace cerfcore {
 
 namespace {
 
-constexpr uint32_t kBank0ChipBytes = 0x01000000u;
+uint32_t ExpansionBankBytes(uint32_t card_bytes, uint32_t index) {
+    const uint32_t below = index * kIbmWorkpadZ50DramBankBytes;
+    return card_bytes > below ? std::min(card_bytes - below, kIbmWorkpadZ50DramBankBytes) : 0u;
+}
 
 class IbmWorkpadZ50Vr4121BcuBoard : public Vr4121BcuBoard {
 public:
@@ -25,7 +30,9 @@ public:
     bool Sdram() const override { return false; }
 
     std::optional<Vr4121DramWiring> DramWiring() const override {
-        return Vr4121DramWiring{ true, { kBank0ChipBytes, 0u, 0u, 0u } };
+        const uint32_t card = emu_.Get<BoardContext>().DramCardBytes();
+        return Vr4121DramWiring{ true, { kIbmWorkpadZ50DramBankBytes, 0u, ExpansionBankBytes(card, 0u),
+                                         ExpansionBankBytes(card, 1u) } };
     }
 
     std::vector<Vr41xxBcuBootWrite> KernelEntryWrites() const override {

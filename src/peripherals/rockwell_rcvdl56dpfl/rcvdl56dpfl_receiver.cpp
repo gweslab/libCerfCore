@@ -13,6 +13,7 @@ void Rcvdl56dpflReceiver::Reset() {
 void Rcvdl56dpflReceiver::LostCarrier() {
     CloseFrame();
     flags_detected_ = 0u;
+    deframer_.Reset();
 }
 
 void Rcvdl56dpflReceiver::CloseFrame() {
@@ -36,36 +37,68 @@ void Rcvdl56dpflReceiver::Accept(const Rcvdl56dpflLineConfig& c, const Rcvdl56dp
     switch (s.kind) {
         case Rcvdl56dpflSymbol::Kind::kChar:
             if (c.hdlc) {
-                TakeFrameByte(c, s.value, tick, overrun);
-                flags_detected_ = 0u;
+                FrameByte(c, s.value, tick, overrun);
                 return;
             }
             Push(c, s.value, (c.async && c.parity && c.data_bits == 8u && s.extra) ? kStatusRxp : 0u, tick, overrun);
             return;
         case Rcvdl56dpflSymbol::Kind::kMarkByte:
+        case Rcvdl56dpflSymbol::Kind::kBits:
+            if (c.hdlc) {
+                DeframeBits(c, s.value, tick, overrun);
+                return;
+            }
             Push(c, s.value, 0u, tick, overrun);
             return;
         case Rcvdl56dpflSymbol::Kind::kFlag:
             if (!c.hdlc) return;
-            if (fcs_.Bytes() != 0u)
-                DeliverHeld(c, static_cast<uint8_t>(kStatusSyncd | (fcs_.Good() ? 0u : kStatusPe)), tick, overrun);
-            CloseFrame();
-            flags_detected_ = 1u;
+            FlagReceived(c, tick, overrun);
             return;
         case Rcvdl56dpflSymbol::Kind::kAbort:
             if (!c.hdlc) return;
-            DeliverHeld(c, kStatusFe, tick, overrun);
-            CloseFrame();
-            flags_detected_ = 0u;
+            AbortReceived(c, tick, overrun);
             return;
         case Rcvdl56dpflSymbol::Kind::kPattern:
-            if (c.hdlc) {
-                DeliverHeld(c, kStatusFe, tick, overrun);
-                CloseFrame();
-                flags_detected_ = 0u;
-            }
+            if (c.hdlc) AbortReceived(c, tick, overrun);
             if (c.v54_detectors & (s.extra >> 2)) *v54_detected = true;
             return;
+    }
+}
+
+void Rcvdl56dpflReceiver::FrameByte(const Rcvdl56dpflLineConfig& c, uint8_t value, uint64_t tick, bool* overrun) {
+    TakeFrameByte(c, value, tick, overrun);
+    flags_detected_ = 0u;
+}
+
+void Rcvdl56dpflReceiver::FlagReceived(const Rcvdl56dpflLineConfig& c, uint64_t tick, bool* overrun) {
+    if (fcs_.Bytes() != 0u)
+        DeliverHeld(c, static_cast<uint8_t>(kStatusSyncd | (fcs_.Good() ? 0u : kStatusPe)), tick, overrun);
+    CloseFrame();
+    flags_detected_ = 1u;
+}
+
+void Rcvdl56dpflReceiver::AbortReceived(const Rcvdl56dpflLineConfig& c, uint64_t tick, bool* overrun) {
+    DeliverHeld(c, kStatusFe, tick, overrun);
+    CloseFrame();
+    flags_detected_ = 0u;
+}
+
+void Rcvdl56dpflReceiver::DeframeBits(const Rcvdl56dpflLineConfig& c, uint8_t bits, uint64_t tick, bool* overrun) {
+    for (uint8_t i = 0; i < 8u; ++i) {
+        uint8_t byte = 0u;
+        switch (deframer_.Bit(static_cast<uint8_t>((bits >> i) & 1u), &byte)) {
+            case Rcvdl56dpflHdlcDeframer::Event::kNone:
+                break;
+            case Rcvdl56dpflHdlcDeframer::Event::kByte:
+                FrameByte(c, byte, tick, overrun);
+                break;
+            case Rcvdl56dpflHdlcDeframer::Event::kFlag:
+                FlagReceived(c, tick, overrun);
+                break;
+            case Rcvdl56dpflHdlcDeframer::Event::kAbort:
+                AbortReceived(c, tick, overrun);
+                break;
+        }
     }
 }
 
@@ -121,6 +154,7 @@ void Rcvdl56dpflReceiver::SaveState(StateWriter& w) const {
     w.Write("rx_flags_detected", flags_detected_);
     w.Write("rx_rdbf", rdbf_);
     w.Write("rx_idle_event", idle_event_);
+    deframer_.SaveState(w);
 }
 
 void Rcvdl56dpflReceiver::RestoreState(StateReader& r) {
@@ -134,6 +168,7 @@ void Rcvdl56dpflReceiver::RestoreState(StateReader& r) {
     r.Read("rx_flags_detected", flags_detected_);
     r.Read("rx_rdbf", rdbf_);
     r.Read("rx_idle_event", idle_event_);
+    deframer_.RestoreState(r);
 }
 
 }

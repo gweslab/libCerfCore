@@ -55,7 +55,7 @@ protected:
     FloatingBus& Floating() { return floating_; }
 
     virtual const char* ChipName() const = 0;
-    virtual uint8_t     IndexReadLocked(uint32_t port) = 0;
+    virtual uint8_t     UnbankedIndexReadLocked(uint32_t port) = 0;
     virtual uint8_t     UnbankedDataReadLocked(uint32_t port) = 0;
     virtual void        UnbankedDataWriteLocked(uint8_t value) = 0;
     virtual bool        ChipOwns(uint8_t sub) const = 0;

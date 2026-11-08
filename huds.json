@@ -223,22 +223,16 @@
             { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
             { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
             { "button": { "keys": ["VK_OEM_PERIOD"] } }, { "button": { "keys": ["VK_OEM_2"] } },
-            { "grow": 1.5, "button": { "keys": ["VK_SHIFT"] } }
+            "jornada_up", { "button": { "keys": ["VK_SHIFT"] } }
           ]
         },
         {
           "row": [
             { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
             { "button": { "keys": ["VK_MENU"] } }, { "button": { "keys": ["VK_OEM_3"] } },
-            { "grow": 4, "button": { "keys": ["VK_SPACE"] } }, { "button": { "keys": ["VK_F12"] } },
+            { "grow": 4.5, "button": { "keys": ["VK_SPACE"] } }, { "button": { "keys": ["VK_F12"] } },
             { "button": { "keys": ["VK_DELETE"] } },
-            {
-              "grow": 3,
-              "column": [
-                { "row": [{ "grow": 1 }, "jornada_up", { "grow": 1 }] },
-                { "row": ["jornada_left", "jornada_down", "jornada_right"] }
-              ]
-            }
+            "jornada_left", "jornada_down", "jornada_right"
           ]
         }
       ]
@@ -385,13 +379,13 @@
             { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
             { "button": { "keys": ["VK_OEM_PERIOD"] } },
             { "button": { "keys": ["VK_OEM_2"], "held": { "VK_MENU": { "icon": "first_page" } } } },
-            "jornada_up", { "grow": 1.5, "button": { "keys": ["VK_SHIFT"] } }
+            "jornada_up", { "button": { "keys": ["VK_SHIFT"] } }
           ]
         },
         {
           "row": [
             { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
-            { "button": { "keys": ["VK_MENU"] } }, { "grow": 5, "button": { "keys": ["VK_SPACE"] } },
+            { "button": { "keys": ["VK_MENU"] } }, { "grow": 5.5, "button": { "keys": ["VK_SPACE"] } },
             { "button": { "keys": ["VK_OEM_4"] } }, { "button": { "keys": ["VK_OEM_6"] } },
             "jornada_left", "jornada_down", "jornada_right"
           ]
@@ -466,6 +460,83 @@
         }
       ]
     },
+    "workpad_z50_keyboard": {
+      "column": [
+        {
+          "grow": 0.45,
+          "row": [
+            {},
+            { "sticker": { "icon": "mail" } }, { "sticker": { "icon": "language" } },
+            { "sticker": { "icon": "calendar_month" } }, { "sticker": { "icon": "contacts" } },
+            { "sticker": { "icon": "checklist" } }, { "sticker": { "label": "W" } },
+            { "sticker": { "label": "X" } }, { "sticker": { "label": "P" } },
+            { "sticker": { "icon": "database" } }, { "sticker": { "icon": "calculate" } },
+            { "sticker": { "icon": "voicemail" } }, { "sticker": { "icon": "apps" } },
+            {}, {}, {}
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_ESCAPE"] } },
+            { "button": { "keys": ["VK_F1"], "label": "A1" } }, { "button": { "keys": ["VK_F2"], "label": "A2" } },
+            { "button": { "keys": ["VK_F3"], "label": "A3" } }, { "button": { "keys": ["VK_F4"], "label": "A4" } },
+            { "button": { "keys": ["VK_F5"], "label": "A5" } }, { "button": { "keys": ["VK_F6"], "label": "A6" } },
+            { "button": { "keys": ["VK_F7"], "label": "A7" } }, { "button": { "keys": ["VK_F8"], "label": "A8" } },
+            { "button": { "keys": ["VK_F9"], "label": "A9" } }, { "button": { "keys": ["VK_F10"], "label": "A10" } },
+            { "button": { "keys": ["VK_F11"], "label": "A11" } }, { "button": { "keys": ["VK_F12"], "label": "A12" } },
+            { "button": { "keys": ["VK_NUMLOCK"], "label": "NumLk" } }, { "button": { "keys": ["VK_DELETE"] } },
+            "jornada_power"
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_1"] } }, { "button": { "keys": ["VK_2"] } }, { "button": { "keys": ["VK_3"] } },
+            { "button": { "keys": ["VK_4"] } }, { "button": { "keys": ["VK_5"] } }, { "button": { "keys": ["VK_6"] } },
+            { "button": { "keys": ["VK_7"] } }, { "button": { "keys": ["VK_8"] } }, { "button": { "keys": ["VK_9"] } },
+            { "button": { "keys": ["VK_0"] } }, { "button": { "keys": ["VK_OEM_MINUS"] } },
+            { "button": { "keys": ["VK_OEM_PLUS"] } }, { "grow": 2, "button": { "keys": ["VK_BACK"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_OEM_3"] } },
+            { "button": { "keys": ["VK_Q"] } }, { "button": { "keys": ["VK_W"] } }, { "button": { "keys": ["VK_E"] } },
+            { "button": { "keys": ["VK_R"] } }, { "button": { "keys": ["VK_T"] } }, { "button": { "keys": ["VK_Y"] } },
+            { "button": { "keys": ["VK_U"] } }, { "button": { "keys": ["VK_I"] } }, { "button": { "keys": ["VK_O"] } },
+            { "button": { "keys": ["VK_P"] } }, { "button": { "keys": ["VK_OEM_4"] } },
+            { "button": { "keys": ["VK_OEM_6"] } }, { "button": { "keys": ["VK_OEM_5"] } }
+          ]
+        },
+        {
+          "row": [
+            { "grow": 1.5, "button": { "keys": ["VK_TAB"] } },
+            { "button": { "keys": ["VK_A"] } }, { "button": { "keys": ["VK_S"] } }, { "button": { "keys": ["VK_D"] } },
+            { "button": { "keys": ["VK_F"] } }, { "button": { "keys": ["VK_G"] } }, { "button": { "keys": ["VK_H"] } },
+            { "button": { "keys": ["VK_J"] } }, { "button": { "keys": ["VK_K"] } }, { "button": { "keys": ["VK_L"] } },
+            { "button": { "keys": ["VK_OEM_1"] } }, { "button": { "keys": ["VK_OEM_7"] } },
+            { "grow": 1.5, "button": { "keys": ["VK_RETURN"] } }
+          ]
+        },
+        {
+          "row": [
+            { "grow": 2, "button": { "keys": ["VK_SHIFT"] } },
+            { "button": { "keys": ["VK_Z"] } }, { "button": { "keys": ["VK_X"] } }, { "button": { "keys": ["VK_C"] } },
+            { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
+            { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
+            { "button": { "keys": ["VK_OEM_PERIOD"] } }, { "button": { "keys": ["VK_OEM_2"] } },
+            "jornada_up", { "button": { "keys": ["VK_RSHIFT"], "label": "Shift" } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
+            { "button": { "keys": ["VK_MENU"] } }, { "grow": 6, "button": { "keys": ["VK_SPACE"] } },
+            { "button": { "keys": ["VK_RMENU"] } }, { "button": { "keys": ["VK_RCONTROL"], "label": "Ctrl" } },
+            "jornada_left", "jornada_down", "jornada_right"
+          ]
+        }
+      ]
+    },
     "mobilon_keyboard": {
       "column": [
         {
@@ -529,13 +600,13 @@
             { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
             { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
             { "button": { "keys": ["VK_OEM_PERIOD"] } }, { "button": { "keys": ["VK_OEM_2"] } },
-            "jornada_up", { "grow": 1.5, "button": { "keys": ["VK_RSHIFT"] } }
+            "jornada_up", { "button": { "keys": ["VK_RSHIFT"] } }
           ]
         },
         {
           "row": [
             { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
-            { "button": { "keys": ["VK_MENU"] } }, { "grow": 4, "button": { "keys": ["VK_SPACE"] } },
+            { "button": { "keys": ["VK_MENU"] } }, { "grow": 5.5, "button": { "keys": ["VK_SPACE"] } },
             { "button": { "keys": ["VK_OEM_4"] } }, { "button": { "keys": ["VK_OEM_6"] } },
             "jornada_left", "jornada_down", "jornada_right"
           ]
@@ -684,6 +755,15 @@
       "gap": 0.01,
       "panels": [
         { "side": "bottom", "align": "center", "width": 1.0, "height": 0.4, "content": "cronos3e_keyboard" }
+      ]
+    },
+    {
+      "id": "ibm_workpad_z50",
+      "name": "IBM WorkPad z50",
+      "board_family_ids": ["ibm_workpad_z50"],
+      "gap": 0.01,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.42, "content": "workpad_z50_keyboard" }
       ]
     },
     {

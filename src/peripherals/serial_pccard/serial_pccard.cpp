@@ -76,7 +76,7 @@ void SerialPcCard::OnInserted() {
         Serial16550::Config{/*ier_mask=*/0x0Fu,
                             /*irq_gate_mcr=*/0x08u,
                             0u},
-        *this);
+        Serial16550::Clock{1843200u, 1u}, *this);
     uart_->SetActivityWidget(slot_);
     endpoint_->BindUart(*uart_);
     uart_->SetEndpoint(endpoint_.get());

@@ -95,10 +95,8 @@ void RicohRf5c396::TrackGpiLocked(int bank) {
         Exca(bank).LatchGpiChange();
 }
 
-uint8_t RicohRf5c396::IndexReadLocked(uint32_t port) {
-    if ((IndexLocked() >> 6) >= kSockets)
-        return Floating().Read8("RF5C396 index register", port);
-    return IndexLocked();
+uint8_t RicohRf5c396::UnbankedIndexReadLocked(uint32_t port) {
+    return Floating().Read8("RF5C396 index register", port);
 }
 
 uint8_t RicohRf5c396::UnbankedDataReadLocked(uint32_t port) {

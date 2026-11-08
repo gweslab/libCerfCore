@@ -27,9 +27,12 @@ struct Rcvdl56dpflLineConfig {
     uint8_t  v54_pattern       = 0u;
     uint8_t  v54_detectors     = 0u;
     bool     loop_listens      = false;
+    bool     far_end_listens   = false;
     uint8_t  rx_trigger        = 1u;
     bool     rx_timeout        = false;
     uint8_t  rx_timeout_bits   = 9u;
+
+    uint32_t AsyncCharBits() const { return 1u + data_bits + (parity ? 1u : 0u) + stop_bits; }
 };
 
 }

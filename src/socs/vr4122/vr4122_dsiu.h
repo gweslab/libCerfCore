@@ -12,9 +12,8 @@ namespace cerfcore {
 class Vr4122Dsiu : public Uart16550 {
 public:
     explicit Vr4122Dsiu(CerfEmulator& emu)
-        : Uart16550(emu, Config{/*ier_mask=*/0x0Fu,
-                                /*irq_gate_mcr=*/0u,
-                                /*irq_gate_ier=*/0u}) {}
+        : Uart16550(emu, Config{.ier_mask = 0x0Fu, .irq_gate_mcr = 0u, .irq_gate_ier = 0u},
+                    Clock{18432000u, 1u}) {}
 
     bool ShouldRegister() override;
 

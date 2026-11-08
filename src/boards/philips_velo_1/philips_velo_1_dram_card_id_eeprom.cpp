@@ -17,6 +17,23 @@ constexpr uint8_t  kTupleType        = 2u;
 constexpr uint8_t  kDevicePresent    = 0x01u;
 constexpr uint8_t  kRefreshByte      = 127u;
 
+constexpr bool CardGeometryHolds() {
+    for (const PhilipsVelo1DramCardProfile& p : kPhilipsVelo1DramCards) {
+        if ((uint64_t{2} << (p.row_bits + p.column_bits)) != (uint64_t{p.megabytes} << 20)) {
+            return false;
+        }
+    }
+    return true;
+}
+static_assert(CardGeometryHolds());
+
+const PhilipsVelo1DramCardProfile* CardProfile(uint32_t card_bytes) {
+    for (const PhilipsVelo1DramCardProfile& p : kPhilipsVelo1DramCards) {
+        if ((uint32_t{p.megabytes} << 20) == card_bytes) return &p;
+    }
+    return nullptr;
+}
+
 }
 
 REGISTER_SERVICE(PhilipsVelo1DramCardIdEeprom);
@@ -24,12 +41,11 @@ REGISTER_SERVICE(PhilipsVelo1DramCardIdEeprom);
 bool PhilipsVelo1DramCardIdEeprom::ShouldRegister() {
     auto* bd = emu_.TryGet<BoardContext>();
     return bd && bd->GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1 &&
-           FindPhilipsVelo1DramCard(bd->GetBoardId()) != nullptr;
+           CardProfile(bd->DramCardBytes()) != nullptr;
 }
 
 void PhilipsVelo1DramCardIdEeprom::FillCells() {
-    const PhilipsVelo1DramCardProfile& card =
-        *FindPhilipsVelo1DramCard(emu_.Get<BoardContext>().GetBoardId());
+    const PhilipsVelo1DramCardProfile& card = *CardProfile(emu_.Get<BoardContext>().DramCardBytes());
     auto& id_rom = Cells();
     id_rom.fill(0);
     id_rom[16]  = kSignature;

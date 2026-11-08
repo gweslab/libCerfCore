@@ -172,9 +172,9 @@ void NecVrc4171a::WriteTopLevel(uint32_t port, uint16_t value) {
     }
 }
 
-uint8_t NecVrc4171a::IndexReadLocked(uint32_t port) {
-    emu_.Get<Fatal>().Die("[VRC4171A] read of the index register at port 0x%03X, whose read-back the VRC4171A "
-                          "does not document", port);
+uint8_t NecVrc4171a::UnbankedIndexReadLocked(uint32_t port) {
+    emu_.Get<Fatal>().Die("[VRC4171A] read of the index register at port 0x%03X holding INDEX 0x%02X, past the "
+                          "documented index range", port, IndexLocked());
 }
 
 uint8_t NecVrc4171a::UnbankedDataReadLocked(uint32_t port) {

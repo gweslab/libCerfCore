@@ -5,7 +5,6 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
-#include "philips_velo_1_dram_card_profile.h"
 #include "philips_velo_1_family_id.h"
 
 #include <cstdint>
@@ -74,18 +73,18 @@ public:
 
         RequireRamEndWithin(*hdr, kDramVaBase, kDramSize);
 
-        card_ = FindPhilipsVelo1DramCard(emu_.Get<BoardContext>().GetBoardId());
+        card_bytes_ = emu_.Get<BoardContext>().DramCardBytes();
 
         LOG(Boot, "PhilipsVelo1PageTableBuilder: ROM kva=0x%08X pa=0x%08X size=0x%X, "
                   "DRAM pa=0x%08X size=0x%X span=0x%X (ulRAMEnd=0x%08X), "
                   "DRAM card size=0x%X\n",
             rom_.va_base, rom_.pa_base, rom_.size, kDramPaBase, kDramSize,
-            kDramDecodeSpan, hdr->ulRAMEnd, card_ ? card_->Bytes() : 0u);
+            kDramDecodeSpan, hdr->ulRAMEnd, card_bytes_);
     }
 
     std::vector<DramRegion> CachedDramRegions() const override {
         std::vector<DramRegion> r = { { kDramVaBase, kDramPaBase, kDramSize } };
-        if (card_) r.push_back({ kBank1VaBase, kBank1PaBase, card_->Bytes() });
+        if (card_bytes_) r.push_back({ kBank1VaBase, kBank1PaBase, card_bytes_ });
         return r;
     }
 
@@ -93,8 +92,8 @@ public:
         std::vector<BackedRegion> r = {
             { kDramVaBase, kDramPaBase, kDramSize, MemoryKind::kRam, kDramDecodeSpan },
         };
-        if (card_) {
-            r.push_back({ kBank1VaBase, kBank1PaBase, card_->Bytes(), MemoryKind::kRam,
+        if (card_bytes_) {
+            r.push_back({ kBank1VaBase, kBank1PaBase, card_bytes_, MemoryKind::kRam,
                           kBank1DecodeSpan });
         }
         r.push_back({ rom_.va_base, rom_.pa_base, rom_.size, MemoryKind::kRom });
@@ -103,7 +102,7 @@ public:
 
     std::vector<DramRegion> MappedVaSpans() const override {
         std::vector<DramRegion> r = { { kDramVaBase, kDramPaBase, kDramDecodeSpan } };
-        if (card_) r.push_back({ kBank1VaBase, kBank1PaBase, kBank1DecodeSpan });
+        if (card_bytes_) r.push_back({ kBank1VaBase, kBank1PaBase, kBank1DecodeSpan });
         r.push_back(rom_);
         r.push_back({ kRegsVaBase, kRegsPaBase, kRegsSize });
         return r;
@@ -111,7 +110,7 @@ public:
 
 private:
     DramRegion rom_{};
-    const PhilipsVelo1DramCardProfile* card_ = nullptr;
+    uint32_t   card_bytes_ = 0;
 };
 
 }  /* namespace */

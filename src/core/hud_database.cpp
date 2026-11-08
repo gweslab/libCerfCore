@@ -42,6 +42,7 @@ constexpr char kGrow[]           = "grow";
 constexpr char kKeys[]           = "keys";
 constexpr char kLabel[]          = "label";
 constexpr char kIcon[]           = "icon";
+constexpr char kSticker[]        = "sticker";
 constexpr char kAction[]         = "action";
 constexpr char kHeld[]           = "held";
 constexpr char kUp[]             = "up";
@@ -124,6 +125,9 @@ public:
         } else if (const auto dpad = value.find(kDpad); dpad != value.end()) {
             node.kind = HudNode::Kind::kDpad;
             node.dpad = Dpad(*dpad);
+        } else if (const auto sticker = value.find(kSticker); sticker != value.end()) {
+            node.kind    = HudNode::Kind::kSticker;
+            node.sticker = Face(*sticker);
         } else {
             node.kind = HudNode::Kind::kSpace;
         }
