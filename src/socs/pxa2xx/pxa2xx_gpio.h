@@ -14,6 +14,7 @@ public:
     virtual ~Pxa2xxGpioSerialSlave() = default;
     virtual void     OnGuestWrite(uint32_t off, uint32_t value) = 0;
     virtual uint32_t DriveGplr(uint32_t bank) = 0;
+    virtual void     OnGpioReset() = 0;
     virtual void SaveState(StateWriter& w) = 0;
     virtual void RestoreState(StateReader& r) = 0;
 };

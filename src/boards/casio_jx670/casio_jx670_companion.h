@@ -49,6 +49,8 @@ public:
     const uint8_t* FbBytes() const { return display_.FbBytes(); }
 
 private:
+    void PowerOnRegisters();
+
     static constexpr uint32_t kBase       = 0x0A000000u;
     static constexpr uint32_t kWindowSize = 0x00240000u;
 

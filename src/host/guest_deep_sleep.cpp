@@ -6,7 +6,6 @@
 #include <cerfcore/core/log.h>
 #include "../core/steady_time.h"
 #include "../execution/engine_bridge.h"
-#include <cerfcore/state/emulation_freeze.h>
 #include <cerfcore/state/shutdown_action.h>
 #include <cerfcore/host/guest_power_notifier.h>
 #include <cerfcore/host/notification_stack.h>
@@ -255,8 +254,7 @@ void GuestDeepSleep::Recover() {
     const bool hw_resumed = hw_resumed_.exchange(false);
     active_.store(false);
     if (c == ShutdownChoice::Cancel) {
-        if (!hw_resumed)
-            emu_.Get<EmulationFreeze>().RunOrQueue([this] { DeliverWake(ResumeSource::User); });
+        if (!hw_resumed) DeliverWake(ResumeSource::User);
         return;
     }
     const bool resets = c == ShutdownChoice::SoftReset || c == ShutdownChoice::HardReset;

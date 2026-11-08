@@ -1,3 +1,4 @@
+#include "odo_dma_pointer_pair.h"
 #include "p2_fpga_serial.h"
 
 #include <cerfcore/peripherals/peripheral_base.h>
@@ -9,6 +10,7 @@
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../tracing/kernel_debug_sink.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -23,12 +25,6 @@ namespace {
 /* PRODUCT_SER (PA 0x10004000, slot 4) + IR_SER (PA 0x10008000,
    slot 3). Same SERB_TX_EN 0→1 dispatch as DEBUG_SER. */
 
-constexpr uint32_t kDramPaBase = 0x0C000000u;
-
-constexpr uint32_t kSlotDmaLow  = 0x00u;
-constexpr uint32_t kSlotDmaHigh = 0x04u;
-constexpr uint32_t kDmaPairSize = 0x08u;
-
 constexpr uint32_t kProductSerCsrPa     = 0x10004000u;
 constexpr uint32_t kProductSerTxDmaPa   = 0x10090810u;
 constexpr uint32_t kProductSerRxDmaPa   = 0x10080810u;
@@ -36,74 +32,32 @@ constexpr uint32_t kIrSerCsrPa          = 0x10008000u;
 constexpr uint32_t kIrSerTxDmaPa        = 0x10070810u;
 constexpr uint32_t kIrSerRxDmaPa        = 0x10060810u;
 
-class P2DmaPair : public Peripheral {
+class P2DmaPair : public OdoDmaPointerPair {
 public:
-    using Peripheral::Peripheral;
+    using OdoDmaPointerPair::OdoDmaPointerPair;
 
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
-    }
-    void OnReady() override {
-        emu_.Get<PeripheralDispatcher>().Register(this);
-    }
-
-    uint32_t MmioSize() const override final { return kDmaPairSize; }
     virtual const char* PortName() const = 0;
 
     void WriteHalf(uint32_t addr, uint16_t value) override {
         const uint32_t off = addr - MmioBase();
-        if (off != kSlotDmaLow && off != kSlotDmaHigh) {
-            HaltUnsupportedAccess("WriteHalf", addr, value);
-        }
+        if (!IsSlot(off)) HaltUnsupportedAccess("WriteHalf", addr, value);
 #if CERF_DEV_MODE
         LOG(SocUart, "Odo %s TX_DMA write +0x%02X = 0x%04X\n",
             PortName(), off, value);
 #endif
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        if (off == kSlotDmaLow) dma_low_  = value;
-        else                    dma_high_ = value;
+        Store(off, value);
     }
 
     uint16_t ReadHalf(uint32_t addr) override {
         const uint32_t off = addr - MmioBase();
-        uint16_t value;
-        {
-            std::lock_guard<std::mutex> lk(state_mutex_);
-            if      (off == kSlotDmaLow)  value = dma_low_;
-            else if (off == kSlotDmaHigh) value = dma_high_;
-            else HaltUnsupportedAccess("ReadHalf", addr, 0);
-        }
+        if (!IsSlot(off)) HaltUnsupportedAccess("ReadHalf", addr, 0);
+        const uint16_t value = Load(off);
 #if CERF_DEV_MODE
         LOG(SocUart, "Odo %s read  +0x%02X -> 0x%04X\n",
             PortName(), off, value);
 #endif
         return value;
     }
-
-    uint32_t GetEffectivePa() {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        const uint32_t chip_addr =
-            (static_cast<uint32_t>(dma_high_ & 0xFFu) << 16) |
-            static_cast<uint32_t>(dma_low_);
-        return kDramPaBase + chip_addr;
-    }
-
-    void SaveState(StateWriter& w) override {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        w.Write("dma_low", dma_low_);
-        w.Write("dma_high", dma_high_);
-    }
-    void RestoreState(StateReader& r) override {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        r.Read("dma_low", dma_low_);
-        r.Read("dma_high", dma_high_);
-    }
-
-private:
-    mutable std::mutex state_mutex_;
-    uint16_t           dma_low_  = 0;
-    uint16_t           dma_high_ = 0;
 };
 
 class OdoProductSerialTxDma : public P2DmaPair {
@@ -148,6 +102,7 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { core_.PowerOn(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

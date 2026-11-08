@@ -10,6 +10,23 @@ void Omap3530Gpmc::OnReady() {
     /* In-RAM blank NAND for CS0 - 256 MB of 0xFF. */
     nand_[0].storage.assign(kStorageSize, 0xFFu);
     WriteCeBootMbr();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        {
+            std::lock_guard<std::mutex> lk(irq_mu_);
+            irq_status_ = 0;
+            irq_enable_ = 0;
+        }
+        if (kind != ResetLineKind::Rtc) return;
+        std::lock_guard<std::mutex> lk(nand_mu_);
+        for (NandChip& chip : nand_) {
+            chip.data_offset    = 0;
+            chip.data_remaining = 0;
+            chip.state          = NandState::Idle;
+            chip.id_byte_index  = 0;
+            chip.addr_idx       = 0;
+            for (uint8_t& b : chip.addr_bytes) b = 0;
+        }
+    });
 }
 
 void Omap3530Gpmc::WriteCeBootMbr() {

@@ -8,7 +8,6 @@
 #include "sa1110_id.h"
 #include "sa1100_id.h"
 #include <cerfcore/host/guest_deep_sleep.h>
-#include "../../execution/engine_bridge.h"
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
 #include "sa11xx_test_unit.h"
@@ -22,6 +21,9 @@ namespace {
 /* SA-1110 Dev Man §9.6.1: RSRR +0x0 bit 0 SWR=1 triggers chip
    software reset. RCSR +0x4 is W1C on bits 3:0 = SMR|WDR|SWR|HWR;
    HWR cold-resets to 1, others to 0; bits 31:4 reserved. */
+
+constexpr uint32_t kRcsrHwr = 0x1u;
+constexpr uint32_t kRcsrSwr = 0x2u;
 
 class Sa11xxResetController : public Peripheral,
                              public ResetCauseLatch,
@@ -45,14 +47,15 @@ public:
        startup (nk @0x411E0) needs RCSR&7 != 0; a causeless reset reads
        as sleep-exit and resumes from a stale save block (UND loop). */
     void LatchWarmReset() override {
-        rcsr_.fetch_or(0x2u, std::memory_order_acq_rel);
+        rcsr_.fetch_or(kRcsrSwr, std::memory_order_acq_rel);
     }
     void LatchColdReset() override {
-        rcsr_.fetch_or(0x1u, std::memory_order_acq_rel);
+        rcsr_.store(kRcsrHwr, std::memory_order_release);
     }
     void LatchWatchdogReset() override {
         rcsr_.fetch_or(0x4u, std::memory_order_acq_rel);
     }
+    void ReportOnlyWarmReset() override { rcsr_.store(kRcsrSwr, std::memory_order_release); }
     /* DeepSleepWaker: §9.6.1.2 RCSR bit3 SMR (sleep-mode reset) - the OAL boot
        path reads it and takes its sleep-resume branch. */
     void LatchSleepWakeCause() override {
@@ -74,9 +77,7 @@ public:
     void RestoreState(StateReader& r) override;
 
 private:
-    /* Atomic: latched from host/timer threads while the JIT thread
-       reads/W1C-clears it. */
-    std::atomic<uint32_t> rcsr_{0x1u};  /* HWR cold-reset state per §9.6.1.2. */
+    std::atomic<uint32_t> rcsr_{kRcsrHwr};
 
     Sa11xxTestUnit* test_unit_ = nullptr;
 
@@ -90,10 +91,9 @@ private:
            reset reason so the kernel can identify the source on the
            re-entered boot path. */
         if ((value & 0x1u) == 0) return;
-        const uint32_t rcsr = rcsr_.fetch_or(0x2u, std::memory_order_acq_rel) | 0x2u;
+        emu_.Get<GuestCpuReset>().WarmReset();
         LOG(SocReset, "RSRR SWR=1: triggering guest reset (rcsr_=0x%08X)\n",
-            rcsr);
-        emu_.Get<EngineBridge>().Guest().SetResetPending(false);
+            rcsr_.load(std::memory_order_acquire));
     }
 };
 

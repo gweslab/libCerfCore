@@ -26,6 +26,8 @@ protected:
         }
         return nullptr;
     }
+
+    bool KeptByWarmReset(uint32_t off) const override { return off == 0x20u || off == 0x4Cu; }
 };
 
 }  /* namespace */

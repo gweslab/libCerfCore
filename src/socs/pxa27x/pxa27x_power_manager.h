@@ -35,6 +35,7 @@ public:
     void LatchWarmReset() override;
     void LatchColdReset() override;
     void LatchWatchdogReset() override;
+    void ReportOnlyWarmReset() override;
 
     void OnInputEdges(uint32_t rose, uint32_t fell) override;
 
@@ -61,7 +62,7 @@ private:
     std::atomic<uint32_t> prer_{0x3u};
     std::atomic<uint32_t> pfer_{0x3u};
     std::atomic<uint32_t> pedr_{0u};
-    std::atomic<uint32_t> rcsr_{0u};
+    std::atomic<uint32_t> rcsr_{0x1u};
     std::atomic<uint32_t> wake_edges_{0u};
     std::atomic<bool>     asleep_{false};
 };

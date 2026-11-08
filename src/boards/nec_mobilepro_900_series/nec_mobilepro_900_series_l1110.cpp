@@ -6,6 +6,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "nec_mobilepro_900_series_family_id.h"
 #include "nec_mobilepro_900_series_pcmcia.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 namespace cerfcore {
 
@@ -15,6 +16,7 @@ bool NecMobilepro900SeriesL1110::ShouldRegister() {
 }
 
 void NecMobilepro900SeriesL1110::OnReady() {
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { prc_ = 0; });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 

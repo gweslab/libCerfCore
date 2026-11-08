@@ -86,7 +86,10 @@ private:
     }
     static bool IsUsbHost(uint32_t roff) { return roff >= kUsbLo && roff <= kUsbHi; }
 
+    static constexpr uint32_t kPaletteEntries  = 256u;
+
     uint32_t Reg(uint32_t roff) const { return reg_[roff / 4u]; }
+    void     ResetRegisters();
     uint32_t RegRead(uint32_t addr);
     void     RegWrite(uint32_t addr, uint32_t value);
     void     PublishScreenSizeOnEnableEdge();

@@ -7,7 +7,6 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
-#include <cerfcore/state/emulation_freeze.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -147,26 +146,24 @@ void Pm8058Keypad::WriteReg(uint16_t reg, uint8_t value) {
 }
 
 void Pm8058Keypad::SetKeyPressed(uint32_t drive, uint32_t sense, bool pressed) {
-    emu_.Get<EmulationFreeze>().RunOrQueue([this, drive, sense, pressed] {
-        std::lock_guard<std::mutex> lk(mtx_);
-        if (drive >= DriveLines() || sense >= SenseLines()) {
-            emu_.Get<Fatal>().Die(
-                "pm8058 keypad: key at drive %u sense %u is outside the %ux%u "
-                "matrix the block is programmed to scan",
-                drive, sense, DriveLines(), SenseLines());
-        }
+    std::lock_guard<std::mutex> lk(mtx_);
+    if (drive >= DriveLines() || sense >= SenseLines()) {
+        emu_.Get<Fatal>().Die(
+            "pm8058 keypad: key at drive %u sense %u is outside the %ux%u "
+            "matrix the block is programmed to scan",
+            drive, sense, DriveLines(), SenseLines());
+    }
 
-        const uint8_t mask   = (uint8_t)(1u << sense);
-        const uint8_t before = state_[drive];
-        if (pressed) {
-            state_[drive] &= (uint8_t)~mask;
-        } else {
-            state_[drive] |= mask;
-        }
-        if (state_[drive] == before) return;
+    const uint8_t mask   = (uint8_t)(1u << sense);
+    const uint8_t before = state_[drive];
+    if (pressed) {
+        state_[drive] &= (uint8_t)~mask;
+    } else {
+        state_[drive] |= mask;
+    }
+    if (state_[drive] == before) return;
 
-        CaptureScan();
-    });
+    CaptureScan();
 }
 
 void Pm8058Keypad::CaptureScan() {

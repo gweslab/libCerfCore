@@ -22,6 +22,13 @@ public:
     cerfengine::MipsIsaLevel IsaLevel() const { return isa_level_; }
     uint32_t     DeviceIpMask() const { return device_ip_mask_; }
 
+    uint32_t ConfigReset()    const { return config_reset_; }
+    uint32_t ConfigWritable() const { return config_writable_; }
+    uint32_t ConfigZeroOnly() const { return config_zero_only_; }
+    uint32_t StatusReset()    const { return status_reset_; }
+    uint32_t StatusWritable() const { return status_writable_; }
+    uint32_t StatusZeroOnly() const { return status_zero_only_; }
+
     bool HasFpu()              const { return fpu_; }
     bool HasLlsc()             const { return llsc_; }
     bool HasCounter()          const { return counter_; }
@@ -43,6 +50,12 @@ private:
     uint32_t     min_page_shift_ = 0;
     uint32_t     phys_addr_mask_ = 0;
     uint32_t     device_ip_mask_ = 0;
+    uint32_t     config_reset_     = 0;
+    uint32_t     config_writable_  = 0;
+    uint32_t     config_zero_only_ = 0;
+    uint32_t     status_reset_     = 0;
+    uint32_t     status_writable_  = 0;
+    uint32_t     status_zero_only_ = 0;
     cerfengine::MipsIsaLevel isa_level_ = cerfengine::MipsIsaLevel::kMips1;
 
     bool fpu_                = false;

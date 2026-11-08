@@ -4,6 +4,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "imx31_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -28,7 +29,8 @@ public:
         return bd && bd->GetSocId() == SocId::Imx31;
     }
     void OnReady() override {
-        for (uint32_t i = 0; i < kSlavePorts; ++i) mpr_[i] = kMprReset;
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -51,6 +53,14 @@ public:
     }
 
 private:
+    void ResetRegisters() {
+        for (uint32_t i = 0; i < kSlavePorts; ++i) {
+            mpr_[i]   = kMprReset;
+            sgpcr_[i] = 0u;
+        }
+        for (uint32_t& v : mgpcr_) v = 0u;
+    }
+
     uint32_t mpr_   [kSlavePorts]  = {};   /* offset 0x000 + N*0x100 */
     uint32_t sgpcr_ [kSlavePorts]  = {};   /* offset 0x010 + N*0x100 */
     uint32_t mgpcr_ [kMasterPorts] = {};   /* offset 0x800 + M*0x100 */

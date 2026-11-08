@@ -6,8 +6,11 @@
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <mutex>
 
 namespace cerfcore {
@@ -51,8 +54,18 @@ public:
         return bd && bd->GetSocId() == SocId::Omap3530;
     }
     void OnReady() override {
-        dsi_   [kDsiSysstatus / 4u] = kSysstatusResetDone;
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
+    }
+
+    void ResetRegisters() {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        std::fill(std::begin(dsi_), std::end(dsi_), 0u);
+        std::fill(std::begin(dsi_phy_), std::end(dsi_phy_), 0u);
+        std::fill(std::begin(dsi_pll_), std::end(dsi_pll_), 0u);
+        pll_locked_ = false;
+        dsi_[kDsiSysstatus / 4u] = kSysstatusResetDone;
     }
 
     uint32_t MmioBase() const override { return kBasePa; }

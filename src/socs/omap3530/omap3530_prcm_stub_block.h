@@ -32,6 +32,18 @@ public:
     }
     void OnReady() override {
         regs_.resize(MmioSize() / 4u, 0u);
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            std::lock_guard<std::mutex> lk(mu_);
+            const std::vector<uint32_t> before = regs_;
+            if (kind != ResetLineKind::Rtc) {
+                for (uint32_t i = 0; i < regs_.size(); ++i)
+                    if (!KeptByWarmReset(i * 4u)) regs_[i] = 0u;
+            } else {
+                std::fill(regs_.begin(), regs_.end(), 0u);
+                SeedPowerOnLocked(before);
+            }
+            AfterResetLocked(before);
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -52,6 +64,9 @@ public:
 protected:
     virtual const char* Label() const = 0;
     virtual const char* RegisterName(uint32_t off) const = 0;
+    virtual void        SeedPowerOnLocked(const std::vector<uint32_t>&) {}
+    virtual void        AfterResetLocked(const std::vector<uint32_t>&) {}
+    virtual bool        KeptByWarmReset(uint32_t) const { return false; }
 
     /* regs_ is sized in OnReady (MmioSize/4), which runs before restore, so
        the blob length matches on both sides for the same concrete. */
@@ -144,6 +159,11 @@ public:
         }
         return Omap3530PrcmStubBlock::ReadWord(addr);
     }
+
+protected:
+    bool KeptByWarmReset(uint32_t off) const override {
+        return off == 0x58u || off == 0xE4u || off == 0xE8u;
+    }
 };
 
 class Omap3530GpioBankBase : public Omap3530PrcmStubBlock {
@@ -172,6 +192,12 @@ public:
             RecomputeIrqLineLocked();
         });
     }
+
+    void SeedPowerOnLocked(const std::vector<uint32_t>& before) override {
+        regs_[0x38u / 4u] = before[0x38u / 4u];
+    }
+
+    bool KeptByWarmReset(uint32_t off) const override { return off == 0x38u; }
 
     void SetInputPin(uint32_t bit, bool high) {
         std::lock_guard<std::mutex> lk(mu_);

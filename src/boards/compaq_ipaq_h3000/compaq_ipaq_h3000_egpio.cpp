@@ -5,6 +5,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "compaq_ipaq_h3000_family_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "compaq_ipaq_h3000_egpio_sink.h"
 
@@ -16,6 +17,10 @@ bool CompaqIpaqH3000Egpio::ShouldRegister() {
 }
 
 void CompaqIpaqH3000Egpio::OnReady() {
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        latched_.store(0u, std::memory_order_release);
+    });
+    emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] { NotifySink(); });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 

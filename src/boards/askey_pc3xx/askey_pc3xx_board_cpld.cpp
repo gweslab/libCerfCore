@@ -5,12 +5,13 @@
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "askey_pc3xx_family_id.h"
-#include "../../execution/engine_bridge.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include "../../socs/pxa255/pxa255_gpio.h"
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
+#include <cstring>
 
 namespace cerfcore {
 
@@ -29,6 +30,15 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::AskeyPc3xx;
     }
     void OnReady() override {
+        auto& reset = emu_.Get<GuestCpuReset>();
+        reset.RegisterResetListener([this](ResetLineKind kind) {
+            power_on_ = kind == ResetLineKind::Rtc;
+            if (power_on_) std::memset(regs_, 0, sizeof(regs_));
+        });
+        reset.RegisterResetReleaseListener([this, &reset] {
+            if (reset.DeliveredResetReportedWarm()) SetRamValid(true);
+            else if (power_on_) SetRamValid(false);
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -56,16 +66,18 @@ private:
     static constexpr uint32_t kRebootCmd = 3u;
 
     void TriggerReset() {
-        LOG(SocReset, "Falcon CPLD PA 0xA3CC380C=3: board reboot -> SetResetPending\n");
-        /* Warm reset retains SDRAM. The OAL board-init (nk.exe sub_800F3FFC)
-           clears the CE object-store header (memset ulRAMFree) when GPIO pins
-           2,3 read low; assert RAM-valid or the registry (incl HKLM\Comm\
-           BootCount) is wiped each reboot and WarmCheck loops forever. */
-        auto& gpio = emu_.Get<Pxa255Gpio>();
-        gpio.SetInputLevel(2, true);
-        gpio.SetInputLevel(3, true);
-        emu_.Get<EngineBridge>().Guest().SetResetPending(false);
+        LOG(SocReset, "Falcon CPLD PA 0xA3CC380C=3: board reboot\n");
+        SetRamValid(true);
+        emu_.Get<GuestCpuReset>().WarmReset();
     }
+
+    void SetRamValid(bool valid) {
+        auto& gpio = emu_.Get<Pxa255Gpio>();
+        gpio.SetInputLevel(2, valid);
+        gpio.SetInputLevel(3, valid);
+    }
+
+    bool power_on_ = false;
 
     /* +4 tail so a word access at the last in-range offset (0xFFF) cannot
        overrun; the guest only addresses off < 0x1000 (dispatcher contract). */

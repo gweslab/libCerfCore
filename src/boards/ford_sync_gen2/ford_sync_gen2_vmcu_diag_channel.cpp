@@ -70,6 +70,11 @@ void FordSyncGen2VmcuDiagChannel::OnLinkReset() {
     tx_seq_[1] = 0u;
 }
 
+void FordSyncGen2VmcuDiagChannel::PowerOn() {
+    OnLinkReset();
+    handle_ = 0u;
+}
+
 void FordSyncGen2VmcuDiagChannel::SaveState(StateWriter& w) {
     w.Write("tx_seq", tx_seq_[0]);
     w.Write("tx_seq", tx_seq_[1]);

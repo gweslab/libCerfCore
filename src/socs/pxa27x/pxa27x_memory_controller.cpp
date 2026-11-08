@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 
@@ -24,6 +25,10 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa270;
     }
     void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            if (kind != ResetLineKind::Other) ResetRegisters();
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -50,11 +55,34 @@ private:
 
     static bool IsRegister(uint32_t off);
 
-    /* Reset rows, '?' cells taken as 0: Table 6-23 (page 6-43) MDCNFG,
-       Table 6-26 (page 6-53) MDREFR, Table 6-28 (page 6-70) MSC0/1/2. */
-    uint32_t regs_[(kSa1110 / 4u) + 1u] = {
-        0x0B000B00u, 0x23CA4FFFu, 0x7FF07FF0u, 0x7FF07FF0u, 0x7FF07FF0u,
+    struct ResetBits {
+        uint32_t off;
+        uint32_t mask;
+        uint32_t value;
     };
+
+    static constexpr ResetBits kResetBits[] = {
+        {kMdcnfg,    0xFFFFFFFFu, 0x0B000B00u}, {kMdrefr,   0xFFDFEFFFu, 0x23CA4FFFu},
+        {kMsc0,      0xFFFFFFF7u, 0x7FF07FF0u}, {kMsc1,     0xFFFFFFF7u, 0x7FF07FF0u},
+        {kMsc2,      0xFFFFFFF7u, 0x7FF07FF0u}, {kMecr,     0x00000003u, 0x00000000u},
+        {kSxcnfg,    0xF01FF01Fu, 0x40044004u}, {kMcmem0,   0x000FCFFFu, 0x00000000u},
+        {kMcmem1,    0x000FCFFFu, 0x00000000u}, {kMcatt0,   0x000FCFFFu, 0x00000000u},
+        {kMcatt1,    0x000FCFFFu, 0x00000000u}, {kMcio0,    0x000FCFFFu, 0x00000000u},
+        {kMcio1,     0x000FCFFFu, 0x00000000u}, {kMdmrs,    0x7FFF7FFFu, 0x00220022u},
+        {kArbCntl,   0xFF800FFFu, 0x00800234u},
+        {kBscntr0,   0xFFFFFFFFu, 0x55555555u}, {kBscntr1,  0xFFFFFFFFu, 0x55555555u},
+        {kLcdbscntr, 0x0000000Fu, 0x00000005u}, {kMdmrslp,  0xFFFFFFFFu, 0x00000000u},
+        {kBscntr2,   0xFFFFFF0Fu, 0x55555505u}, {kBscntr3,  0xFFFFFFFFu, 0x55555555u},
+        {kSa1110,    0x0000013Fu, 0x00000000u},
+    };
+
+    void ResetRegisters() {
+        for (const ResetBits& b : kResetBits) {
+            regs_[b.off / 4u] = (regs_[b.off / 4u] & ~b.mask) | b.value;
+        }
+    }
+
+    uint32_t regs_[(kSa1110 / 4u) + 1u] = {};
 };
 
 bool Pxa27xMemoryController::IsRegister(uint32_t off) {

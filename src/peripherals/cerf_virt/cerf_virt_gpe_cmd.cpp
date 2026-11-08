@@ -15,6 +15,8 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
+#include <cerfcore/state/state_stream.h>
 
 #include <cstring>
 
@@ -32,6 +34,11 @@ public:
 
     void OnReady() override {
         emu_.Get<PeripheralDispatcher>().Register(this);
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
+    }
+
+    void ResetRegisters() {
         std::memset(regs_, 0, sizeof(regs_));
         regs_[CerfVirt::kGpeCmdStatus / 4] = CerfVirt::kGpeStatusIdle;
     }
@@ -56,6 +63,9 @@ public:
         if (off == CerfVirt::kGpeCmdStatus) return;
         regs_[off / 4] = value;
     }
+
+    void SaveState(StateWriter& w) override { w.Write("gpe_cmd_regs", regs_); }
+    void RestoreState(StateReader& r) override { r.Read("gpe_cmd_regs", regs_); }
 
 private:
     void ExecuteCmd() {

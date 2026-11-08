@@ -24,6 +24,8 @@ public:
     }
 
     uint64_t CyclesPerCountTick() const override { return kPClockPerCountTick; }
+
+    uint32_t ConfigEc() const override { return 0u; }
 };
 
 }

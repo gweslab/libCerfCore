@@ -13,6 +13,7 @@
 #include <cerfcore/core/log.h>
 #include "../../net/mac_address.h"
 #include "../../net/network_backend.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
@@ -38,6 +39,15 @@ public:
 
     void OnReady() override {
         emu_.Get<PeripheralDispatcher>().Register(this);
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            if (emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) return;
+            std::lock_guard<std::mutex> lk(mu_);
+            tx_write_seq_.store(0u, std::memory_order_release);
+            tx_read_seq_.store(0u, std::memory_order_release);
+            rx_write_seq_.store(0u, std::memory_order_release);
+            rx_read_seq_.store(0u, std::memory_order_release);
+            rx_dropped_.store(0u, std::memory_order_release);
+        });
 
         nic_enabled_ = emu_.Get<DeviceConfig>().network_enabled;
         if (!nic_enabled_) {

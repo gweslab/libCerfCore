@@ -436,7 +436,7 @@ void Hibernation::FinishRestore(RestoreOutcome outcome, const std::string& reaso
             Progress("Resume refused: %s", reason.c_str());
             [[fallthrough]];
         case RestoreOutcome::MemoryOnly:
-            Progress("Restarting as after a power loss, with the memory of the image.");
+            Progress("Restarting with the memory of the image.");
             return;
     }
 }

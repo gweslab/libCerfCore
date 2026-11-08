@@ -35,16 +35,16 @@ public:
     bool LevelAsserted(int sub_source_bit) override;
 
 private:
+    void     ResetRegistersLocked();
     void     ConvertLocked();
     uint32_t ComposeDataLocked(uint32_t data) const;
     bool     PenInterruptAssertedLocked() const;
 
     std::mutex state_mutex_;
 
-    /* UM p. 16-7 / 16-8 / 16-9 Reset Value columns. */
-    uint32_t con_ = 0x3FC4u;
-    uint32_t tsc_ = 0x0058u;
-    uint32_t dly_ = 0x00FFu;
+    uint32_t con_ = 0;
+    uint32_t tsc_ = 0;
+    uint32_t dly_ = 0;
 
     bool     ecflg_    = false;
     bool     pen_down_ = false;

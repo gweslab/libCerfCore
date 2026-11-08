@@ -44,6 +44,8 @@ public:
     bool IsComposite(uint32_t sigid) const;
     void RegisterComposite(std::initializer_list<uint32_t> ids);
 
+    void PowerOn();
+
     void SaveState(StateWriter& w) const;
     void RestoreState(StateReader& r);
 

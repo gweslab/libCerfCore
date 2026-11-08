@@ -42,6 +42,13 @@ constexpr uint32_t kBlitOpCopy = 0x81u;
 
 }  /* namespace */
 
+void CasioJx670Display::PowerOnRegisters() {
+    blit_op_ = blit_len_words_ = blit_src_ = blit_dst_ = 0;
+    fill_dst_lo_ = fill_dst_hi_ = fill_w_ = fill_h_ = fill_color_ = fill_cmd_ = 0;
+    reg_0980_ = reg_0984_ = reg_0988_ = reg_098C_ = reg_0994_ = reg_099C_ = 0;
+    size_latch_.Reset();
+}
+
 void CasioJx670Display::Init(CerfEmulator& emu) {
     emu_ = &emu;
     fb_.assign(kFbSize, 0u);

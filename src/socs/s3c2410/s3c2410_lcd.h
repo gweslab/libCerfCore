@@ -55,13 +55,19 @@ private:
         kIdxLCDSADDR1 =  5,
         kIdxLCDSADDR2 =  6,
         kIdxLCDSADDR3 =  7,
+        kIdxLCDINTMSK = 23,
+        kIdxLPCSEL    = 24,
     };
+
+    static constexpr uint32_t kLcdintmskReset = 0x3u;
+    static constexpr uint32_t kLpcselReset    = 0x4u;
 
     static constexpr uint32_t kPnrmodeTft       = 3u;
     static constexpr uint32_t kBppmode8bppTft   = 11u;   /* 0b1011 */
     static constexpr uint32_t kBppmode16bppTft  = 12u;   /* 0b1100 */
 
     uint32_t* DecodeSlot(uint32_t addr);
+    void      ResetRegisters();
 
     uint32_t ctrl_[kCtrlCount] = {};
     uint32_t pal_ [kPalCount]  = {};

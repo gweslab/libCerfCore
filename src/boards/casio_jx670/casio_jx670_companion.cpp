@@ -7,6 +7,7 @@
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include "../../socs/vr41xx/vr41xx_giu.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -174,7 +175,29 @@ void CasioJx670Companion::OnReady() {
     display_.Init(emu_);
     modem_ = &emu_.Get<CasioJx670Modem>();
     touch_.Init(emu_, [this] { UpdateIrqLine(); });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        PowerOnRegisters();
+        display_.PowerOnRegisters();
+        touch_.PowerOnRegisters();
+        eeprom_.PowerOnRegisters();
+    });
+    emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] { UpdateIrqLine(); });
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void CasioJx670Companion::PowerOnRegisters() {
+    mbox_cmd_ = ctrl8904_ = ctrl_a0d4_ = clk8004_ = 0;
+    data_a040_ = 0;
+    reg_1110_ = reg_1054_ = socket_ctrl_ac8_ = socket_a038_ = 0;
+    intcfg8404_ = 0;
+    for (uint16_t& v : codec_regs_) v = 0;
+    codec_written_    = 0;
+    codec_data_       = 0;
+    codec_data_valid_ = false;
+    latch1118_ = latch130C_ = strap8000_ = adc_ctrl_89C_ = 0;
+    for (uint32_t& v : sib_regs_) v = 0;
+    for (std::atomic<uint32_t>& v : sys_ctrl_) v.store(0u, std::memory_order_release);
+    for (uint16_t& v : edge_cfg_) v = 0;
 }
 
 uint8_t CasioJx670Companion::ReadByte(uint32_t addr) {
@@ -187,6 +210,7 @@ uint8_t CasioJx670Companion::ReadByte(uint32_t addr) {
 uint16_t CasioJx670Companion::ReadHalf(uint32_t addr) {
     const uint32_t off = addr - kBase;
     if (uint16_t v; display_.TryReadHalf(off, v)) return v;
+    if (off == kOffDataA040) return data_a040_;
     if (off == kOffIntStatus0004)
         return static_cast<uint16_t>((audio_.IrqPending() ? kIntStatusAudio : 0u) |
                                      (touch_.IrqPending() ? kIntStatusTouch : 0u));
@@ -341,6 +365,7 @@ void CasioJx670Companion::WriteReg(uint32_t off, uint32_t value) {
     /* nk_main_kernel.exe sub_9F032B60: 0xA0C4/0xA0CC @0x9F032C84, 0xA0DC @0x9F032CEC,
        0x1100-0x1130 @0x9F032C98, 0x0008 @0x9F032D24; 0x1300
        @0x9F033828/@0x9F033854/@0x9F038970, 0x1338 @0x9F03383C/@0x9F03384C. */
+    if (off == 0xA00Cu) return;
     if (off == 0x0008u ||
         off == 0xA0C4u || off == 0xA0CCu || off == 0xA0DCu ||
         off == 0x1300u || off == 0x1338u ||

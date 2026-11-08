@@ -57,6 +57,8 @@ protected:
     void     WriteWordAsHalves(uint32_t addr, uint32_t value) override;
 
 private:
+    void PowerOnRegisters();
+
     /* nk.exe sub_9F0B7DE0: pixel at 2*(x + (y<<9)) + 0xAA200000, row advance -2*w + 1024
        => framebuffer PA 0x0A200000, 1024-byte pitch (512 px), 16bpp. */
     static constexpr uint32_t kBase       = 0x0A000000u;

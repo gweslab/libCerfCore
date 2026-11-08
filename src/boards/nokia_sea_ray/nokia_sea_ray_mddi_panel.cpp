@@ -206,7 +206,7 @@ private:
         display_on_  = false;
         sleeping_    = true;
         streamed_    = false;
-        size_latch_  = DisplaySizeLatch{};
+        size_latch_.Reset();
         std::fill(surface_.begin(), surface_.end(), uint8_t{0});
     }
 

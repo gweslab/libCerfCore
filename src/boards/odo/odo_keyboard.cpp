@@ -10,6 +10,7 @@
 #include <cerfcore/host/keyboard_router.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include "../../socs/irq_controller.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "odo_board_intc.h"
 
@@ -46,6 +47,17 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            {
+                std::lock_guard<std::mutex> lk(state_mutex_);
+                kb_csr_ = 0;
+                kb_isr_ = 0;
+                for (uint8_t& b : scancode_fifo_) b = 0;
+                fifo_head_ = 0;
+                fifo_tail_ = 0;
+            }
+            DeAssertKeybIrq();
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

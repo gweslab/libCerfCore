@@ -3,6 +3,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/boards/board_context.h>
 #include "samsung_smdk2410_family_id.h"
@@ -74,6 +75,12 @@ public:
     }
 
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            shared_.fill(0u);
+            ch_control_.fill(0u);
+            cmd_select_    = 0;
+            cmd_operation_ = 0;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

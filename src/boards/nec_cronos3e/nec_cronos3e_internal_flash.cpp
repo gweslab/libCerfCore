@@ -74,6 +74,7 @@ protected:
         emu_.Get<PeripheralDispatcher>().Register(this);
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
             control_written_ = false;
+            control_         = 0;
             if (kind == ResetLineKind::Rtc) chip_.PowerUp();
         });
     }

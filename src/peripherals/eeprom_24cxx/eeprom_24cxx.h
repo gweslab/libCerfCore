@@ -14,6 +14,7 @@ public:
 
     using I2cSlave::I2cSlave;
 
+    void    OnReady() final;
     bool    MatchesAddress(uint8_t slave_addr) const final;
     void    TxnStart(uint8_t slave_addr) final;
     void    TxnWriteByte(uint8_t slave_addr, uint8_t byte) final;
@@ -25,6 +26,7 @@ public:
     void RestoreState(StateReader& r) final;
 
 protected:
+    virtual void        FillCells() = 0;
     virtual uint8_t     DeviceAddress() const = 0;
     virtual uint16_t    PageBytes() const = 0;
     virtual const char* PartName() const = 0;

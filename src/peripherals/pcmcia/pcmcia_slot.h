@@ -41,6 +41,7 @@ public:
     bool Vs2Grounded()   const { return (pins_.load(std::memory_order_acquire) & kPinVs2Grounded) != 0u; }
     bool LowVoltageKey() const { return (pins_.load(std::memory_order_acquire) & kPinLowVoltageKey) != 0u; }
     void SetPowered(bool on);
+    void PowerCycleCard();
     void SetCardEnabled(bool on);
     void SetResetLine(bool asserted);
 
@@ -68,10 +69,7 @@ public:
     void ArmCardTimer(int64_t delay_ns);
     void DisarmCardTimer();
 
-    /* Insert/eject. Used by the UI menu and by board boot-default
-       services. Inserting into an occupied slot is rejected loudly. */
     void InsertCard(std::unique_ptr<PcmciaCard> card);
-    void EjectCard();
 
     /* Eject on behalf of a card whose host resource died, keyed on the residency id
        it was given at insert: the request is dispatched from a UI job, by which time
@@ -103,10 +101,20 @@ private:
     static constexpr uint8_t kPinLowVoltageKey = 0x10u;
     static constexpr uint8_t kLineIreq = 0x01u;
     static constexpr uint8_t kLineBusy = 0x02u;
+    struct UiView {
+        const char*                icon = "pcmcia";
+        std::string                tooltip_detail;
+        std::string                save_id;
+        std::string                display_name;
+        std::vector<WidgetControl> card_controls;
+        uint64_t                   generation = 0;
+        bool                       has_card   = false;
+    };
+
     void PublishPinsLocked();
+    void PublishUiLocked();
     void DriveLine(uint8_t source, bool low);
     bool CardSelectedLocked();
-    const char* IconResourceLocked() const;
 
     void InsertLocked(std::unique_ptr<PcmciaCard> card);
     void EjectLocked();
@@ -121,7 +129,7 @@ private:
     /* Insert a pre-built card (gen-guarded) - used by card kinds whose
        insert menu resolves a host resource (e.g. CompactFlash image). */
     void MenuInsertCard(uint64_t gen, std::unique_ptr<PcmciaCard> card);
-    std::vector<SlotEntry> AvailableLocked(uint64_t gen);
+    std::vector<SlotEntry> Available(uint64_t gen);
     WidgetControl GuardControlLocked(WidgetControl control, uint64_t gen);
     template <class Fn>
     Fn GuardLocked(Fn fn, uint64_t gen);
@@ -141,7 +149,9 @@ private:
 
     ExternalDeviceClock::Timer* card_timer_ = nullptr;
 
-    std::string ui_last_res_;
+    mutable std::mutex ui_mtx_;
+    UiView             ui_;
+    std::string        ui_last_res_;
 };
 
 }

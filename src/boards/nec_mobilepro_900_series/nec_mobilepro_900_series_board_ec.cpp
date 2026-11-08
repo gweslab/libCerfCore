@@ -7,6 +7,8 @@
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
+#include <cerfcore/socs/guest_cpu_reset.h>
+
 #include <cstdint>
 
 namespace cerfcore {
@@ -24,7 +26,14 @@ public:
         auto* bd = emu_.TryGet<BoardContext>();
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::NecMobilepro900Series;
     }
-    void OnReady() override { emu_.Get<PeripheralDispatcher>().Register(this); }
+    void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            cur_reg_ = 0;
+            phase_   = 0;
+            reg_.fill(0u);
+        });
+        emu_.Get<PeripheralDispatcher>().Register(this);
+    }
 
     uint32_t MmioBase() const override { return 0x0D000000u; }
     uint32_t MmioSize() const override { return 0x00100000u; }

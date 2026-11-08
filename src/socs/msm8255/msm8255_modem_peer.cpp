@@ -12,6 +12,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../irq_controller.h"
 
@@ -134,6 +135,7 @@ bool Msm8255ModemPeer::ShouldRegister() {
 void Msm8255ModemPeer::OnReady() {
     irq_ = &emu_.Get<IrqController>();
     SeedProcCommReady();
+    emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] { SeedProcCommReady(); });
     emu_.Get<GuestColdBoot>().RegisterReplay([this] { SeedProcCommReady(); });
 }
 

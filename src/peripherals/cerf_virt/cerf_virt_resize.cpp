@@ -9,6 +9,7 @@
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/host/host_presentation.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -21,6 +22,13 @@ bool CerfVirtResize::ShouldRegister() {
 
 void CerfVirtResize::OnReady() {
     emu_.Get<PeripheralDispatcher>().Register(this);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        if (emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) return;
+        applied_w_.store(0u, std::memory_order_release);
+        applied_h_.store(0u, std::memory_order_release);
+        applied_quarter_.store(0u, std::memory_order_release);
+        applied_gen_.store(0u, std::memory_order_release);
+    });
 }
 
 uint32_t CerfVirtResize::MmioBase() const {

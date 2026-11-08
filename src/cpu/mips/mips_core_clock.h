@@ -16,6 +16,7 @@ public:
     virtual GuestCycleClock::Rate ResetRate() const = 0;
     virtual uint64_t CyclesPerCountTick() const;
     virtual uint64_t CyclesPerTclkCounterTick() const;
+    virtual uint32_t ConfigEc() const;
 
     void RegisterCountRateListener(std::function<void()> fn);
     void CountRateRestored();

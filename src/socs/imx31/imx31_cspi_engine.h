@@ -14,9 +14,6 @@
 
 namespace cerfcore {
 
-/* Shared i.MX31 CSPI register engine (MCIMX31RM Ch 24). The register behaviour
-   is identical across CSPI1/2/3; concrete ports supply their MMIO base and the
-   per-port SPI exchange (which slave a transfer talks to). */
 class Imx31CspiEngine : public Peripheral {
 public:
     using Peripheral::Peripheral;
@@ -28,11 +25,16 @@ public:
     void OnReady() override {
         module_clocks_ = &emu_.Get<FreescaleModuleClocks>();
         module_clocks_->RegisterGateListener([this] { RunHeldExchange(); });
-        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { DropHeldExchange(); });
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            DropHeldExchange();
+            conreg_ = intreg_ = dmareg_ = periodreg_ = testreg_ = 0;
+            statreg_ = kStatregReset;
+            last_txdata_ = last_rxdata_ = 0;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
-    uint32_t MmioSize() const override { return 0x00004000u; }  /* SPBA 16 KB slot */
+    uint32_t MmioSize() const override { return 0x00004000u; }
 
     uint32_t ReadWord(uint32_t addr) override;
     void WriteWord(uint32_t addr, uint32_t value) override;
@@ -49,8 +51,6 @@ public:
     }
 
 protected:
-    /* Exchange one word on chip-select cs, returning the slave's response.
-       Called only on a CONREG XCH with EN set. */
     virtual uint32_t SpiExchange(uint32_t cs, uint32_t tx) = 0;
 
     virtual FreescaleModule ClockModule() const = 0;
@@ -64,7 +64,9 @@ private:
     uint32_t conreg_      = 0;
     uint32_t intreg_      = 0;
     uint32_t dmareg_      = 0;
-    uint32_t statreg_     = 0x00000003u;  /* §24.3.3.6: EN=0 -> STATREG reads TH|TE */
+    static constexpr uint32_t kStatregReset = 0x00000003u;
+
+    uint32_t statreg_     = kStatregReset;
     uint32_t periodreg_   = 0;
     uint32_t testreg_     = 0;
     uint32_t last_txdata_ = 0;

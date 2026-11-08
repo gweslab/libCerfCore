@@ -89,11 +89,15 @@ void Pxa27xPowerManager::LatchWarmReset() {
 }
 
 void Pxa27xPowerManager::LatchColdReset() {
-    rcsr_.fetch_or(kRcsrHwr, std::memory_order_acq_rel);
+    rcsr_.store(kRcsrHwr, std::memory_order_release);
 }
 
 void Pxa27xPowerManager::LatchWatchdogReset() {
     rcsr_.fetch_or(kRcsrWdr, std::memory_order_acq_rel);
+}
+
+void Pxa27xPowerManager::ReportOnlyWarmReset() {
+    rcsr_.store(kRcsrGpr, std::memory_order_release);
 }
 
 /* §3.8.1.4: "For a GPIO to serve as a wake-up source ... It must be programmed

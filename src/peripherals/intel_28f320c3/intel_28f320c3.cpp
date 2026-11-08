@@ -6,6 +6,7 @@
 #include "../../boards/compaq_ipaq_h3000/compaq_ipaq_h3000_family_id.h"
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -28,6 +29,10 @@ public:
         return b == BoardFamilyId::CompaqIpaqH3000;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            mode_   = kReadArray;
+            status_ = kStatusReady;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -58,7 +63,9 @@ private:
     };
 
     Mode    mode_   = kReadArray;
-    uint8_t status_ = 0x80;   /* SR.7 = WSMS ready */
+    static constexpr uint8_t kStatusReady = 0x80;
+
+    uint8_t status_ = kStatusReady;
 
     uint8_t IdByteAt(uint32_t pa) const {
         /* Intel CFI Read ID: word 0 = Mfr (Intel = 0x0089),

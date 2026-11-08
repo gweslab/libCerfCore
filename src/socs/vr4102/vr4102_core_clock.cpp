@@ -12,6 +12,8 @@ constexpr Vr41xxCoreClockModel kVr4102CoreClock{
     2u,
     {{18u, 4u, 0u}, {16u, 4u, 0u}, {14u, 4u, 0u}, {13u, 4u, 0u}, {12u, 4u, 0u}, {11u, 4u, 0u},
      {0u, 0u, 0u}, {0u, 0u, 0u}},
+    {kVr41xxEcReserved, kVr41xxEcReserved, 0u, kVr41xxEcReserved, kVr41xxEcReserved,
+     kVr41xxEcReserved, kVr41xxEcReserved, kVr41xxEcReserved},
 };
 
 class Vr4102CoreClock : public Vr41xxCoreClockBase<SocId::Vr4102, kVr4102CoreClock> {

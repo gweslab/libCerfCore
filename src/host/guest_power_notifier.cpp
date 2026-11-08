@@ -30,6 +30,10 @@ void GuestPowerNotifier::NotifyReboot() {
     for (auto& fn : reboot_listeners_) fn();
 }
 
+void GuestPowerNotifier::NotifyResetReleased() {
+    if (auto* fr = emu_.TryGet<FrameRenderer>()) fr->CaptureResetBaseline();
+}
+
 void GuestPowerNotifier::NotifyResume(ResumeSource src) {
     Banner(src == ResumeSource::Hardware ? "!! CERF: CPU Resume by hardware !!"
                                          : "!! CERF: CPU Resume by user !!");

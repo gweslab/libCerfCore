@@ -5,6 +5,7 @@
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/siemens_simatic_mp377/siemens_simatic_mp377_family_id.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -19,6 +20,12 @@ bool SiemensSimaticMp377Aspc2::ShouldRegister() {
 void SiemensSimaticMp377Aspc2::OnReady() {
     /* Siemens ASPC 2 Hardware User Description V1.0, ASIC Interface and
        Internal Registers; siemens_mp377_v1040 S7pbhmix.dll sub_2A530D0. */
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        probe_control_ = interrupt_control_lo_ = interrupt_control_hi_ = 0u;
+        interrupt_mask_lo_ = interrupt_mask_hi_ = request_control_ = mode0_ = 0u;
+        interrupt_event_lo_ = interrupt_event_hi_ = interface_address_ = 0u;
+        service_control_lo_ = service_control_hi_ = 0u;
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 

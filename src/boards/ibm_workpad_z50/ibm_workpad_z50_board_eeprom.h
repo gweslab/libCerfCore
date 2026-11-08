@@ -11,9 +11,9 @@ public:
     using Eeprom24cxx::Eeprom24cxx;
 
     bool ShouldRegister() override;
-    void OnReady() override;
 
 protected:
+    void        FillCells() override;
     uint8_t     DeviceAddress() const override;
     uint16_t    PageBytes() const override;
     const char* PartName() const override;

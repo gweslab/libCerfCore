@@ -8,6 +8,8 @@
 #include "nokia_sea_ray_family_id.h"
 
 #include <atomic>
+#include <cerfcore/socs/guest_cpu_reset.h>
+
 #include <cstdint>
 
 namespace cerfcore {
@@ -33,6 +35,10 @@ public:
     }
 
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            latch_017c_.store(0u, std::memory_order_release);
+            latch_01b0_.store(0u, std::memory_order_release);
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

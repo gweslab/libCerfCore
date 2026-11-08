@@ -7,6 +7,7 @@
 #include <cerfengine/arm/arm_jit.h>
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
@@ -24,6 +25,16 @@ bool Imx51Tzic::ShouldRegister() {
 
 void Imx51Tzic::OnReady() {
     jit_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::ArmJit>();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        for (uint32_t b = 0; b < kBankCount; ++b) {
+            enable_[b] = secure_[b] = swforce_[b] = wakeup_[b] = 0;
+        }
+        for (uint32_t& p : priority_) p = 0;
+        intctrl_ = priomask_ = syncctrl_ = dsmint_ = 0;
+        if (HasPendingUnmasked()) jit_->SetInterruptPending();
+        else                      jit_->ClearInterruptPending();
+    });
 }
 
 bool Imx51Tzic::SourceDeliverable(uint32_t src) const {

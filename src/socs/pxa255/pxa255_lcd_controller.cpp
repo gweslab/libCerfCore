@@ -4,6 +4,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "pxa255_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -12,10 +13,6 @@ namespace cerfcore {
 
 namespace {
 
-/* PXA255 internal LCD controller (§7.7 Table 7-16, base 0x44000000), decoded
-   registers 0x000..0x21C, reset 0. Panel scanout is unmodeled: this board's
-   display is the external SED1356 (0x0C000000) and the OAL uses this block
-   only as scratch, so enabling scanout (LCCR0.ENB=1, §7.6.1) halts. */
 class Pxa255LcdController : public Peripheral {
 public:
     using Peripheral::Peripheral;
@@ -25,6 +22,8 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa255;
     }
     void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -40,6 +39,14 @@ public:
 private:
     static constexpr uint32_t kLccr0   = 0x000u;  /* §7.6.1: ENB = bit 0. */
     static constexpr uint32_t kLastReg = 0x21Cu;  /* LDCMD1, end of decoded window. */
+
+    void ResetRegisters() {
+        for (uint32_t off : {0x000u, 0x004u, 0x008u, 0x00Cu, 0x020u, 0x024u, 0x038u, 0x20Cu, 0x21Cu})
+            regs_[off / 4u] = 0u;
+        regs_[0x040u / 4u] = 0x00AA5500u;
+        regs_[0x044u / 4u] = 0x0000754Fu;
+    }
+
     uint32_t regs_[(kLastReg / 4u) + 1u] = {};
 };
 

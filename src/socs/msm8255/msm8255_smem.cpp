@@ -8,9 +8,11 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/cpu/emulated_memory.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../cpu/arm/arm_core_clock.h"
 
 #include <cstdint>
+#include <cstring>
 
 namespace cerfcore {
 
@@ -173,6 +175,7 @@ bool Msm8255Smem::ShouldRegister() {
 
 void Msm8255Smem::OnReady() {
     Seed();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { Seed(); });
     emu_.Get<GuestColdBoot>().RegisterReplay([this] { Seed(); });
 }
 
@@ -235,6 +238,12 @@ uint32_t Msm8255Smem::TocEntryPa(uint32_t id) {
 
 void Msm8255Smem::Seed() {
     auto& mem = emu_.Get<EmulatedMemory>();
+    uint8_t* window = mem.TryTranslateRange(kSmemPa, kSmemSize, true);
+    if (!window) {
+        emu_.Get<Fatal>().Die("msm8255 smem: the shared window at PA 0x%08X is not backed RAM",
+                              kSmemPa);
+    }
+    std::memset(window, 0, kSmemSize);
     mem.WriteWord(kSmemPa + kHeapInitializedOff, kHeapInitialized);
     mem.WriteWord(kSmemPa + kHeapFreeOffsetOff,  kHeapUsedEnd);
     mem.WriteWord(kSmemPa + kHeapRemainingOff,   kSmemSize - kHeapUsedEnd);

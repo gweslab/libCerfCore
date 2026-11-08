@@ -1,5 +1,7 @@
 #define NOMINMAX
 
+#include "odo_dma_pointer_pair.h"
+
 #include <cerfcore/peripherals/peripheral_base.h>
 #include <cerfcore/host/panel_frame_renderer.h>
 #include <cerfcore/host/host_presentation.h>
@@ -10,6 +12,7 @@
 #include "odo_family_id.h"
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -27,11 +30,6 @@ constexpr uint32_t kSlotDispXSize  = 0x08u;
 constexpr uint32_t kSlotDispYSize  = 0x0Cu;
 
 constexpr uint32_t kDispDmaPa      = 0x10030810u;
-constexpr uint32_t kDispDmaSize    = 0x08u;
-constexpr uint32_t kSlotDmaLow     = 0x00u;
-constexpr uint32_t kSlotDmaHigh    = 0x04u;
-
-constexpr uint32_t kDramPaBase     = 0x0C000000u;
 
 constexpr uint16_t kLcdOn            = 0x0004u;
 
@@ -51,9 +49,18 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
     }
     void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            std::lock_guard<std::mutex> lk(state_mutex_);
+            ResetRegisters();
+        });
+        emu_.Get<PeripheralDispatcher>().Register(this);
+    }
+
+    void ResetRegisters() {
+        csr_   = 0;
         xsize_ = 479;
         ysize_ = 239;
-        emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
     uint32_t MmioBase() const override { return kDisplayRegsPa; }
@@ -122,30 +129,16 @@ private:
     uint16_t ysize_ = 0;
 };
 
-class OdoDisplayDma : public Peripheral {
+class OdoDisplayDma : public OdoDmaPointerPair {
 public:
-    using Peripheral::Peripheral;
-
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
-    }
-    void OnReady() override {
-        emu_.Get<PeripheralDispatcher>().Register(this);
-    }
+    using OdoDmaPointerPair::OdoDmaPointerPair;
 
     uint32_t MmioBase() const override { return kDispDmaPa; }
-    uint32_t MmioSize() const override { return kDispDmaSize; }
 
     uint16_t ReadHalf(uint32_t addr) override {
         const uint32_t off = addr - MmioBase();
-        uint16_t value;
-        {
-            std::lock_guard<std::mutex> lk(state_mutex_);
-            if      (off == kSlotDmaLow)  value = dma_low_;
-            else if (off == kSlotDmaHigh) value = dma_high_;
-            else HaltUnsupportedAccess("ReadHalf", addr, 0);
-        }
+        if (!IsSlot(off)) HaltUnsupportedAccess("ReadHalf", addr, 0);
+        const uint16_t value = Load(off);
 #if CERF_DEV_MODE
         LOG(Lcd, "Odo DISP_DMA read  +0x%02X -> 0x%04X\n", off, value);
 #endif
@@ -156,35 +149,9 @@ public:
 #if CERF_DEV_MODE
         LOG(Lcd, "Odo DISP_DMA write +0x%02X = 0x%04X\n", off, value);
 #endif
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        if      (off == kSlotDmaLow)  dma_low_  = value;
-        else if (off == kSlotDmaHigh) dma_high_ = value;
-        else HaltUnsupportedAccess("WriteHalf", addr, value);
+        if (!IsSlot(off)) HaltUnsupportedAccess("WriteHalf", addr, value);
+        Store(off, value);
     }
-
-    uint32_t GetEffectivePa() {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        const uint32_t chip_addr =
-            (static_cast<uint32_t>(dma_high_ & 0xFFu) << 16) |
-            static_cast<uint32_t>(dma_low_);
-        return kDramPaBase + chip_addr;
-    }
-
-    void SaveState(StateWriter& w) override {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        w.Write("dma_low", dma_low_);
-        w.Write("dma_high", dma_high_);
-    }
-    void RestoreState(StateReader& r) override {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        r.Read("dma_low", dma_low_);
-        r.Read("dma_high", dma_high_);
-    }
-
-private:
-    mutable std::mutex state_mutex_;
-    uint16_t dma_low_  = 0;
-    uint16_t dma_high_ = 0;
 };
 
 class OdoLcdRenderer : public PanelFrameRenderer {

@@ -8,6 +8,7 @@
 #include "../../tracing/kernel_debug_sink.h"
 #include "../external_device_clock.h"
 #include "../peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 #include <string>
@@ -62,6 +63,8 @@ protected:
     /* Drive (pending=true) or clear the UART's INTR pin; the concrete routes it to its
        controller (PXA255 INTC source, VR4102 ICU, board GPIO, …). */
     virtual void SetInterruptLine(bool pending) = 0;
+
+    virtual void OnLineReset(ResetLineKind kind);
 
     /* Chip registers beyond the 8 standard ones (PXA255 ISR at index 8, VR4102
        SIUIRSEL at index 8). Default: unsupported access halts. */

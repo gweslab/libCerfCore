@@ -6,6 +6,7 @@
 #include "../../cpu/vr5500/vr5500_id.h"
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/mips/mips_jit.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -32,6 +33,13 @@ bool Vrc5477Intc::ShouldRegister() {
 
 void Vrc5477Intc::OnReady() {
     jit_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::MipsJit>();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        std::lock_guard<std::mutex> lk(state_mtx_);
+        for (uint32_t& v : intctrl_) v = 0;
+        intppes0_ = intppes1_ = cpustat_ = busctrl_ = nmistat_ = 0;
+        pending_  = line_level_;
+        NotifyLocked();
+    });
 }
 
 uint32_t Vrc5477Intc::StatusForLineLocked(uint32_t n) const {

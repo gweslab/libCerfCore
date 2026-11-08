@@ -6,6 +6,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
@@ -25,7 +26,8 @@ public:
         return bd && bd->GetSocId() == SocId::Imx51;
     }
     void OnReady() override {
-        regs_[kKpsrOff >> 1] = kKpsrReset;
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -73,7 +75,12 @@ private:
     static constexpr uint32_t kKpsrOff  = 0x2u;          /* Table 43-3 */
     static constexpr uint32_t kKddrOff  = 0x4u;          /* Table 43-3: 1=output, 0=input */
     static constexpr uint32_t kKpdrOff  = 0x6u;          /* Table 43-3 */
-    static constexpr uint16_t kKpsrReset = 0x0400u;      /* Table 43-3 KPSR reset value */
+
+    void ResetRegisters() {
+        regs_[0] = 0u;
+        regs_[kKpsrOff >> 1] = 0u;
+        regs_[kKddrOff >> 1] = 0u;
+    }
 
     std::array<uint16_t, kSize / 2> regs_{};
     uint16_t input_level_ = 0;   /* board-driven external input pin levels */

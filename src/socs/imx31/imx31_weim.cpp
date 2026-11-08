@@ -4,6 +4,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "imx31_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -51,7 +52,8 @@ public:
         return bd && bd->GetSocId() == SocId::Imx31;
     }
     void OnReady() override {
-        for (uint32_t i = 0; i < kSlotCount; ++i) regs_[i] = kResetValues[i];
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -65,6 +67,10 @@ public:
     void RestoreState(StateReader& r) override { r.ReadBytes("regs", regs_, sizeof(regs_)); }
 
 private:
+    void ResetRegisters() {
+        for (uint32_t i = 0; i < kSlotCount; ++i) regs_[i] = kResetValues[i];
+    }
+
     uint32_t regs_[kSlotCount] = {};
 
     /* CSCR layout: 6 CS groups of 3 dwords each at +0x10 stride,

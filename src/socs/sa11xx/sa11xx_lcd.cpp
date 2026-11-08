@@ -6,6 +6,7 @@
 #include "sa1110_id.h"
 #include "sa1100_id.h"
 #include <cerfcore/host/host_presentation.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
 
@@ -17,6 +18,20 @@ bool Sa11xxLcd::ShouldRegister() {
 }
 
 void Sa11xxLcd::OnReady() {
+    auto& reset = emu_.Get<GuestCpuReset>();
+    reset.RegisterResetListener([this](ResetLineKind) {
+        enable_dropped_by_reset_ = (lccr0_ & 0x1u) != 0u;
+        lccr0_ = 0;
+        lccr1_ = 0;
+        lccr2_ = 0;
+        lccr3_ = 0;
+        lcsr_  = kLcsrLdd;
+    });
+    reset.RegisterResetReleaseListener([this] {
+        if (!enable_dropped_by_reset_) return;
+        enable_dropped_by_reset_ = false;
+        for (auto& fn : enable_listeners_) fn();
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 
@@ -57,7 +72,7 @@ void Sa11xxLcd::WriteReg(uint32_t off, uint32_t value) {
             /* §11.7.11: LCSR.LDD asserts on 1→0 of LCCR0.LEN (last frame
                complete after disable). Kernel sub_800AABBC spins on this
                bit; without it the JIT hangs in that polling loop forever. */
-            if ((old & 0x1u) != 0u && (value & 0x1u) == 0u) lcsr_ |= 0x1u;
+            if ((old & 0x1u) != 0u && (value & 0x1u) == 0u) lcsr_ |= kLcsrLdd;
             if (((old ^ value) & 0x1u) != 0u) {
                 for (auto& fn : enable_listeners_) fn();
             }

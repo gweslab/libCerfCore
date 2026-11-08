@@ -25,7 +25,8 @@ public:
                                       /*irq_gate_mcr=*/0u,
                                       /*irq_gate_ier=*/0x40u,
                                       /*rx_trigger=*/{1u, 8u, 16u, 32u},
-                                      /*cti_ier_bit=*/0x10u}) {}
+                                      0x10u,
+                                      0x0002u}) {}
 
     bool ShouldRegister() override {
         auto* bd = emu_.TryGet<BoardContext>();

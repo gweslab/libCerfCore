@@ -2,9 +2,22 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
+
+void Eeprom24cxx::OnReady() {
+    FillCells();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        if (kind != ResetLineKind::Rtc) return;
+        page_.fill(0);
+        page_dirty_   = 0;
+        addr_         = 0;
+        addr_valid_   = false;
+        addr_pending_ = false;
+    });
+}
 
 bool Eeprom24cxx::MatchesAddress(uint8_t slave_addr) const {
     return slave_addr == DeviceAddress();

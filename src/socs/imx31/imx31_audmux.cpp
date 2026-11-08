@@ -4,6 +4,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "imx31_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
@@ -17,11 +18,10 @@ constexpr uint32_t kBase = 0x53FC4000u;
 constexpr uint32_t kSize = 0x00004000u;
 constexpr uint32_t kLastOff = 0x38u;
 
-/* Resets per Table 42-2, index = offset/4 (PTCR1,PDCR1,PTCR2,PDCR2,...,CNMCR). */
 constexpr std::array<uint32_t, 15> kReset = {
-    0xAD400800u, 0x0000A000u, 0xA5000800u, 0x00008000u, 0xC0C00800u,
+    0xAD400800u, 0x0000A000u, 0xA5000800u, 0x00008000u, 0x9CC00800u,
     0x00006000u, 0x00000800u, 0x00004000u, 0x00000800u, 0x00002000u,
-    0x00000800u, 0x00000000u, 0x00000800u, 0x00000000u, 0x00031010u,
+    0x00000800u, 0x00000000u, 0x00000800u, 0x0000C000u, 0x00031010u,
 };
 
 class Imx31Audmux : public Peripheral {
@@ -32,7 +32,10 @@ public:
         auto* bd = emu_.TryGet<BoardContext>();
         return bd && bd->GetSocId() == SocId::Imx31;
     }
-    void OnReady() override { emu_.Get<PeripheralDispatcher>().Register(this); }
+    void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { regs_ = kReset; });
+        emu_.Get<PeripheralDispatcher>().Register(this);
+    }
 
     uint32_t MmioBase() const override { return kBase; }
     uint32_t MmioSize() const override { return kSize; }

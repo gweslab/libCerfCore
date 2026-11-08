@@ -12,6 +12,8 @@ namespace cerfengine { class Engine; }
 
 namespace cerfcore {
 
+class MipsProcessorConfig;
+
 class Tx39ConfigRegister : public Service {
 public:
     using Service::Service;
@@ -29,6 +31,7 @@ private:
 
     cerfengine::Engine*                engine_    = nullptr;
     cerfengine::MipsCpuState*                      cpu_state_ = nullptr;
+    const MipsProcessorConfig*         config_    = nullptr;
     std::vector<std::function<void()>> rf_listeners_;
 };
 

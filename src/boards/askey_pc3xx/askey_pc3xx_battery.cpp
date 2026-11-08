@@ -90,6 +90,17 @@ public:
         return bit ? kPinBit : 0u;
     }
 
+    void OnGpioReset() override {
+        dir_out_       = false;
+        armed_         = false;
+        last_was_read_ = false;
+        serving_       = false;
+        write_run_     = 0;
+        resp_bit_      = 0;
+        resp_len_      = 0;
+        for (auto& b : resp_) b = 0u;
+    }
+
     /* Serialize the 1-Wire slot FSM so a save mid-bit-bang restores mid-bit-bang
        (forwarded by Pxa255Gpio::SaveState/RestoreState). */
     void SaveState(StateWriter& w) override {

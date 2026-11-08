@@ -584,6 +584,42 @@
       "type": "hex"
     },
     {
+      "id": "config_reset",
+      "name": "Config at reset, without the pin-selected fields",
+      "arch": "MIPS",
+      "type": "hex"
+    },
+    {
+      "id": "config_writable",
+      "name": "Config fields that software writes",
+      "arch": "MIPS",
+      "type": "hex"
+    },
+    {
+      "id": "config_zero_only",
+      "name": "Config fields that CERF supports at 0 only",
+      "arch": "MIPS",
+      "type": "hex"
+    },
+    {
+      "id": "status_reset",
+      "name": "Status at reset",
+      "arch": "MIPS",
+      "type": "hex"
+    },
+    {
+      "id": "status_writable",
+      "name": "Status fields that software writes",
+      "arch": "MIPS",
+      "type": "hex"
+    },
+    {
+      "id": "status_zero_only",
+      "name": "Status fields that CERF supports at 0 only",
+      "arch": "MIPS",
+      "type": "hex"
+    },
+    {
       "id": "isa_level",
       "name": "ISA level",
       "arch": "MIPS",
@@ -949,28 +985,36 @@
         "vr41xx_power_modes": true,
         "mips16": false,
         "tx39_multiply_add": false,
-        "cop1_cop2_unusable": true
+        "cop1_cop2_unusable": true,
+        "config_writable": "0x00000007",
+        "config_zero_only": "0x0F800000",
+        "status_reset": "0x00400004",
+        "status_writable": "0x1057FFFF",
+        "status_zero_only": "0x02000000"
       }
     },
     {
       "soc_id": "vr4102",
       "inherits_cpu_config_id": "vr41xx",
       "values": {
-        "prid": "0x00000C00"
+        "prid": "0x00000C00",
+        "config_reset": "0x00025400"
       }
     },
     {
       "soc_id": "vr4111",
       "inherits_cpu_config_id": "vr41xx",
       "values": {
-        "prid": "0x00000C50"
+        "prid": "0x00000C50",
+        "config_reset": "0x000258C0"
       }
     },
     {
       "soc_id": "vr4121",
       "inherits_cpu_config_id": "vr41xx",
       "values": {
-        "prid": "0x00000C60"
+        "prid": "0x00000C60",
+        "config_reset": "0x000258C0"
       }
     },
     {
@@ -979,7 +1023,9 @@
       "values": {
         "prid": "0x00000C70",
         "device_ip_mask": "0x00001C00",
-        "mips16": true
+        "mips16": true,
+        "config_reset": "0x00025B00",
+        "config_writable": "0x80010027"
       }
     },
     {
@@ -997,7 +1043,13 @@
         "vr41xx_power_modes": false,
         "mips16": false,
         "tx39_multiply_add": true,
-        "cop1_cop2_unusable": false
+        "cop1_cop2_unusable": false,
+        "config_reset": "0x00100030",
+        "config_writable": "0x00000FFF",
+        "config_zero_only": "0x00000000",
+        "status_reset": "0x00600000",
+        "status_writable": "0xF040FF3F",
+        "status_zero_only": "0x02000000"
       }
     },
     {
@@ -1030,7 +1082,13 @@
         "vr41xx_power_modes": false,
         "mips16": false,
         "tx39_multiply_add": false,
-        "cop1_cop2_unusable": false
+        "cop1_cop2_unusable": false,
+        "config_reset": "0x003266F0",
+        "config_writable": "0x0F000007",
+        "config_zero_only": "0x00C00000",
+        "status_reset": "0x00400004",
+        "status_writable": "0xF557FFFF",
+        "status_zero_only": "0x00000000"
       }
     }
   ],

@@ -145,6 +145,13 @@ public:
     void LatchColdReset() override { LatchResetCause(M.int_cold_cause); }
     void LatchWatchdogReset() override { LatchResetCause(M.int_watchdog_cause); }
 
+    void ReportOnlyWarmReset() override {
+        std::lock_guard<std::mutex> lk(power_mtx_);
+        const uint16_t causes = M.int_warm_cause | M.int_cold_cause | M.int_watchdog_cause;
+        StoreIntReg(static_cast<uint16_t>((IntReg() & ~causes) | M.int_warm_cause));
+        PublishPowerIntrLocked();
+    }
+
     void LatchSleepWakeCause() override {}
     void ClearSleepWakeCause() override {
         std::lock_guard<std::mutex> lk(power_mtx_);

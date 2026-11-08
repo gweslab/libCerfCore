@@ -16,6 +16,7 @@ public:
 protected:
     const char* Label() const override { return "CM_PER"; }
     const char* RegisterName(uint32_t off) const override;
+    bool        KeptByWarmReset(uint32_t off) const override { return off == 0x20u || off == 0x4Cu; }
 
     uint32_t McBspBit(uint32_t port) const override;
     uint32_t McBspMask() const override;

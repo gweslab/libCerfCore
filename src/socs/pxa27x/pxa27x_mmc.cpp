@@ -4,6 +4,7 @@
 #include "pxa270_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "../irq_controller.h"
 
@@ -25,6 +26,11 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa270;
     }
     void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            ResetRegisters();
+            UpdateIrq();
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -109,19 +115,39 @@ private:
        is started." */
     bool     clk_is_off_  = false;
 
-    uint32_t clkrt_    = 0u;         /* Table 15-9  (page 15-30): Reset 2:0 = 0. */
-    uint32_t spi_      = 0u;         /* Table 15-10 (page 15-31): Reset 3:0 = 0. */
-    uint32_t cmdat_    = 0x00000080u;/* Table 15-11 (page 15-32): Reset 13:0, 1 at "7 R/W DMA_EN". */
-    uint32_t resto_    = 0x00000040u;/* Section 15.9.6 (page 15-33): "The default value of this register is 64." */
-    uint32_t rdto_     = 0x0000FFFFu;/* Table 15-14 (page 15-33): Reset 15:0 all 1. */
-    uint32_t blklen_   = 0u;         /* Table 15-15 (page 15-34): Reset 11:0 = 0. */
-    uint32_t numblk_   = 0u;         /* Table 15-16 (page 15-34): Reset 15:0 = 0. */
-    uint32_t i_mask_   = 0x00001FFFu;/* Table 15-18 (page 15-35): Reset 12:0 all 1. */
-    uint32_t cmd_      = 0u;         /* Table 15-20 (page 15-40): Reset 5:0 = 0. */
-    uint32_t argh_     = 0u;         /* Table 15-21 (page 15-40): Reset 15:0 = 0. */
-    uint32_t argl_     = 0u;         /* Table 15-22 (page 15-41): Reset 15:0 = 0. */
-    uint32_t rdwait_   = 0u;         /* Table 15-26 (page 15-43): Reset 1:0 = 0. */
-    uint32_t blks_rem_ = 0u;         /* Table 15-27 (page 15-43): Reset 15:0 = 0. */
+    uint32_t clkrt_    = 0u;
+    uint32_t spi_      = 0u;
+    uint32_t cmdat_    = 0u;
+    uint32_t resto_    = 0u;
+    uint32_t rdto_     = 0u;
+    uint32_t blklen_   = 0u;
+    uint32_t numblk_   = 0u;
+    uint32_t i_mask_   = 0u;
+    uint32_t cmd_      = 0u;
+    uint32_t argh_     = 0u;
+    uint32_t argl_     = 0u;
+    uint32_t rdwait_   = 0u;
+    uint32_t blks_rem_ = 0u;
+
+    void ResetRegisters() {
+        stat_events_ = 0u;
+        clk_on_      = false;
+        cmd_armed_   = false;
+        clk_is_off_  = false;
+        clkrt_    = 0u;
+        spi_      = 0u;
+        cmdat_    = 0x00000080u;
+        resto_    = 0x00000040u;
+        rdto_     = 0x0000FFFFu;
+        blklen_   = 0u;
+        numblk_   = 0u;
+        i_mask_   = 0x00001FFFu;
+        cmd_      = 0u;
+        argh_     = 0u;
+        argl_     = 0u;
+        rdwait_   = 0u;
+        blks_rem_ = 0u;
+    }
 };
 
 /* Table 15-28 (page 15-44). */

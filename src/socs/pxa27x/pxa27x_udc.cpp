@@ -5,6 +5,7 @@
 #include "pxa270_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 
@@ -22,6 +23,12 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa270;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            udccr_ = udcicr0_ = udcicr1_ = udcotgicr_ = up3ocr_ = udccsr0_ = 0u;
+            up2ocr_ = kUp2ocrReset;
+            for (uint32_t& v : epcsr_) v = 0u;
+            for (uint32_t& v : epcr_)  v = 0u;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

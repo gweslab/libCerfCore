@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../irq_controller.h"
 
 #include <cstdint>
@@ -25,6 +26,7 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa270;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetUnit(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -52,6 +54,14 @@ private:
 
     static uint32_t Normalize(uint32_t off) {
         return off < kAliasWindow ? off + kIBMR : off;
+    }
+
+    void ResetUnit() {
+        icr_     = 0;
+        isr_     = 0;
+        idbr_    = 0;
+        reading_ = false;
+        UpdateIrq();
     }
 
     /* Table 9-8 (page 9-23) header row, bit 31 down to bit 0: "reserved", "FM",
@@ -98,9 +108,7 @@ private:
     uint32_t isr_  = 0;
     /* Table 9-11 (page 9-30) IDBR Reset row: 0. */
     uint32_t idbr_ = 0;
-    /* Section 9.5.3 (page 9-28): "If the processor is reset, the ISAR is not
-       affected. The ISAR register default value is 00000002." */
-    uint32_t isar_ = 0x00000002u;
+    uint32_t isar_ = 0;
     bool     reading_ = false;
 };
 
@@ -129,11 +137,7 @@ void Pxa27xI2c::WriteWord(uint32_t addr, uint32_t value) {
             /* Section 9.5.3 (page 9-28): "If the processor is reset, the ISAR is
                not affected." */
             if (value & kIcrUR) {
-                icr_ = 0;
-                isr_ = 0;
-                idbr_ = 0;
-                reading_ = false;
-                UpdateIrq();
+                ResetUnit();
                 return;
             }
             icr_ = value & kIcrMask;

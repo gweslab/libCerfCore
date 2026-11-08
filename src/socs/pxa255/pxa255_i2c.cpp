@@ -5,6 +5,7 @@
 #include "pxa255_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../irq_controller.h"
 
 #include <cstdint>
@@ -22,6 +23,7 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa255;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetUnit(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -57,10 +59,15 @@ private:
 
     void UpdateIrq();
 
+    void ResetUnit() {
+        icr_ = 0; isr_ = 0; idbr_ = 0; reading_ = false;
+        UpdateIrq();
+    }
+
     uint32_t icr_  = 0;        /* §9.8 reset 0.                            */
     uint32_t isr_  = 0;        /* §9.8 reset 0.                            */
     uint32_t idbr_ = 0;        /* §9.8 reset 0.                            */
-    uint32_t isar_ = 0;        /* §9.8 reset 0; not affected by UR.        */
+    uint32_t isar_ = 0;
     bool     reading_ = false; /* transfer direction latched at START.     */
 };
 
@@ -82,8 +89,7 @@ void Pxa255I2c::WriteWord(uint32_t addr, uint32_t value) {
         case kISAR: isar_ = value & 0x7Fu; return;
         case kICR: {
             if (value & kIcrUR) {                 /* §9.8 Unit Reset (ISAR kept). */
-                icr_ = 0; isr_ = 0; idbr_ = 0; reading_ = false;
-                UpdateIrq();
+                ResetUnit();
                 return;
             }
             icr_ = value & 0xFFFFu;

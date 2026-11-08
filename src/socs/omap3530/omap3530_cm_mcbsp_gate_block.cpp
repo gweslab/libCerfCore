@@ -19,24 +19,24 @@ void Omap3530CmMcBspGateBlock::OnReady() {
         std::lock_guard<std::mutex> lk(mu_);
         LoadResetLocked();
     }
-    auto& reset = emu_.Get<GuestCpuReset>();
-    reset.RegisterResetListener([this](ResetLineKind) {
-        std::lock_guard<std::mutex> lk(mu_);
-        const uint64_t gates = McBspGatesLocked();
-        const bool     other = LoadResetLocked();
-        reset_changed_       = other || McBspGatesLocked() != gates;
-    });
-    reset.RegisterResetReleaseListener([this] {
+    emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
         if (!reset_changed_) return;
         reset_changed_ = false;
         NotifyClock();
     });
 }
 
-uint64_t Omap3530CmMcBspGateBlock::McBspGatesLocked() const {
-    const uint32_t mask = McBspMask();
-    return (regs_[kOffFclken / 4u] & mask) | (static_cast<uint64_t>(regs_[kOffIclken / 4u] & mask) << 32);
+void Omap3530CmMcBspGateBlock::AfterResetLocked(const std::vector<uint32_t>& before) {
+    const bool other = LoadResetLocked();
+    reset_changed_   = other || McBspGatesLocked() != GatesOf(before);
 }
+
+uint64_t Omap3530CmMcBspGateBlock::GatesOf(const std::vector<uint32_t>& regs) const {
+    const uint32_t mask = McBspMask();
+    return (regs[kOffFclken / 4u] & mask) | (static_cast<uint64_t>(regs[kOffIclken / 4u] & mask) << 32);
+}
+
+uint64_t Omap3530CmMcBspGateBlock::McBspGatesLocked() const { return GatesOf(regs_); }
 
 uint64_t Omap3530CmMcBspGateBlock::McBspGates() const {
     std::lock_guard<std::mutex> lk(mu_);

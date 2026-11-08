@@ -44,7 +44,7 @@ void GuestColdBoot::RestoreState(StateReader& r) {
 void GuestColdBoot::RequestResetFillingRam(std::function<void()> fill) {
     fill_ = std::move(fill);
     fill_pending_.store(true, std::memory_order_release);
-    emu_.Get<GuestCpuReset>().ColdReset();
+    emu_.Get<GuestCpuReset>().ColdResetReportingWarm();
 }
 
 void GuestColdBoot::ExecuteIfPending() {
@@ -62,9 +62,13 @@ void GuestColdBoot::ExecuteIfPending() {
                   "%zu boot-time writes\n", replays_.size());
         fill();
     }
+    ReplayBootWrites();
+    if (wipe) emu_.Get<GuestPowerNotifier>().NotifyHardReset();
+}
+
+void GuestColdBoot::ReplayBootWrites() {
     for (auto& fn : replays_) fn();
     emu_.Get<EngineBridge>().Guest().FlushTranslationCache();
-    if (wipe) emu_.Get<GuestPowerNotifier>().NotifyHardReset();
 }
 
 }

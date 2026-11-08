@@ -9,6 +9,8 @@ namespace cerfcore {
 bool DisplayModeLatch::Publish(CerfEmulator& emu, bool display_enabled, uint32_t width, uint32_t height) {
     if (!display_enabled) {
         published_ = false;
+        width_     = 0;
+        height_    = 0;
         return false;
     }
     if (published_ && width == width_ && height == height_) return false;

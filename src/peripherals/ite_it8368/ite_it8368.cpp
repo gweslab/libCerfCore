@@ -7,6 +7,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "../pcmcia/pcmcia_slot.h"
 
@@ -92,6 +93,7 @@ bool IteIt8368::ShouldRegister() {
 
 void IteIt8368::OnReady() {
     emu_.Get<Pr31x00CardSpace>().ProvideCardBuffer(this);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { HardwareReset(); });
 }
 
 bool IteIt8368::CardInterfaceEnabled() const { return (ctrl_ & kCtrlCardEn) != 0; }
@@ -154,6 +156,12 @@ void IteIt8368::UpdateIntLocked() {
 }
 
 IteIt8368::BusOps IteIt8368::ApplyOutputsLocked() {
+    const BusOps ops = OutputOpsLocked();
+    LatchInputEdgesLocked();
+    return ops;
+}
+
+IteIt8368::BusOps IteIt8368::OutputOpsLocked() {
     const uint16_t driven = static_cast<uint16_t>(gpio_dataout_ & gpio_dir_);
 
     if (driven & kPinCrdVppOn1) {
@@ -168,12 +176,15 @@ IteIt8368::BusOps IteIt8368::ApplyOutputsLocked() {
     ops.power_on   = (driven & kPinCrdVccMask) != 0u;
 
     ops.reset_asserted = (driven & kPinBcrdRst) != 0u;
-
-    LatchInputEdgesLocked();
     return ops;
 }
 
 IteIt8368::BusOps IteIt8368::SoftResetLocked() {
+    ClearRegistersLocked();
+    return ApplyOutputsLocked();
+}
+
+void IteIt8368::ClearRegistersLocked() {
     gpio_dataout_    = 0;
     gpio_dir_        = 0;
     gpio_posinten_   = 0;
@@ -186,7 +197,6 @@ IteIt8368::BusOps IteIt8368::SoftResetLocked() {
     mfio_dir_        = 0;
     mfio_sel_        = 0;
     ctrl_            = 0;
-    return ApplyOutputsLocked();
 }
 
 void IteIt8368::ApplyBusOps(const BusOps& ops) {
@@ -249,11 +259,31 @@ void IteIt8368::WriteReg(uint32_t off, uint16_t value) {
         std::lock_guard<std::mutex> lk(mu_);
         ops = WriteRegLocked(off, value);
     }
+    FinishBusOps(ops);
+}
+
+void IteIt8368::HardwareReset() {
+    BusOps ops;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        ClearRegistersLocked();
+        ops = OutputOpsLocked();
+    }
+    ApplyBusOps(ops);
+    std::lock_guard<std::mutex> lk(mu_);
+    gpio_posintstat_ = 0;
+    gpio_negintstat_ = 0;
+    mfio_posintstat_ = 0;
+    mfio_negintstat_ = 0;
+    prev_datain_     = kPowerOnDataIn;
+    LatchInputEdgesLocked();
+}
+
+void IteIt8368::FinishBusOps(const BusOps& ops) {
     if (!ops.drove_pins) return;
 
     ApplyBusOps(ops);
 
-    /* Vcc and the reset pulse changed what the card drives back. */
     std::lock_guard<std::mutex> lk(mu_);
     LatchInputEdgesLocked();
 }

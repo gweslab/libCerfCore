@@ -7,8 +7,11 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 #include "../peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/core/fatal.h>
+
+#include <cstring>
 
 namespace cerfcore {
 
@@ -23,14 +26,32 @@ void Sed1356::OnReady() {
     vram_mask_        = (vram_size_ & (vram_size_ - 1u)) ? 0u : (vram_size_ - 1u);
     product_rev_code_ = cfg.ProductRevCode();
     vram_.assign(vram_size_, 0u);
-    /* §8.1 reset-lock, board-dependent (see Sed1356Config). */
-    reg_[0x01] = cfg.RegMemSelectLockedAtReset() ? 0x80u : 0x00u;
+    reg_[0x01] = MemSelectResetValue();
     bus_clock_hz_ = cfg.BusClockHz();
     power_seq_    = &emu_.Get<Sed1356PowerSequence>();
     panel_        = &emu_.Get<Sed1356PanelPower>();
     AttachScanClock();
     cfg.RegisterBusClockListener([this] { OnBusClockChange(); });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { HardwareReset(); });
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void Sed1356::HardwareReset() {
+    std::lock_guard<std::mutex> lk(state_mtx_);
+    if (ScanLiveLocked()) {
+        StopScanLocked();
+        panel_->PowerDown();
+    }
+    std::memset(reg_, 0, sizeof(reg_));
+    reg_[0x01] = MemSelectResetValue();
+    lut_.ResetPointer();
+    blt_.Reset();
+    lcd_on_tick_ = 0;
+    mode_latch_.Publish(emu_, false, 0u, 0u);
+}
+
+uint8_t Sed1356::MemSelectResetValue() {
+    return emu_.Get<Sed1356Config>().RegMemSelectLockedAtReset() ? 0x80u : 0x00u;
 }
 
 bool Sed1356::LcdDisplayOn() const {
@@ -50,9 +71,7 @@ uint32_t Sed1356::LcdBpp() const {
 
 void Sed1356::LcdLutRgb(uint32_t index, uint8_t& r4, uint8_t& g4,
                         uint8_t& b4) const {
-    r4 = lcd_lut_[index & 0xFFu][0];
-    g4 = lcd_lut_[index & 0xFFu][1];
-    b4 = lcd_lut_[index & 0xFFu][2];
+    lut_.LcdRgb(index, r4, g4, b4);
 }
 
 uint32_t Sed1356::LcdInkCursorStartByte() const {
@@ -256,7 +275,7 @@ uint8_t Sed1356::RegRead(uint32_t off) {
             }
             return static_cast<uint8_t>(reg_[off] & 0x7Fu);
         case 0x100: return blt_.Status();
-        case 0x1E4: return ReadLutData();
+        case 0x1E4: return lut_.Read(reg_[0x1E0] & 0x3u);
         case 0x1F1: return panel_->StatusBits(Reg(0x1FC), Reg(0x1F0), Reg(0x21));
         default:
             /* §8.2 / Table 8-1: the full 0x000..0x1FF window is decoded
@@ -274,11 +293,10 @@ void Sed1356::RegWrite(uint32_t off, uint8_t value) {
     switch (off) {
         case 0x000: return;                       /* RO revision code. */
         case 0x1E2:
-            reg_[off] = value;                    /* §8.3.13: address write */
-            lut_index_     = value;               /* points at the Red LUT. */
-            lut_component_ = 0;
+            reg_[off] = value;
+            lut_.PointAt(value);
             return;
-        case 0x1E4: WriteLutData(value); return;
+        case 0x1E4: lut_.Write(reg_[0x1E0] & 0x3u, value); return;
         case 0x100:
             reg_[off] = value & 0x03u;            /* dest/src linear selects. */
             if (value & 0x80u) blt_.Start();      /* §10.1 write data path. */
@@ -310,46 +328,6 @@ void Sed1356::RegWrite(uint32_t off, uint8_t value) {
             }
             PublishOnLcdEnableEdge();
             return;
-    }
-}
-
-/* §8.3.13: LUT data sits in bits 7:4; the pointer auto-increments per access
-   R->G->B->next entry; an entry commits only after its Blue write. REG[1E0h]
-   bits 1:0 pick which LUT(s) a read/write touches (Table 8-34). */
-uint8_t Sed1356::ReadLutData() {
-    const uint32_t mode = reg_[0x1E0] & 0x3u;
-    const uint8_t (*lut)[3] = (mode == 0x2u) ? crt_lut_ : lcd_lut_;
-    const uint8_t v = (uint8_t)(lut[lut_index_][lut_component_] << 4);
-    StepLutPointer();
-    return v;
-}
-
-void Sed1356::WriteLutData(uint8_t value) {
-    const uint8_t comp = (uint8_t)(value >> 4);
-    if (lut_component_ < 2) {
-        lut_rgb_latch_[lut_component_] = comp;
-    } else {
-        const uint32_t mode = reg_[0x1E0] & 0x3u;
-        const bool to_lcd = (mode == 0x0u || mode == 0x1u);
-        const bool to_crt = (mode == 0x0u || mode == 0x2u);
-        if (to_lcd) {
-            lcd_lut_[lut_index_][0] = lut_rgb_latch_[0];
-            lcd_lut_[lut_index_][1] = lut_rgb_latch_[1];
-            lcd_lut_[lut_index_][2] = comp;
-        }
-        if (to_crt) {
-            crt_lut_[lut_index_][0] = lut_rgb_latch_[0];
-            crt_lut_[lut_index_][1] = lut_rgb_latch_[1];
-            crt_lut_[lut_index_][2] = comp;
-        }
-    }
-    StepLutPointer();
-}
-
-void Sed1356::StepLutPointer() {
-    if (++lut_component_ == 3) {
-        lut_component_ = 0;
-        lut_index_++;                              /* wraps at 256 entries. */
     }
 }
 
@@ -458,11 +436,7 @@ void Sed1356::SaveState(StateWriter& w) {
     std::lock_guard<std::mutex> lk(state_mtx_);
     w.WriteBytes("reg", reg_, sizeof(reg_));
     w.WriteBytes("vram", vram_.data(), vram_.size());
-    w.WriteBytes("lcd_lut", lcd_lut_, sizeof(lcd_lut_));
-    w.WriteBytes("crt_lut", crt_lut_, sizeof(crt_lut_));
-    w.Write("lut_index", lut_index_);
-    w.Write("lut_component", lut_component_);
-    w.WriteBytes("lut_rgb_latch", lut_rgb_latch_, sizeof(lut_rgb_latch_));
+    lut_.SaveState(w);
     mode_latch_.SaveState(w);
     blt_.SaveState(w);
     SaveScanLocked(w);
@@ -474,11 +448,7 @@ void Sed1356::RestoreState(StateReader& r) {
     std::lock_guard<std::mutex> lk(state_mtx_);
     r.ReadBytes("reg", reg_, sizeof(reg_));
     r.ReadBytes("vram", vram_.data(), vram_.size());
-    r.ReadBytes("lcd_lut", lcd_lut_, sizeof(lcd_lut_));
-    r.ReadBytes("crt_lut", crt_lut_, sizeof(crt_lut_));
-    r.Read("lut_index", lut_index_);
-    r.Read("lut_component", lut_component_);
-    r.ReadBytes("lut_rgb_latch", lut_rgb_latch_, sizeof(lut_rgb_latch_));
+    lut_.RestoreState(r);
     mode_latch_.RestoreState(r);
     blt_.RestoreState(r);
     RestoreScanLocked(r);

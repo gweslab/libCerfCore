@@ -7,6 +7,7 @@
 #include <cerfcore/core/log.h>
 #include <cerfcore/host/host_presentation.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -17,7 +18,15 @@ bool S3C2410Lcd::ShouldRegister() {
 }
 
 void S3C2410Lcd::OnReady() {
+    ResetRegisters();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void S3C2410Lcd::ResetRegisters() {
+    for (uint32_t& v : ctrl_) v = 0;
+    ctrl_[kIdxLCDINTMSK] = kLcdintmskReset;
+    ctrl_[kIdxLPCSEL]    = kLpcselReset;
 }
 
 uint32_t* S3C2410Lcd::DecodeSlot(uint32_t addr) {

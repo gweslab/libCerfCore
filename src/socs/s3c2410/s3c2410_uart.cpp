@@ -6,6 +6,7 @@
 #include "s3c2410_id.h"
 #include "../../tracing/kernel_debug_sink.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -23,6 +24,7 @@ constexpr size_t   kRegsPerUart = 11;
 constexpr uint32_t kSlotUTRSTAT = 4;
 constexpr uint32_t kSlotUTXH    = 8;
 constexpr uint32_t kSlotURXH    = 9;
+constexpr uint32_t kSlotUBRDIV  = 10;
 
 /* UTRSTAT: bit 0 = RX data ready (always 0; no input), bit 1 = TX
    buffer empty (always 1), bit 2 = transmitter empty (always 1). */
@@ -37,6 +39,7 @@ public:
         return bd && bd->GetSocId() == SocId::S3c2410;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -52,6 +55,12 @@ public:
     void RestoreState(StateReader& r) override { r.ReadBytes("storage", storage_, sizeof(storage_)); }
 
 private:
+    void ResetRegisters() {
+        for (auto& uart : storage_)
+            for (uint32_t slot = 0; slot < kRegsPerUart; ++slot)
+                if (slot != kSlotUBRDIV) uart[slot] = 0;
+    }
+
     void     EmitTxByte(int uart_idx, uint8_t ch);
 
     uint32_t    storage_ [kUartCount][kRegsPerUart] = {};

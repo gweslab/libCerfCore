@@ -7,6 +7,8 @@
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
+#include <cerfcore/socs/guest_cpu_reset.h>
+
 #include <cstdint>
 
 namespace cerfcore {
@@ -26,6 +28,10 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::NecMobilepro900Series;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            regs_.fill(0u);
+            if (kind == ResetLineKind::Rtc) dll_ = dlm_ = 0u;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -42,8 +48,16 @@ public:
     void WriteHalf(uint32_t addr, uint16_t value) override { WriteReg(addr, value); }
     void WriteWord(uint32_t addr, uint32_t value) override { WriteReg(addr, value); }
 
-    void SaveState(StateWriter& w) override { for (auto v : regs_) w.Write("regs", v); }
-    void RestoreState(StateReader& r) override { for (auto& v : regs_) r.Read("regs", v); }
+    void SaveState(StateWriter& w) override {
+        for (auto v : regs_) w.Write("regs", v);
+        w.Write("dll", dll_);
+        w.Write("dlm", dlm_);
+    }
+    void RestoreState(StateReader& r) override {
+        for (auto& v : regs_) r.Read("regs", v);
+        r.Read("dll", dll_);
+        r.Read("dlm", dlm_);
+    }
 
 private:
     enum : uint32_t {
@@ -57,18 +71,23 @@ private:
     uint32_t ReadReg(uint32_t addr) {
         const uint32_t idx = RegIndex(addr);
         switch (idx) {
-        case kIirFcr: return 0x01u;            /* no interrupt pending -> drain loop exits. */
-        case kLsr:    return 0x60u;            /* THRE|TEMT (TX ready); DR=0 (no RX data). */
-        case kRbrThr: return dlab() ? regs_[kRbrThr] : 0u;  /* RBR: no input source. */
+        case kIirFcr: return 0x01u;
+        case kLsr:    return 0x60u;
+        case kRbrThr: return dlab() ? dll_ : 0u;
+        case kIer:    return dlab() ? dlm_ : regs_[kIer];
         default:      return idx < regs_.size() ? regs_[idx] : 0u;
         }
     }
     void WriteReg(uint32_t addr, uint32_t value) {
         const uint32_t idx = RegIndex(addr);
-        if (idx < regs_.size()) regs_[idx] = value;  /* SCR scratch, LCR.DLAB, baud divisor, ... */
+        if (dlab() && idx == kRbrThr) { dll_ = value; return; }
+        if (dlab() && idx == kIer)    { dlm_ = value; return; }
+        if (idx < regs_.size()) regs_[idx] = value;
     }
 
     std::array<uint32_t, 8> regs_{};
+    uint32_t                dll_ = 0;
+    uint32_t                dlm_ = 0;
 };
 
 }  /* namespace */

@@ -38,6 +38,7 @@ public:
     void LatchWarmReset() override;
     void LatchColdReset() override;
     void LatchWatchdogReset() override;
+    void ReportOnlyWarmReset() override;
 
 private:
     static constexpr uint32_t kResetCauseCoreTargeted = 1u << 4;

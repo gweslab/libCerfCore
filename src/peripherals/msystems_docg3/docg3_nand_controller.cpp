@@ -6,6 +6,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/askey_pc3xx/askey_pc3xx_family_id.h"
 #include "../peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "msystems_docg3_base.h"
 
@@ -91,6 +92,7 @@ public:
         nand_.assign(static_cast<size_t>(block_count_) * kPagesPerBlock * kPageStored,
                      0xFFu);
         cfg.LoadInto(nand_.data(), nand_.size());
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
         LOG(SocNand, "[DOCG3] init: base=0x%08X, %u blocks x %u pages x %u bytes\n",
             base_, block_count_, kPagesPerBlock, kPageStored);
@@ -285,6 +287,19 @@ private:
     uint32_t base_        = 0;
     uint32_t block_count_ = 0;
     std::vector<uint8_t> nand_;
+
+    void ResetRegisters() {
+        read_address_   = 0;
+        flash_sequence_ = flash_command_ = 0;
+        flash_control_  = kCtrlCe;
+        test_reg_ = config_reg_ = device_select_ = asic_mode_ = 0;
+        ecc_conf0_ = 0;
+        ecc_conf1_ = 0;
+        for (uint8_t& b : addr_bytes_) b = 0;
+        addr_len_ = 0;
+        data_base_ = data_cursor_ = 0;
+        data_wide_pending_ = false;
+    }
 
     uint16_t read_address_   = 0;
     uint8_t  flash_sequence_ = 0, flash_command_ = 0;

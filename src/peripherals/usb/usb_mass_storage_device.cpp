@@ -119,6 +119,12 @@ void UsbMassStorageDevice::ResetTransport() {
 void UsbMassStorageDevice::ResetToDefault() {
     UsbDevice::ResetToDefault();
     ResetTransport();
+    cbw_tag_      = 0u;
+    cbw_data_len_ = 0u;
+    cbw_dir_in_   = false;
+    for (auto& b : cbwcb_) b = 0u;
+    cbwcb_len_    = 0u;
+    SetSense(0u, 0u, 0u);
 }
 
 void UsbMassStorageDevice::SetEndpointStalled(uint8_t ep, bool stalled) {

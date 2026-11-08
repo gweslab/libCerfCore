@@ -40,6 +40,7 @@ public:
     bool HandleClassRequest(const SetupPacket& setup,
                             std::vector<uint8_t>& data_stage) override;
     uint32_t OnBulkIn(uint8_t ep, uint8_t* dst, uint32_t max) override;
+    void ResetToDefault() override;
 
     void SaveState(StateWriter& w) override;
     void RestoreState(StateReader& r) override;

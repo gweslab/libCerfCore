@@ -9,9 +9,11 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/nec_sg2_vr5500/nec_sg2_vr5500_family_id.h"
 #include <cerfcore/host/host_presentation.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 namespace cerfcore {
@@ -93,6 +95,16 @@ public:
         fb_.assign(kFbSize, 0);
         bars_[0] = { ~(kFbSize - 1u),   kBarMemPrefetch, 0 };   /* BAR0: framebuffer */
         bars_[2] = { ~(kMmioSize - 1u), 0u,              0 };   /* BAR2: MMIO regs */
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            command_ = 0;
+            for (Bar& b : bars_) b.base = 0;
+            std::memset(regs_, 0, sizeof(regs_));
+            clock_cntl_ = 0;
+            std::memset(pll_, 0, sizeof(pll_));
+            crtc_vline_ = 0;
+            signaled_w_ = 0;
+            signaled_h_ = 0;
+        });
         emu_.Get<PciHostBridge>().RegisterPciDevice(this);
     }
 

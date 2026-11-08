@@ -5,7 +5,7 @@
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/nec_sg2_vr5500/nec_sg2_vr5500_family_id.h"
-#include <cerfcore/state/emulation_freeze.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstddef>
@@ -45,6 +45,15 @@ bool I8042Controller::ShouldRegister() {
 void I8042Controller::OnReady() {
     mouse_samples_.Attach([this] { OnMouseSample(); });
     mouse_samples_.Start({mouse_.SampleRate(), 1u});
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        std::lock_guard<std::mutex> lk(mtx_);
+        cmd_byte_ = 0;
+        pending_  = Pending::kNone;
+        out_byte_ = 0;
+        out_full_ = false;
+        out_aux_  = false;
+        ctrl_resp_.clear();
+    });
 }
 
 void I8042Controller::OnMouseSample() {
@@ -95,10 +104,8 @@ void I8042Controller::PumpAndRaise() {
 }
 
 void I8042Controller::HostKeyboardScancodes(const uint8_t* bytes, size_t n) {
-    emu_.Get<EmulationFreeze>().RunOrQueue([this, codes = std::vector<uint8_t>(bytes, bytes + n)] {
-        kbd_.QueueScancodes(codes.data(), codes.size());
-        PumpAndRaise();
-    });
+    kbd_.QueueScancodes(bytes, n);
+    PumpAndRaise();
 }
 
 void I8042Controller::HostMouseMotion(int dx, int dy, uint32_t button_mask) {

@@ -17,7 +17,6 @@ public:
                                 /*irq_gate_ier=*/0u}) {}
 
     bool ShouldRegister() override;
-    void OnReady() override;
 
     uint32_t MmioBase() const override { return 0x0F000820u; }
     uint32_t MmioSize() const override { return 0x08u; }
@@ -39,6 +38,7 @@ protected:
     uint32_t    RegStride() const override { return 1u; }
     const char* Name()      const override { return "DSIU"; }
     void SetInterruptLine(bool pending) override;
+    void OnLineReset(ResetLineKind) override;
 };
 
 }

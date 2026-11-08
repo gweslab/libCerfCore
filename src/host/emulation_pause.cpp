@@ -4,7 +4,6 @@
 #include "../core/steady_time.h"
 #include <cerfcore/execution/jit_runner.h>
 #include <cerfcore/host/notification_stack.h>
-#include <cerfcore/state/emulation_freeze.h>
 
 namespace cerfcore {
 
@@ -25,7 +24,6 @@ void EmulationPause::Toggle() {
 
 void EmulationPause::BeginStateOperation() {
     std::lock_guard<std::mutex> lk(mtx_);
-    emu_.Get<EmulationFreeze>().HoldQueue();
     auto& runner = emu_.Get<JitRunner>();
     runner.HoldResets(true);
     Apply(user_.load(std::memory_order_acquire), true);
@@ -38,7 +36,6 @@ void EmulationPause::EndStateOperation(bool release_user_pause) {
     const bool user     = was_user && !release_user_pause;
     Apply(user, false);
     emu_.Get<JitRunner>().HoldResets(false);
-    emu_.Get<EmulationFreeze>().ReleaseQueue();
     if (was_user && !user) ShowUserCard(false);
 }
 

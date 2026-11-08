@@ -25,6 +25,22 @@ PcmciaSlot::PcmciaSlot(CerfEmulator& emu, PcmciaSlotHost& host,
                        std::string label)
     : emu_(emu), host_(host), label_(std::move(label)) {}
 
+void PcmciaSlot::PublishUiLocked() {
+    UiView view;
+    view.generation = generation_;
+    if (card_) {
+        view.has_card       = true;
+        view.icon           = card_->IconResource();
+        view.tooltip_detail = card_->TooltipDetail();
+        view.save_id        = card_->SaveId();
+        view.display_name   = card_->DisplayName();
+        for (auto& c : card_->CardControls())
+            view.card_controls.push_back(GuardControlLocked(std::move(c), generation_));
+    }
+    std::lock_guard<std::mutex> lk(ui_mtx_);
+    ui_ = std::move(view);
+}
+
 void PcmciaSlot::PublishPinsLocked() {
     uint8_t v = (card_ ? kPinPresent : 0u) | (powered_ ? kPinPowered : 0u);
     if (card_) {
@@ -49,6 +65,12 @@ void PcmciaSlot::SetPowered(bool on) {
         if (!on) DriveLine(kLineBusy, false);
     }
     host_.OnCardPowerChanged(*this);
+}
+
+void PcmciaSlot::PowerCycleCard() {
+    if (!HasCard()) return;
+    SetPowered(false);
+    SetPowered(true);
 }
 
 void PcmciaSlot::SetResetLine(bool asserted) {
@@ -192,6 +214,7 @@ void PcmciaSlot::InsertLocked(std::unique_ptr<PcmciaCard> card) {
     card_->AttachSlot(this, generation_);
     card_->OnInserted();
     if (powered_) card_->PowerOn();
+    PublishUiLocked();
     LOG(Pcmcia, "[Slot %s] inserted: %s\n", label_.c_str(),
         card_->DisplayName().c_str());
 }
@@ -203,6 +226,7 @@ void PcmciaSlot::EjectLocked() {
     card_.reset();
     ++generation_;
     PublishPinsLocked();
+    PublishUiLocked();
     DriveLine(kLineIreq | kLineBusy, false);
 }
 
@@ -298,15 +322,7 @@ void PcmciaSlot::RestoreSlotState(StateReader& r) {
     card_->RestoreState(r);
     r.LeaveFrame();
     line_.store(card_busy != 0u ? kLineBusy : 0u, std::memory_order_release);
-}
-
-void PcmciaSlot::EjectCard() {
-    {
-        std::lock_guard<std::mutex> lk(bus_mutex_);
-        if (!card_) return;
-        EjectLocked();
-    }
-    host_.OnCardDetectChanged(*this);
+    PublishUiLocked();
 }
 
 void PcmciaSlot::EjectCardIfResident(uint64_t card_id) {
@@ -358,7 +374,7 @@ void PcmciaSlot::MenuInsertCard(uint64_t gen, std::unique_ptr<PcmciaCard> card) 
     CombinedSwap(gen, std::move(card));
 }
 
-std::vector<SlotEntry> PcmciaSlot::AvailableLocked(uint64_t gen) {
+std::vector<SlotEntry> PcmciaSlot::Available(uint64_t gen) {
     std::vector<SlotEntry> entries;
     for (const auto& e : emu_.Get<PcmciaCardCatalog>().Entries()) {
         SlotEntry entry;
@@ -405,42 +421,41 @@ WidgetControl PcmciaSlot::GuardControlLocked(WidgetControl control, uint64_t gen
 }
 
 std::vector<WidgetControl> PcmciaSlot::Controls() {
-    std::lock_guard<std::mutex> lk(bus_mutex_);
-    const uint64_t gen = generation_;
+    UiView view;
+    {
+        std::lock_guard<std::mutex> lk(ui_mtx_);
+        view = ui_;
+    }
+    const uint64_t gen = view.generation;
 
     SlotControl slot;
     slot.id        = "slot";
     slot.kind      = SlotKind::kPcCard;
-    slot.available = AvailableLocked(gen);
-    if (card_) {
-        slot.inserted = ChoiceOption{card_->SaveId(), card_->DisplayName()};
-        slot.eject    = [this, gen] { MenuEject(gen); };
-        for (auto& c : card_->CardControls())
-            slot.inserted_controls.push_back(GuardControlLocked(std::move(c), gen));
+    slot.available = Available(gen);
+    if (view.has_card) {
+        slot.inserted          = ChoiceOption{view.save_id, view.display_name};
+        slot.eject             = [this, gen] { MenuEject(gen); };
+        slot.inserted_controls = std::move(view.card_controls);
     }
     return {WidgetControl{std::move(slot)}};
 }
 
 std::string PcmciaSlot::Tooltip() const {
-    std::lock_guard<std::mutex> lk(bus_mutex_);
-    if (!card_) return label_ + " - empty";
-    return label_ + " - " + card_->TooltipDetail();
-}
-
-const char* PcmciaSlot::IconResourceLocked() const {
-    return card_ ? card_->IconResource() : "pcmcia";
+    std::lock_guard<std::mutex> lk(ui_mtx_);
+    if (!ui_.has_card) return label_ + " - empty";
+    return label_ + " - " + ui_.tooltip_detail;
 }
 
 WidgetIcon PcmciaSlot::Icon() const {
-    std::lock_guard<std::mutex> lk(bus_mutex_);
-    return ResourceIcon{IconResourceLocked()};
+    std::lock_guard<std::mutex> lk(ui_mtx_);
+    return ResourceIcon{ui_.icon};
 }
 
 bool PcmciaSlot::PollDirty() {
     std::string res;
     {
-        std::lock_guard<std::mutex> lk(bus_mutex_);
-        res = IconResourceLocked();
+        std::lock_guard<std::mutex> lk(ui_mtx_);
+        res = ui_.icon;
     }
     if (res == ui_last_res_) return false;
     ui_last_res_ = std::move(res);

@@ -19,6 +19,7 @@ public:
     GuestCycleClock::Rate ResetRate() const;
     uint64_t              CyclesPerCountTick() const;
     uint64_t              CyclesPerTclkCounterTick() const;
+    uint32_t              ConfigEc() const;
 
 protected:
     const char* RejectedPending(uint16_t value) const override;

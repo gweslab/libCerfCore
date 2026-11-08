@@ -9,6 +9,17 @@ namespace cerfcore {
 namespace {
 
 constexpr uint32_t kOffClksrcCtrl = 0x70u;
+constexpr uint32_t kOffRstctrl    = 0x50u;
+constexpr uint32_t kOffRstst      = 0x58u;
+
+constexpr uint32_t kRstctrlGlobalSw = 1u << 1;
+constexpr uint32_t kRstctrlDpll3    = 1u << 2;
+
+constexpr uint32_t kRststGlobalCold  = 1u << 0;
+constexpr uint32_t kRststGlobalSw    = 1u << 1;
+constexpr uint32_t kRststMpuWatchdog = 1u << 4;
+constexpr uint32_t kRststExternWarm  = 1u << 6;
+constexpr uint32_t kRststStatusMask  = 0x7FFu;
 
 /* SPRUF98Y Table 4-456 (printed p. 596): PRM_CLKSRC_CTRL SYSCLKDIV [7:6] reset
    0x1, "0x1: Syst_clk is external clock / 1"; AUTOEXTCLKMODE [4:3] RW;
@@ -20,9 +31,14 @@ constexpr uint32_t kSysClkSelMask      = 3u;
 constexpr uint32_t kSysClkSelBypass    = 0u;
 constexpr uint32_t kSysClkSelOsc       = 1u;
 
-class Omap3530PrmGlobal : public Omap3530PrcmStubBlock {
+class Omap3530PrmGlobal : public Omap3530PrcmStubBlock, public ResetCauseLatch {
 public:
     using Omap3530PrcmStubBlock::Omap3530PrcmStubBlock;
+
+    void LatchColdReset() override { StoreRstst(kRststGlobalCold); }
+    void LatchWarmReset() override { OrRstst(kRststExternWarm); }
+    void LatchWatchdogReset() override { OrRstst(kRststMpuWatchdog); }
+    void ReportOnlyWarmReset() override { StoreRstst(kRststExternWarm); }
 
     uint32_t MmioBase() const override { return 0x48307200u; }
     uint32_t MmioSize() const override { return 0x00000100u; }
@@ -35,15 +51,21 @@ public:
         {
             std::lock_guard<std::mutex> lk(mu_);
             regs_[kOffClksrcCtrl / 4u] = kSysClkDivBy1 | sysclksel_;
+            regs_[kOffRstst / 4u]      = kRststGlobalCold;
         }
-        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
-            if (kind != ResetLineKind::Rtc) return;
-            std::lock_guard<std::mutex> lk(mu_);
-            regs_[kOffClksrcCtrl / 4u] = kSysClkDivBy1 | sysclksel_;
-        });
+        emu_.Get<GuestCpuReset>().SetCauseLatch(this);
     }
 
     void WriteWord(uint32_t addr, uint32_t value) override {
+        if (addr - MmioBase() == kOffRstctrl) {
+            WriteRstctrl(value);
+            return;
+        }
+        if (addr - MmioBase() == kOffRstst) {
+            std::lock_guard<std::mutex> lk(mu_);
+            regs_[kOffRstst / 4u] &= ~(value & kRststStatusMask);
+            return;
+        }
         if (addr - MmioBase() != kOffClksrcCtrl) {
             Omap3530PrcmStubBlock::WriteWord(addr, value);
             return;
@@ -61,6 +83,12 @@ public:
     void WriteHalf(uint32_t addr, uint16_t value) override {
         if ((addr - MmioBase()) / 4u == kOffClksrcCtrl / 4u) {
             HaltUnsupportedAccess("WriteHalf(PRM_CLKSRC_CTRL)", addr, value);
+        }
+        if ((addr - MmioBase()) / 4u == kOffRstst / 4u) {
+            HaltUnsupportedAccess("WriteHalf(PRM_RSTST)", addr, value);
+        }
+        if ((addr - MmioBase()) / 4u == kOffRstctrl / 4u) {
+            HaltUnsupportedAccess("WriteHalf(PRM_RSTCTRL)", addr, value);
         }
         Omap3530PrcmStubBlock::WriteHalf(addr, value);
     }
@@ -80,6 +108,20 @@ public:
 
 protected:
     const char* Label() const override { return "PRM_GLOBAL"; }
+
+    void SeedPowerOnLocked(const std::vector<uint32_t>& before) override {
+        regs_[kOffClksrcCtrl / 4u] = kSysClkDivBy1 | sysclksel_;
+        regs_[kOffRstst / 4u]      = before[kOffRstst / 4u];
+    }
+
+    bool KeptByWarmReset(uint32_t off) const override {
+        switch (off) {
+        case 0x50: case 0x54: case 0x58: case 0x64: case 0x70: case 0x80:
+        case 0x90: case 0x94: case 0x98: case 0x9C: case 0xA0:
+            return true;
+        }
+        return false;
+    }
 
     const char* RegisterName(uint32_t off) const override {
         switch (off) {
@@ -120,6 +162,29 @@ protected:
     }
 
 private:
+    void WriteRstctrl(uint32_t value) {
+        if ((value & ~(kRstctrlGlobalSw | kRstctrlDpll3)) != 0u) {
+            emu_.Get<Fatal>().Die("omap3530 PRM_RSTCTRL write 0x%08X sets a reserved bit", value);
+        }
+        if ((value & kRstctrlDpll3) != 0u) {
+            emu_.Get<GuestCpuReset>().ColdReset();
+            return;
+        }
+        if ((value & kRstctrlGlobalSw) != 0u) {
+            OrRstst(kRststGlobalSw);
+            emu_.Get<GuestCpuReset>().ResetWithLatchedCause(ResetLineKind::Other);
+        }
+    }
+
+    void StoreRstst(uint32_t value) {
+        std::lock_guard<std::mutex> lk(mu_);
+        regs_[kOffRstst / 4u] = value;
+    }
+    void OrRstst(uint32_t bits) {
+        std::lock_guard<std::mutex> lk(mu_);
+        regs_[kOffRstst / 4u] |= bits;
+    }
+
     uint32_t sysclksel_ = 0;
 };
 

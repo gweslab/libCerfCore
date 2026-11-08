@@ -4,7 +4,6 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/shutdown_host.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
-#include <cerfcore/state/emulation_freeze.h>
 #include <cerfcore/state/hibernation.h>
 #include <cerfcore/state/shutdown_choice.h>
 
@@ -18,11 +17,10 @@ void ShutdownAction::Perform(ShutdownChoice c) {
         case ShutdownChoice::Cancel:
             return;
         case ShutdownChoice::SoftReset:
-            emu_.Get<EmulationFreeze>().RunOrQueue([this] { emu_.Get<GuestCpuReset>().WarmReset(); });
+            emu_.Get<GuestCpuReset>().WarmReset();
             return;
         case ShutdownChoice::HardReset:
-            emu_.Get<EmulationFreeze>().RunOrQueue(
-                [this] { emu_.Get<GuestColdBoot>().RequestHardReset(); });
+            emu_.Get<GuestColdBoot>().RequestHardReset();
             return;
         case ShutdownChoice::ExitSave:
             emu_.Get<Hibernation>().SaveAsync("", [this](bool saved) {

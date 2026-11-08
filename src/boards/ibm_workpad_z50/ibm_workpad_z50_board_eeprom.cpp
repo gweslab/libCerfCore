@@ -20,7 +20,7 @@ bool IbmWorkpadZ50BoardEeprom::ShouldRegister() {
     return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::IbmWorkpadZ50;
 }
 
-void IbmWorkpadZ50BoardEeprom::OnReady() {
+void IbmWorkpadZ50BoardEeprom::FillCells() {
     Cells().fill(kBlankCell);
 }
 

@@ -6,6 +6,7 @@
 #include "imx51_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
@@ -30,6 +31,9 @@ public:
         return bd && bd->GetSocId() == SocId::Imx51;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            if (kind == ResetLineKind::Rtc) regs_.fill(0u);
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

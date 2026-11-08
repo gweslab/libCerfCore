@@ -4,6 +4,7 @@
 #include <cerfcore/host/keyboard_input.h>
 #include <cerfcore/host/keyboard_map.h>
 #include <cerfcore/host/keyboard_router.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../socs/sa11xx/sa11xx_gpio.h"
 #include "../../socs/sa11xx/sa11xx_ssp_device.h"
 #include <cerfcore/state/state_stream.h>
@@ -27,6 +28,15 @@ public:
     bool ShouldRegister() override {
         auto* bd = emu_.TryGet<BoardContext>();
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::HpJornada820;
+    }
+
+    void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            reply_.clear();
+            cmd_         = -1;
+            params_left_ = 0;
+            in_cmd_      = false;
+        });
     }
 
     Pins WiredTo() const override { return Pins::Gpio10To13; }

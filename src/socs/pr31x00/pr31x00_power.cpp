@@ -107,6 +107,7 @@ public:
     void LatchColdReset() override {}
     void LatchWarmReset() override {}
     void LatchWatchdogReset() override {}
+    void ReportOnlyWarmReset() override { ctl_.fetch_and(~kColdStart, std::memory_order_acq_rel); }
 
     uint32_t MmioBase() const override { return kBase; }
     uint32_t MmioSize() const override { return kSize; }

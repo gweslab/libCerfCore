@@ -6,18 +6,18 @@
 
 namespace cerfcore {
 
+void Vr41xxSiu::OnLineReset(ResetLineKind) {
+    hibernating_.store(false, std::memory_order_release);
+    Serial16550::ResetRegisters();
+    irsel_.store(0u, std::memory_order_release);
+    ResetChip();
+}
+
 void Vr41xxSiu::OnReady() {
     Uart16550::OnReady();
     channel_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::MipsInterruptChannel>();
 
-    auto& reset = emu_.Get<GuestCpuReset>();
-    reset.RegisterResetListener([this](ResetLineKind) {
-        hibernating_.store(false, std::memory_order_release);
-        Serial16550::ResetRegisters();
-        irsel_.store(0u, std::memory_order_release);
-        ResetChip();
-    });
-    reset.RegisterResetReleaseListener([this] {
+    emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
         RefreshClocks();
         ResendEndpointInputs();
     });
@@ -35,7 +35,7 @@ void Vr41xxSiu::OnReady() {
         DriveCarrierPin(false);
         LoadModemInputs(false, false, false, DcdLevel());
     }
-    reset.RegisterResetReleaseListener([this] { ApplyModemInputs(); });
+    emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] { ApplyModemInputs(); });
     wiring_->RegisterSupplyListener([this] {
         ApplyModemInputs();
         RefreshControlLines();

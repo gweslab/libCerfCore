@@ -1,6 +1,7 @@
 #include "siemens_simatic_mp377_debug_led_peripheral.h"
 #include "siemens_simatic_mp377_debug_leds.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -9,6 +10,11 @@ namespace {
 class SiemensSimaticMp377DebugLedTickRegister final : public SiemensSimaticMp377DebugLedPeripheral {
 public:
     using SiemensSimaticMp377DebugLedPeripheral::SiemensSimaticMp377DebugLedPeripheral;
+
+    void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { value_ = 0; });
+        SiemensSimaticMp377DebugLedPeripheral::OnReady();
+    }
 
     uint32_t MmioBase() const override { return siemens_simatic_mp377::kDebugLedTickBase; }
     uint32_t MmioSize() const override { return siemens_simatic_mp377::kDebugLedTickEnd - MmioBase(); }

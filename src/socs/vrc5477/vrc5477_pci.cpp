@@ -6,6 +6,7 @@
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "../../cpu/vr5500/vr5500_id.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -29,6 +30,13 @@ public:
 
     bool ShouldRegister() override {
         return emu_.Get<BoardContext>().GetSocId() == SocId::Vr5500;
+    }
+
+    void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            pciinit00_ = 0;
+            pciw0_     = 0;
+        });
     }
 
     void RegisterPciDevice(PciDevice* dev) override { devices_.push_back(dev); }

@@ -7,6 +7,7 @@
 #include "../peripheral_dispatcher.h"
 #include "../intel_i8042/i8042_controller.h"
 #include "../../socs/vrc5477/vrc5477_intc.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -132,6 +133,13 @@ public:
         auto& kbc = emu_.Get<I8042Controller>();
         kbc.SetKbdIrqSink([this] { RaiseKbdIrq(); });
         kbc.SetAuxIrqSink([this] { RaiseMouseIrq(); });
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            std::lock_guard<std::mutex> lk(pic_mtx_);
+            pic_[0] = Pic8259{};
+            pic_[1] = Pic8259{};
+            elcr_[0] = elcr_[1] = 0;
+            RecomputeOutputLocked();
+        });
     }
 
     uint32_t MmioBase() const override { return kBase; }

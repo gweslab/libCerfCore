@@ -7,6 +7,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "../freescale_i2c_regs.h"
 #include "../freescale_module_clocks.h"
@@ -35,6 +36,15 @@ public:
     }
     void OnReady() override {
         modules_ = &emu_.Get<FreescaleModuleClocks>();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            iadr_ = ifdr_ = i2cr_ = i2dr_ = 0;
+            i2sr_       = kI2srReset;
+            addr_phase_ = false;
+            matched_    = false;
+            cur_addr_   = 0;
+            rx_shift_   = 0;
+            UpdateIrq();
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -166,7 +176,7 @@ private:
         else      emu_.Get<IrqController>().DeAssertIrq(kIrq);
     }
 
-    uint16_t iadr_ = 0, ifdr_ = 0, i2cr_ = 0, i2sr_ = 0, i2dr_ = 0;
+    uint16_t iadr_ = 0, ifdr_ = 0, i2cr_ = 0, i2sr_ = kI2srReset, i2dr_ = 0;
     bool     addr_phase_ = false;
     bool     matched_    = false;
     uint8_t  cur_addr_   = 0;

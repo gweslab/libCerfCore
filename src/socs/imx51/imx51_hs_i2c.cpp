@@ -4,6 +4,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
@@ -33,7 +34,8 @@ public:
         return bd && bd->GetSocId() == SocId::Imx51;
     }
     void OnReady() override {
-        for (const auto& r : kResets) regs_[r.off >> 2] = r.val;
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -62,6 +64,11 @@ private:
         const uint32_t m = vmask << shift;
         uint32_t& r = regs_[off >> 2];
         r = (r & ~m) | ((v << shift) & m);
+    }
+
+    void ResetRegisters() {
+        regs_.fill(0u);
+        for (const auto& r : kResets) regs_[r.off >> 2] = r.val;
     }
 
     std::array<uint32_t, kSize / 4> regs_{};

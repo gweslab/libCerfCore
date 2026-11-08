@@ -17,6 +17,8 @@ public:
 
     virtual void RearmContentLatch() { latch_.Rearm(); }
 
+    virtual void CaptureResetBaseline();
+
     void RenderInto(uint32_t* dib_bgra32,
                     uint32_t  width,
                     uint32_t  height) override = 0;

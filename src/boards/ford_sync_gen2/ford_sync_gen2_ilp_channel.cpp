@@ -183,6 +183,12 @@ void FordSyncGen2IlpChannel::OnLinkReset() {
     tx_seq_ = 0;
 }
 
+void FordSyncGen2IlpChannel::PowerOn() {
+    tx_seq_        = 0;
+    watchdog_pets_ = 0;
+    emu_.Get<FordSyncGen2IlpSignals>().PowerOn();
+}
+
 void FordSyncGen2IlpChannel::OnWatchdogPet() {
     Refresh();
     ++watchdog_pets_;

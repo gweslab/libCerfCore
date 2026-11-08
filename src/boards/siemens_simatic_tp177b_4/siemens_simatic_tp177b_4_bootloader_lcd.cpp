@@ -2,6 +2,7 @@
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/service.h>
 #include <cerfcore/lcd/lcd_pixel_expand.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../socs/s3c2410/s3c2410_lcd.h"
 #include <cerfcore/boards/board_context.h>
 #include "siemens_simatic_tp177b_4_family_id.h"
@@ -74,6 +75,12 @@ public:
     }
 
     void OnReady() override {
+        Preset();
+        emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] { Preset(); });
+    }
+
+private:
+    void Preset() {
         auto& lcd = emu_.Get<S3C2410Lcd>();
 
         for (uint32_t i = 0; i < 256u; ++i)

@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../irq_controller.h"
 
 #include <mutex>
@@ -48,7 +49,24 @@ bool Pxa27xKeypad::ShouldRegister() {
 }
 
 void Pxa27xKeypad::OnReady() {
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        {
+            std::lock_guard<std::mutex> lk(state_mtx_);
+            ResetRegistersLocked();
+        }
+        PublishIrq(false);
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void Pxa27xKeypad::ResetRegistersLocked() {
+    kpc_   = 0;
+    kprec_ = 0;
+    kpkdi_ = kKpkdiReset;
+    kpas_  = kKpasReset;
+    for (uint32_t& v : kpasmkp_) v = 0;
+    mkp_ = mi_ = di_ = false;
+    imkp_latched_ = false;
 }
 
 bool Pxa27xKeypad::IsKnown(uint32_t off) {

@@ -122,6 +122,7 @@ private:
     bool HandleDispcControlWriteLocked(uint32_t value, uint64_t now);
     void HandleDispcScanTimingWriteLocked(uint32_t doff, uint32_t value);
 
+    void        ResetBlocksLocked();
     void        ApplyScanResetsLocked();
     void        ApplyDispcScanResetsLocked();
     const char* UnmodelledLcdLocked() const;

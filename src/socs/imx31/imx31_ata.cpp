@@ -34,6 +34,7 @@ constexpr uint32_t kBase = 0x43F8C000u;
 constexpr uint32_t kSize = 0x00004000u;
 
 constexpr uint32_t kTimingEnd    = 0x17u;  /* TIME_OFF..TIME_CYC, byte regs */
+constexpr uint8_t  kTimingReset  = 0x01u;
 constexpr uint32_t kFifoData32   = 0x18u;
 constexpr uint32_t kFifoData16   = 0x1Cu;
 constexpr uint32_t kFifoFill     = 0x20u;  /* R-only, halfwords in FIFO */
@@ -91,6 +92,10 @@ public:
            reads as "bay empty" and the disk never mounts. */
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
             drive_.Reset();
+            timing_.fill(kTimingReset);
+            ata_control_ = 0;
+            int_enable_  = 0;
+            fifo_alarm_  = 0;
             UpdateAvic();
         });
     }
@@ -270,7 +275,7 @@ private:
 
     std::array<uint8_t, kTimingEnd + 1> timing_ = [] {
         std::array<uint8_t, kTimingEnd + 1> t{};
-        t.fill(0x01u);  /* every timing register resets to 0x01 (Table 23-8) */
+        t.fill(kTimingReset);
         return t;
     }();
     uint8_t ata_control_ = 0, int_enable_ = 0, fifo_alarm_ = 0;

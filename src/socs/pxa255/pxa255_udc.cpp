@@ -5,6 +5,7 @@
 #include "pxa255_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 
@@ -25,11 +26,9 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa255;
     }
     void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
-        /* Tables 12-14..12-19: IN endpoints reset with TFS=1 (transmit FIFO has
-           room); OUT and control endpoints reset to 0. */
-        for (uint32_t n = 0; n < 16u; ++n)
-            udccs_[n] = ((kUdccsInMask >> n) & 1u) ? 0x01u : 0x00u;
     }
 
     uint32_t MmioBase() const override { return 0x40600000u; }
@@ -53,11 +52,20 @@ private:
     static constexpr uint32_t kUdccfrRw    = 0x84u;  /* UDCCFR AREN | ACM. */
     static constexpr uint32_t kUdccfrMb1   = 0x7Bu;  /* UDCCFR must-be-1 bits [6:3]/[1:0]. */
 
-    uint32_t udccr_  = 0xA0u;  /* §12.6.1 reset: REM=1, SRM=1. */
-    uint32_t udccfr_ = 0xFFu;  /* §12.6.2 Table 12-13 reset: AREN|MB1|ACM|MB1. */
-    uint32_t uicr0_  = 0xFFu;  /* §12.6.9  Table 12-20 reset: all EP int masked. */
-    uint32_t uicr1_  = 0xFFu;  /* §12.6.10 Table 12-21 reset: all EP int masked. */
-    uint32_t udccs_[16] = {};  /* per-endpoint control/status, reset in OnReady. */
+    void ResetRegisters() {
+        udccr_  = 0xA0u;
+        udccfr_ = 0xFFu;
+        uicr0_  = 0xFFu;
+        uicr1_  = 0xFFu;
+        for (uint32_t n = 0; n < 16u; ++n)
+            udccs_[n] = ((kUdccsInMask >> n) & 1u) ? 0x01u : 0x00u;
+    }
+
+    uint32_t udccr_  = 0u;
+    uint32_t udccfr_ = 0u;
+    uint32_t uicr0_  = 0u;
+    uint32_t uicr1_  = 0u;
+    uint32_t udccs_[16] = {};
 };
 
 uint32_t Pxa255Udc::ReadWord(uint32_t addr) {

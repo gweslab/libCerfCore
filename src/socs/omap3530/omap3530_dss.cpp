@@ -12,6 +12,9 @@
 #include "../irq_controller.h"
 #include "omap3530_cm_dss.h"
 
+#include <algorithm>
+#include <iterator>
+
 namespace cerfcore {
 
 bool Omap3530Dss::ShouldRegister() {
@@ -28,14 +31,22 @@ void Omap3530Dss::OnReady() {
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
         std::lock_guard<std::mutex> lk(state_mtx_);
         StopScanLocked();
-        ApplyScanResetsLocked();
+        ResetBlocksLocked();
         RecomputeIrqLineLocked();
     });
     {
         std::lock_guard<std::mutex> lk(state_mtx_);
-        ApplyScanResetsLocked();
+        ResetBlocksLocked();
     }
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void Omap3530Dss::ResetBlocksLocked() {
+    std::fill(std::begin(dss_top_), std::end(dss_top_), 0u);
+    std::fill(std::begin(dispc_), std::end(dispc_), 0u);
+    std::fill(std::begin(rfbi_), std::end(rfbi_), 0u);
+    std::fill(std::begin(venc_), std::end(venc_), 0u);
+    ApplyScanResetsLocked();
     dss_top_[kDssSysstatus / 4u]   = kSysstatusResetDone;
     dispc_  [kDispcSysstatus / 4u] = kSysstatusResetDone;
 }

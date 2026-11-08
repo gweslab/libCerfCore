@@ -7,6 +7,7 @@
 #include "ibm_workpad_z50_battery.h"
 #include "ibm_workpad_z50_family_id.h"
 #include "ibm_workpad_z50_member_straps.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <utility>
 
@@ -33,6 +34,11 @@ bool IbmWorkpadZ50GpioBuffers::ShouldRegister() {
 void IbmWorkpadZ50GpioBuffers::OnReady() {
     straps_  = &emu_.Get<IbmWorkpadZ50MemberStraps>();
     battery_ = &emu_.Get<IbmWorkpadZ50Battery>();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        cs0_out_.store(0u, std::memory_order_release);
+        cs1_out_.store(0u, std::memory_order_release);
+    });
+    emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] { NotifyOutputListeners(); });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 

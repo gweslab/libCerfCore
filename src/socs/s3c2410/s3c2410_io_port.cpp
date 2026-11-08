@@ -165,6 +165,8 @@ public:
        GPA21: "nRSTOUT = nRESET & nWDTRST & SW_RESET(MISCCR[16])". */
     void LatchWarmReset() override { OrSlot(kGstatus2Slot, kWdtrst); }
 
+    void ReportOnlyWarmReset() override { StoreSlot(kGstatus2Slot, kWdtrst); }
+
     /* S3C2410A UM p. 9-28: GSTATUS2 OFFRST [1] "Power_OFF reset. The reset after
        the wakeup from Power_OFF mode. The setting is cleared by writing 1." */
     void LatchSleepWakeCause() override { OrSlot(kGstatus2Slot, kOffrst); }

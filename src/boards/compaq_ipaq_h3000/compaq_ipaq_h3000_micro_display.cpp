@@ -92,6 +92,15 @@ uint32_t CompaqIpaqH3000MicroDisplay::BacklightLoad() const {
     return pwm_load + control_load;
 }
 
+void CompaqIpaqH3000MicroDisplay::PowerOn() {
+    std::lock_guard<std::mutex> lk(mtx_);
+    backlight_mode_       = 0;
+    backlight_on_         = 0;
+    backlight_level_      = 0;
+    control_backlight_on_ = 0;
+    contrast_             = 0;
+}
+
 void CompaqIpaqH3000MicroDisplay::SaveState(StateWriter& w) {
     std::lock_guard<std::mutex> lk(mtx_);
     w.Write("micro_backlight_mode", backlight_mode_);

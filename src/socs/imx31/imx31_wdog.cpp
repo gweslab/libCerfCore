@@ -86,7 +86,9 @@ protected:
         wcr_ = static_cast<uint16_t>(kWcrReset | woe);
         wsr_ = 0u;
         switch (kind) {
-            case ResetLineKind::Rtc:   wrsr_ = kWrsrPwr; break;
+            case ResetLineKind::Rtc:
+                wrsr_ = emu_.Get<GuestCpuReset>().DeliveredResetReportedWarm() ? kWrsrExt : kWrsrPwr;
+                break;
             case ResetLineKind::Other: wrsr_ = kWrsrExt; break;
             case ResetLineKind::Watchdog:
                 wrsr_ = source == WdogResetSource::kTimeout ? kWrsrTout : kWrsrSftw;

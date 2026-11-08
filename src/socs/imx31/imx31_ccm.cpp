@@ -116,6 +116,9 @@ void Imx31Ccm::OnReady() {
 void Imx31Ccm::LatchColdReset()     { latched_rest_.store(kRestPor, std::memory_order_release); }
 void Imx31Ccm::LatchWarmReset()     { latched_rest_.store(kRestExternal, std::memory_order_release); }
 void Imx31Ccm::LatchWatchdogReset() { latched_rest_.store(kRestWatchdog, std::memory_order_release); }
+void Imx31Ccm::ReportOnlyWarmReset() {
+    regs_[kRcsrSlot] = (regs_[kRcsrSlot] & ~kRcsrRestMask) | kRestExternal;
+}
 
 /* MCIMX31RM 3.6.5: on a watchdog reset every CCM register returns to its default
    except those reset by por_reset only (Table 3-7 RCSR GPF; LDC "only after POR"). */

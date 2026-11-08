@@ -1,6 +1,7 @@
 #define NOMINMAX
 
 #include "odo_audio_player.h"
+#include "odo_dma_pointer_pair.h"
 #include "odo_touch_sound.h"
 
 #include <cerfcore/peripherals/peripheral_base.h>
@@ -27,11 +28,6 @@ namespace {
 
 constexpr uint32_t kRecordDmaPa    = 0x10040810u;
 constexpr uint32_t kPlaybackDmaPa  = 0x10050810u;
-constexpr uint32_t kDmaPairSize    = 0x08u;
-constexpr uint32_t kSlotDmaLow     = 0x00u;
-constexpr uint32_t kSlotDmaHigh    = 0x04u;
-
-constexpr uint32_t kDramPaBase     = 0x0C000000u;
 
 constexpr uint16_t kIoSoundStrPlaybackPageDone = (1u << 13);
 
@@ -59,66 +55,29 @@ constexpr uint8_t  kUcbRegAudioCtlA = 7u;
 constexpr uint16_t kAudDivMask      = 0x7Fu;
 constexpr uint16_t kAudDivModelled  = 5u;
 
-class AudioDmaPair : public Peripheral {
+class AudioDmaPair : public OdoDmaPointerPair {
 public:
-    using Peripheral::Peripheral;
+    using OdoDmaPointerPair::OdoDmaPointerPair;
 
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
-    }
-    void OnReady() override {
-        emu_.Get<PeripheralDispatcher>().Register(this);
-    }
-
-    uint32_t MmioSize() const override final { return kDmaPairSize; }
     virtual const char* PortName() const = 0;
 
     void WriteHalf(uint32_t addr, uint16_t value) override {
         const uint32_t off = addr - MmioBase();
-        if (off != kSlotDmaLow && off != kSlotDmaHigh) {
-            HaltUnsupportedAccess("WriteHalf", addr, value);
-        }
+        if (!IsSlot(off)) HaltUnsupportedAccess("WriteHalf", addr, value);
 #if CERF_DEV_MODE
         LOG(Periph, "Odo %s write +0x%02X = 0x%04X\n",
             PortName(), off, value);
 #endif
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        if (off == kSlotDmaLow) dma_low_  = value;
-        else                    dma_high_ = value;
+        Store(off, value);
     }
 
     uint16_t ReadHalf(uint32_t addr) override {
         const uint32_t off = addr - MmioBase();
-        if (off != kSlotDmaLow && off != kSlotDmaHigh) {
-            HaltUnsupportedAccess("ReadHalf", addr, 0);
-        }
+        if (!IsSlot(off)) HaltUnsupportedAccess("ReadHalf", addr, 0);
         emu_.Get<Fatal>().Die(
             "odo audio: %s read at +0x%02X; the running transfer address the register "
             "returns is not modelled", PortName(), off);
     }
-
-    uint32_t GetEffectivePa() {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        const uint32_t chip_addr =
-            (static_cast<uint32_t>(dma_high_ & 0xFFu) << 16) |
-            static_cast<uint32_t>(dma_low_);
-        return kDramPaBase + chip_addr;
-    }
-
-    void SaveState(StateWriter& w) override {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        w.Write("dma_low", dma_low_);  w.Write("dma_high", dma_high_);
-    }
-    void RestoreState(StateReader& r) override {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        r.Read("dma_low", dma_low_);  r.Read("dma_high", dma_high_);
-    }
-
-private:
-    mutable std::mutex state_mutex_;
-    uint16_t           dma_low_  = 0;
-    uint16_t           dma_high_ = 0;
 };
 
 class OdoAudioRecordDma : public AudioDmaPair {

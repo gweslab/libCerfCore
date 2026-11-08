@@ -66,6 +66,7 @@ public:
     void LatchWarmReset() override;
     void LatchColdReset() override;
     void LatchWatchdogReset() override;
+    void ReportOnlyWarmReset() override;
 
 private:
     uint64_t            McuClkHz() const;

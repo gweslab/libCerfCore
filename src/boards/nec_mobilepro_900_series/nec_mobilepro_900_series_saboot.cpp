@@ -1,5 +1,6 @@
 #include <cerfcore/core/service.h>
 
+#include <cerfcore/boot/guest_cold_boot.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
@@ -143,8 +144,8 @@ private:
 
     /* StartUp 0x90061178-0x90061194, sub_900618A8 (0x90061900-0x9006190C), sub_9006191C,
        sub_90061B94 (0x90061B94-0x90061BD4), then sub_900614B8. */
-    void Boot(bool board_inputs_driven) {
-        board_inputs_driven_ = board_inputs_driven;
+    void Boot(bool at_reset) {
+        at_reset_ = at_reset;
         if (layout_->sets_cpar) {
             emu_.Get<EngineBridge>().Engine().Get<cerfengine::ArmCpu>().SetResetCoprocessorAccess(kCpar);
         }
@@ -226,6 +227,7 @@ private:
 
     /* 0x900615AC-0x900615E4 */
     void HardBoot(uint32_t r10, uint32_t code) {
+        LOG(SocReset, "nec900 SABOOT hard boot: cause 0x%X code 0x%08X\n", r10, code);
         const auto& l = *layout_;
         for (uint32_t off = 0; off < l.cleared_bytes; off += 4u) SetRam(kArgsBasePa + off, 0u);
         SetRam(l.hard_boot_code_pa, code);
@@ -237,6 +239,7 @@ private:
 
     /* 0x900615E8: sub_90061C7C, then main */
     void ClockBoot() {
+        LOG(SocReset, "nec900 SABOOT clock boot\n");
         ProgramCoreClock();
         Main();
     }
@@ -258,7 +261,7 @@ private:
         bool restore_gpio1 = true;
         if (Ram(l.boot_state_pa) == 0u && (Ram(l.reset_cause_pa) & kCauseWdr) == 0u) {
             SetRam(l.boot_state_pa, 1u);
-            if (board_inputs_driven_ && (Gpio(kGplr0) & kGpio1) != 0u) {
+            if (at_reset_ && (Gpio(kGplr0) & kGpio1) != 0u) {
                 emu_.Get<Fatal>().Die("NEC 900 SABOOT stand-in: GPIO 1 high at a hard reset "
                                       "(SABOOT's \"Power Button Down!\"); SABOOT's wait for its "
                                       "release is not modelled");
@@ -279,7 +282,7 @@ private:
             }
             if (l.has_main_status_words) SetRam(l.sleep_boot_key_flag_pa, key_flag);
         }
-        if (board_inputs_driven_ && (Gpio(kGplr0) & kGpioBatteryDoor) == 0u) {
+        if (at_reset_ && (Gpio(kGplr0) & kGpioBatteryDoor) == 0u) {
             emu_.Get<Fatal>().Die("NEC 900 SABOOT stand-in: battery door open; SABOOT's "
                                   "door wait and sleep are not modelled");
         }
@@ -305,7 +308,30 @@ private:
             SetGpio(kGpdr0, Gpio(kGpdr0) & ~kGpio1);
         }
         ProgramCoreClock();
+        const uint32_t ram_entry = Ram(kRamImageEntryPa);
+        if (WarmBoot() && ram_entry != 0u) {
+            BootImageFromRam(ram_entry);
+            return;
+        }
         MarkColdBoot();
+        if (at_reset_) LaunchImageFromFlash();
+    }
+
+    bool WarmBoot() {
+        return (Ram(kBootFlagsPa) & kBootFlagsCold) == kBootFlagsCold;
+    }
+
+    void BootImageFromRam(uint32_t entry_va) {
+        const uint32_t entry_pa = entry_va >= 0x90000000u ? entry_va + 0x10000000u
+                                                          : entry_va + 0x80000000u;
+        LOG(SocReset, "nec900 SABOOT soft reset: booting image from RAM at 0x%08X (PA 0x%08X)\n",
+            entry_va, entry_pa);
+        emu_.Get<EngineBridge>().Engine().Get<cerfengine::ArmCpu>().SetPendingResumeVector(entry_pa);
+    }
+
+    void LaunchImageFromFlash() {
+        LOG(SocReset, "nec900 SABOOT launch: the kernel region is copied from flash\n");
+        emu_.Get<GuestColdBoot>().ReplayBootWrites();
     }
 
     /* sub_9006D9F8 (0x9006D9F8-0x9006DA94): halfword accesses */
@@ -382,7 +408,7 @@ private:
     }
 
     const NecMobilepro900SeriesBootArgsLayout* layout_ = nullptr;
-    bool board_inputs_driven_ = false;
+    bool at_reset_ = false;
 };
 
 }

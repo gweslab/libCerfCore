@@ -14,13 +14,9 @@ namespace cerfcore {
    to drive its hardware model. */
 class BatteryWidget : public HostWidget {
 public:
-
-    /* Read on the JIT/peripheral thread, mutated on the UI thread via the menu. */
     int  FillPercent() const;   /* 0..100, 100 = full */
     bool IsOnBattery() const;   /* true = on battery, false = on AC */
 
-    /* Invoked (outside the state lock) after any menu-driven state change, so an
-       owner can push the new state onto its hardware model (e.g. AC GPIO pins). */
     void SetChangeHandler(std::function<void()> cb) { on_change_ = std::move(cb); }
 
     std::string WidgetName() const override { return "Battery"; }
@@ -38,7 +34,7 @@ private:
     void SetFillPercent(int fill);
     static BatteryLevel LevelOf(int fill);
 
-    mutable std::mutex state_mutex_;
+    mutable std::mutex    state_mutex_;
     std::function<void()> on_change_;
     bool on_battery_   = false;   /* default: on AC */
     int  fill_percent_ = 100;     /* default: full  */

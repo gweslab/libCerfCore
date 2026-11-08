@@ -155,6 +155,7 @@ void Pxa2xxGpio::ResetRegisters(bool sleep_exit) {
         }
         for (uint32_t i = 0; i < kMaxGafr; ++i) gafr_[i] = 0u;
         UpdateIntcLocked();
+        if (serial_slave_) serial_slave_->OnGpioReset();
     });
 }
 

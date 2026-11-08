@@ -129,6 +129,8 @@ protected:
         return nullptr;
     }
 
+    bool KeptByWarmReset(uint32_t off) const override { return off == 0x20u; }
+
 private:
     void SeedBootLocked() {
         regs_[kOffFclkenWkup / 4u] = boot_gpt1_;

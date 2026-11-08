@@ -36,6 +36,7 @@ public:
     void LatchWarmReset() override;
     void LatchColdReset() override;
     void LatchWatchdogReset() override;
+    void ReportOnlyWarmReset() override;
 
     void OnInputEdges(uint32_t rose, uint32_t fell) override;
 

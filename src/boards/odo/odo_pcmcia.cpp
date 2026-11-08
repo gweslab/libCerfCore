@@ -6,6 +6,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "odo_family_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -34,6 +35,10 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            std::lock_guard<std::mutex> lk(state_mutex_);
+            pcmcia_reg0_ = pcmcia_intr_reg0_ = pcmcia_reg1_ = pcmcia_intr_reg1_ = 0;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

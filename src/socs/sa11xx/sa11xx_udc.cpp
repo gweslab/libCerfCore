@@ -5,6 +5,7 @@
 #include "sa1110_id.h"
 #include "sa1100_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -25,6 +26,7 @@ public:
         return bd && (bd->GetSocId() == SocId::Sa1110 || bd->GetSocId() == SocId::Sa1100);
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -40,10 +42,26 @@ public:
     void RestoreState(StateReader& r) override;
 
 private:
-    uint32_t udccr_  = 0;
+    static constexpr uint32_t kUdccrReset     = 0x41u;
+    static constexpr uint32_t kMaxPacketReset = 0x08u;
+
+    void ResetRegisters() {
+        udccr_  = kUdccrReset;
+        udcar_  = 0;
+        udcomp_ = kMaxPacketReset;
+        udcimp_ = kMaxPacketReset;
+        udccs0_ = 0;
+        udccs1_ = 0;
+        udccs2_ = 0;
+        udcd0_  = 0;
+        udcdr_  = 0;
+        udcsr_  = 0;
+    }
+
+    uint32_t udccr_  = kUdccrReset;
     uint32_t udcar_  = 0;
-    uint32_t udcomp_ = 0;
-    uint32_t udcimp_ = 0;
+    uint32_t udcomp_ = kMaxPacketReset;
+    uint32_t udcimp_ = kMaxPacketReset;
     uint32_t udccs0_ = 0;
     uint32_t udccs1_ = 0;
     uint32_t udccs2_ = 0;

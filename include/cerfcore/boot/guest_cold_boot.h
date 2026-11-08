@@ -30,6 +30,8 @@ public:
 
     void ExecuteIfPending();
 
+    void ReplayBootWrites();
+
     void RequestResetFillingRam(std::function<void()> fill);
 
     void SaveState(StateWriter& w) const;

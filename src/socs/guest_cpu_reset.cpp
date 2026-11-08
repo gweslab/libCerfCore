@@ -4,6 +4,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/host/guest_power_notifier.h>
 #include "../execution/engine_bridge.h"
 
 namespace cerfcore {
@@ -19,10 +20,14 @@ void GuestCpuReset::SetCauseLatch(ResetCauseLatch* latch) {
     latch_ = latch;
 }
 
+void GuestCpuReset::Request(ResetLineKind kind) {
+    pending_kind_.store(kind, std::memory_order_release);
+    emu_.Get<EngineBridge>().Guest().SetResetPending(false);
+}
+
 void GuestCpuReset::WarmReset() {
     if (latch_) latch_->LatchWarmReset();
-    pending_kind_.store(ResetLineKind::Other, std::memory_order_release);
-    emu_.Get<EngineBridge>().Guest().SetResetPending(false);
+    Request(ResetLineKind::Other);
 }
 
 /* "When the RTCRST# signal is asserted, the PMU resets all peripheral units including the
@@ -30,14 +35,21 @@ void GuestCpuReset::WarmReset() {
    exemption is the RSTSW row's (UM 15.1.1(2)). */
 void GuestCpuReset::ColdReset() {
     if (latch_) latch_->LatchColdReset();
-    pending_kind_.store(ResetLineKind::Rtc, std::memory_order_release);
-    emu_.Get<EngineBridge>().Guest().SetResetPending(false);
+    Request(ResetLineKind::Rtc);
+}
+
+void GuestCpuReset::ColdResetReportingWarm() {
+    report_warm_pending_.store(true, std::memory_order_release);
+    Request(ResetLineKind::Rtc);
 }
 
 void GuestCpuReset::WatchdogReset() {
     if (latch_) latch_->LatchWatchdogReset();
-    pending_kind_.store(ResetLineKind::Watchdog, std::memory_order_release);
-    emu_.Get<EngineBridge>().Guest().SetResetPending(false);
+    Request(ResetLineKind::Watchdog);
+}
+
+void GuestCpuReset::ResetWithLatchedCause(ResetLineKind kind) {
+    Request(kind);
 }
 
 void GuestCpuReset::RegisterResetListener(std::function<void(ResetLineKind)> fn) {
@@ -76,11 +88,14 @@ void GuestCpuReset::OnResetDelivered() {
     delivered_is_resume_ = pending_is_resume_.exchange(false, std::memory_order_acq_rel);
     delivering_kind_.store(kind, std::memory_order_release);
     delivering_.store(true, std::memory_order_release);
+    delivered_reported_warm_ = report_warm_pending_.exchange(false, std::memory_order_acq_rel);
     line_held_ = true;
     for (auto& fn : reset_listeners_) fn(kind);
+    if (delivered_reported_warm_ && latch_) latch_->ReportOnlyWarmReset();
     emu_.Get<GuestColdBoot>().ExecuteIfPending();
     line_held_ = false;
     for (auto& fn : release_listeners_) fn();
+    emu_.Get<GuestPowerNotifier>().NotifyResetReleased();
     delivering_.store(false, std::memory_order_release);
 }
 

@@ -7,6 +7,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "omap3530_id.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "omap3530_sdma.h"
 
 #include <cstdint>
@@ -44,6 +45,7 @@ constexpr uint8_t kLcrDlabMask     = 0x80u;
 constexpr uint8_t kSsrIdleVal      = 0x00u;  /* TX FIFO never full */
 constexpr uint8_t kSyssRstDoneVal  = 0x01u;  /* reset always complete */
 constexpr uint8_t kSyscRstBit      = 0x02u;
+constexpr uint8_t kMdr1Reset       = 0x07u;
 constexpr uint8_t kIirNoIntPending = 0x01u;
 
 constexpr uint8_t kScrDmaModeCtl   = 1u << 0;
@@ -60,6 +62,14 @@ public:
         return bd && bd->GetSocId() == SocId::Omap3530;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            std::lock_guard<std::mutex> lk(state_mutex_);
+            ier_  = fcr_ = lcr_ = mcr_ = scr_ = 0;
+            mdr1_ = kMdr1Reset;
+            msr_  = spr_ = dll_ = dlh_ = sysc_ = wer_ = 0;
+            pending_tx_dma_req_ = false;
+            pending_rx_dma_req_ = false;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -91,7 +101,7 @@ private:
     uint8_t     fcr_   = 0;
     uint8_t     lcr_   = 0;
     uint8_t     mcr_   = 0;
-    uint8_t     mdr1_  = 0;  /* UART16 mode at reset */
+    uint8_t     mdr1_  = kMdr1Reset;
     uint8_t     scr_   = 0;
     uint8_t     msr_   = 0;
     uint8_t     spr_   = 0;

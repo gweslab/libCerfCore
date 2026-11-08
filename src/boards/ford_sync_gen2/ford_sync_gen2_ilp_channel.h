@@ -37,6 +37,7 @@ public:
     void HandleInbound(const uint8_t* data, std::size_t n);
     void OnWatchdogPet();
     void OnLinkReset();
+    void PowerOn();
     Counters ReadCounters() const;
     void SaveState(StateWriter& w) const;
     void RestoreState(StateReader& r);

@@ -26,10 +26,12 @@ protected:
     virtual bool     LoadResetLocked()             = 0;
 
     void NotifyClock();
+    void AfterResetLocked(const std::vector<uint32_t>& before) override;
 
 private:
     uint64_t McBspGates() const;
     uint64_t McBspGatesLocked() const;
+    uint64_t GatesOf(const std::vector<uint32_t>& regs) const;
 
     std::vector<std::function<void()>> clock_listeners_;
     bool                               reset_changed_ = false;

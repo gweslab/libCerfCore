@@ -17,11 +17,18 @@ namespace {
    Freescale AIPS IP (i.MX31 RM §38.3.1 Table 38-12): MPR 0x00/0x04, PACR
    0x20-0x2C, OPACR 0x40-0x50, 32-bit R/W config; CERF stores only. */
 constexpr uint32_t kAipsRegionSize = 0x00001000u;
-constexpr uint32_t kPacrReset      = 0x44444444u;  /* i.MX31 §38.3.1 PACR/OPACR reset */
 
 class Imx51AipsBase : public Peripheral {
 public:
     using Peripheral::Peripheral;
+
+    bool ShouldRegister() override {
+        auto* bd = emu_.TryGet<BoardContext>();
+        return bd && bd->GetSocId() == SocId::Imx51;
+    }
+    void OnReady() override {
+        emu_.Get<PeripheralDispatcher>().Register(this);
+    }
 
     uint32_t MmioSize() const override { return kAipsRegionSize; }
     uint32_t ReadWord (uint32_t addr) override;
@@ -32,11 +39,7 @@ public:
     void RestoreState(StateReader& r) override { r.ReadBytes("regs", regs_, sizeof(regs_)); }
 
 protected:
-    uint32_t regs_[11] = {
-        0u, 0u,
-        kPacrReset, kPacrReset, kPacrReset, kPacrReset,
-        kPacrReset, kPacrReset, kPacrReset, kPacrReset, kPacrReset,
-    };
+    uint32_t regs_[11] = {};
 
     static bool OffsetToIndex(uint32_t off, uint32_t* index_out) {
         if      (off == 0x00) { *index_out = 0; return true; }
@@ -54,10 +57,7 @@ protected:
 };
 
 uint32_t Imx51AipsBase::ReadWord(uint32_t addr) {
-    const uint32_t off = addr - MmioBase();
-    uint32_t idx;
-    if (!OffsetToIndex(off, &idx)) HaltUnsupportedAccess("ReadWord", addr, 0);
-    return regs_[idx];
+    HaltUnsupportedAccess("ReadWord", addr, 0);
 }
 
 void Imx51AipsBase::WriteWord(uint32_t addr, uint32_t value) {
@@ -70,22 +70,12 @@ void Imx51AipsBase::WriteWord(uint32_t addr, uint32_t value) {
 class Imx51AipsTz1 : public Imx51AipsBase {
 public:
     using Imx51AipsBase::Imx51AipsBase;
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetSocId() == SocId::Imx51;
-    }
-    void OnReady() override { emu_.Get<PeripheralDispatcher>().Register(this); }
     uint32_t MmioBase() const override { return 0x73F00000u; }
 };
 
 class Imx51AipsTz2 : public Imx51AipsBase {
 public:
     using Imx51AipsBase::Imx51AipsBase;
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetSocId() == SocId::Imx51;
-    }
-    void OnReady() override { emu_.Get<PeripheralDispatcher>().Register(this); }
     uint32_t MmioBase() const override { return 0x83F00000u; }
 };
 

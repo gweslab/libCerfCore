@@ -86,6 +86,10 @@ void Pxa255PowerManager::LatchWatchdogReset() {
     rcsr_.fetch_or(kRcsrWdr, std::memory_order_acq_rel);
 }
 
+void Pxa255PowerManager::ReportOnlyWarmReset() {
+    rcsr_.store(kRcsrGpr, std::memory_order_release);
+}
+
 void Pxa255PowerManager::OnInputEdges(uint32_t rose, uint32_t fell) {
     if (!asleep_.load(std::memory_order_acquire)) return;
     const uint32_t hits = ((rose & prer_.load(std::memory_order_acquire)) |

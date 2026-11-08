@@ -4,6 +4,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "imx31_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -24,6 +25,9 @@ public:
         return bd && bd->GetSocId() == SocId::Imx31;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            for (uint32_t& v : regs_) v = 0u;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

@@ -4,6 +4,7 @@
 #include "usb_device_host.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
@@ -94,8 +95,6 @@ constexpr uint32_t kFrameStatusBits =
    17 USB Host 3. */
 constexpr uint32_t kCoreIrq[] = {18u, 14u, 16u, 17u};
 
-constexpr uint8_t kUsb3317Id[4] = {0x24u, 0x04u, 0x06u, 0x00u};
-
 }  /* namespace */
 
 REGISTER_SERVICE(Imx51Usboh3);
@@ -106,8 +105,7 @@ bool Imx51Usboh3::ShouldRegister() {
 }
 
 void Imx51Usboh3::OnReady() {
-    for (auto& phy : phy_)
-        for (uint8_t i = 0; i < 4; ++i) phy[i] = kUsb3317Id[i];
+    PowerOnPhys();
     emu_.Get<PeripheralDispatcher>().Register(this);
     transfers_   = &emu_.Get<Imx51UsbDeviceTransfers>();
     clock_       = &emu_.Get<GuestCycleClock>();
@@ -121,12 +119,20 @@ void Imx51Usboh3::OnReady() {
     });
     clock_->RegisterRateListener([this] { OnCpuRateChanged(); });
     /* MCIMX51RM Table 54-10: system_rst_b "Resets functional modules" in every reset row. */
-    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
         std::lock_guard<std::mutex> lk(async_schedule_mtx_);
+        if (kind == ResetLineKind::Rtc) {
+            if (UsbDevice* dev = otg_host_root_port_.Device()) dev->ResetToDefault();
+            PowerOnPhys();
+        }
         ResetController();
         RefreshDeviceIrq();
     });
     ResetController();
+}
+
+void Imx51Usboh3::PowerOnPhys() {
+    for (auto& phy : phys_) phy.PowerOn();
 }
 
 void Imx51Usboh3::ResetController() {
@@ -334,7 +340,7 @@ void Imx51Usboh3::WriteWord(uint32_t addr, uint32_t value) {
 void Imx51Usboh3::SaveState(StateWriter& w) {
     std::lock_guard<std::mutex> lk(async_schedule_mtx_);
     w.WriteBytes("regs", regs_.data(), sizeof(regs_));
-    w.WriteBytes("phy", phy_.data(), sizeof(phy_));
+    for (const auto& phy : phys_) phy.SaveState(w);
     w.Write<uint8_t>("reset_seen", reset_seen_ ? 1 : 0);
     frame_index_.Save(w);
     if (UsbDeviceHost* host = transfers_->Host()) host->SaveState(w);
@@ -343,7 +349,7 @@ void Imx51Usboh3::SaveState(StateWriter& w) {
 void Imx51Usboh3::RestoreState(StateReader& r) {
     std::lock_guard<std::mutex> lk(async_schedule_mtx_);
     r.ReadBytes("regs", regs_.data(), sizeof(regs_));
-    r.ReadBytes("phy", phy_.data(), sizeof(phy_));
+    for (auto& phy : phys_) phy.RestoreState(r);
     uint8_t b = 0; r.Read("reset_seen", b); reset_seen_ = b != 0;
     frame_index_.Restore(r);
     if (UsbDeviceHost* host = transfers_->Host()) host->RestoreState(r);
@@ -419,13 +425,19 @@ void Imx51Usboh3::ReflectScheduleStatus(uint32_t usbcmd_off, uint32_t usbcmd) {
 uint32_t Imx51Usboh3::UlpiTransfer(uint32_t core, uint32_t value) {
     if (value & kUlpiWu)      return value & ~kUlpiWu;
     if (!(value & kUlpiRun))  return value;
-    auto& phy = phy_[core % kCores];
-    const uint8_t addr = static_cast<uint8_t>(value >> 16) & (kPhyRegCount - 1);
+    auto& phy = phys_[core % kCores];
+    const uint8_t addr = static_cast<uint8_t>(value >> 16);
     if (value & kUlpiRw) {
-        phy[addr] = static_cast<uint8_t>(value);
+        const uint8_t data = static_cast<uint8_t>(value);
+        if (!phy.Write(addr, data))
+            emu_.Get<Fatal>().Die("i.MX51 USB core %u: ULPI write 0x%02X to PHY address 0x%02X, which takes no write",
+                                  core, data, addr);
         return value & ~kUlpiRun;
     }
-    return (value & ~kUlpiRun & ~0xFF00u) | (static_cast<uint32_t>(phy[addr]) << 8);
+    uint8_t data = 0;
+    if (!phy.Read(addr, data))
+        emu_.Get<Fatal>().Die("i.MX51 USB core %u: ULPI read of PHY address 0x%02X, which holds no register", core, addr);
+    return (value & ~kUlpiRun & ~0xFF00u) | (static_cast<uint32_t>(data) << 8);
 }
 
 uint32_t Imx51Usboh3::DqhBase() const {

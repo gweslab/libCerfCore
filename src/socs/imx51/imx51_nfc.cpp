@@ -1,5 +1,6 @@
 #include "imx51_nfc.h"
 #include "imx51_nand_store.h"
+#include "imx51_src.h"
 
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
@@ -103,8 +104,33 @@ bool Imx51Nfc::ShouldRegister() {
 void Imx51Nfc::OnReady() {
     module_clocks_ = &emu_.Get<FreescaleModuleClocks>();
     module_clocks_->RegisterGateListener([this] { RunHeldLaunch(); });
-    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { launch_held_ = false; });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) { ResetRegisters(kind); });
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void Imx51Nfc::ResetRegisters(ResetLineKind kind) {
+    nand_cmd_    = 0;
+    nand_add_.fill(0u);
+    ecc_status_  = 0;
+    status_sum_  = 0;
+    launch_      = 0;
+    launch_held_ = false;
+    axi_error_   = 0;
+    int_pending_ = false;
+    creq_        = false;
+    if (!emu_.Get<Imx51Src>().WarmResetKeepsConfiguration(kind)) {
+        cfg1_       = 0;
+        wr_protect_ = kWrProtectReset;
+        unlock_.fill(0u);
+        cfg2_       = kCfg2Reset;
+        cfg3_       = kCfg3Reset;
+        delay_line_ = kDelayLineReset;
+    }
+    if (kind != ResetLineKind::Rtc) return;
+    addr_bytes_.fill(0u);
+    addr_idx_      = 0;
+    seq_data_off_  = 0;
+    seq_cache_off_ = 0;
 }
 
 uint32_t Imx51Nfc::MmioBase() const { return kIpBase; }

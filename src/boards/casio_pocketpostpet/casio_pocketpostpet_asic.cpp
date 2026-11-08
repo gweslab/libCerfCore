@@ -12,7 +12,6 @@
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../socs/vr41xx/vr41xx_giu.h"
-#include <cerfcore/state/emulation_freeze.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstring>
@@ -28,7 +27,30 @@ bool CasioPocketpostpetAsic::ShouldRegister() {
 
 void CasioPocketpostpetAsic::OnReady() {
     fb_.assign(kFbSize, 0u);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { PowerOnRegisters(); });
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void CasioPocketpostpetAsic::PowerOnRegisters() {
+    fill_value_ = fill_width_ = fill_height_ = fill_dst_lo_ = fill_dst_hi_ = 0;
+    fill_src_lo_ = fill_src_hi_ = blit_src_bit_ = blit_mode_ = 0;
+    blit7_ctl_ = blit7_width_ = blit7_height_ = 0;
+    blit7_src_lo_ = blit7_src_hi_ = blit7_dst_lo_ = blit7_dst_hi_ = 0;
+    {
+        std::lock_guard<std::mutex> lk(int_mtx_);
+        int_status_ = 0;
+        int_enable_ = 0;
+        UpdateSideButtonInterruptLocked();
+    }
+    reg_1120_ = reg_1000_ = reg_1002_ = reg_1010_ = reg_1134_ = 0;
+    reg_7a0_ = reg_7a2_ = reg_7a4_ = reg_40a_ = reg_406_ = 0;
+    for (uint16_t& v : suspend_save_) v = 0;
+    reg_1130_  = 0;
+    dms_armed_ = true;
+    reg_0A00_ = reg_0A02_ = 0;
+    size_latch_.Reset();
+    reg_0920_ = reg_0922_ = reg_1112_ = 0;
+    reg_0B00_ = reg_0B10_ = reg_0B02_ = reg_0B1E_ = 0;
 }
 
 /* nk.exe fill sub_9F0B7D20 (whole 320x240) and ddi.dll blit sub_13815A8 (arbitrary
@@ -138,12 +160,10 @@ void CasioPocketpostpetAsic::MaybePublishDisplaySize() {
 }
 
 void CasioPocketpostpetAsic::SetSideButton(uint16_t mask, bool pressed) {
-    emu_.Get<EmulationFreeze>().RunOrQueue([this, mask, pressed] {
-        std::lock_guard<std::mutex> lk(int_mtx_);
-        if (pressed) side_buttons_ |= mask;
-        else         side_buttons_ &= static_cast<uint16_t>(~mask);
-        UpdateSideButtonInterruptLocked();
-    });
+    std::lock_guard<std::mutex> lk(int_mtx_);
+    if (pressed) side_buttons_ |= mask;
+    else         side_buttons_ &= static_cast<uint16_t>(~mask);
+    UpdateSideButtonInterruptLocked();
 }
 
 bool CasioPocketpostpetAsic::SpeakerMuted() const { return (reg_1010_ & 1u) != 0u; }

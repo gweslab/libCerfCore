@@ -6,6 +6,7 @@
 #include "msm8255_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -71,6 +72,13 @@ REGISTER_SERVICE(Msm8255ClockRates);
 bool Msm8255ClockRates::ShouldRegister() {
     auto* bd = emu_.TryGet<BoardContext>();
     return bd && bd->GetSocId() == SocId::Msm8255;
+}
+
+void Msm8255ClockRates::OnReady() {
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        for (auto& rate : mdh_granted_khz_) rate.store(kRateUnavailable, std::memory_order_release);
+        mdp_core_granted_hz_.store(kRateUnavailable, std::memory_order_release);
+    });
 }
 
 uint32_t Msm8255ClockRates::ReportClockFreqKhz(uint32_t clock) {

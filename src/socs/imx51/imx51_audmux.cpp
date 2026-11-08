@@ -4,6 +4,7 @@
 #include "imx51_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
@@ -29,6 +30,7 @@ constexpr AudmuxReset kResets[] = {
     {0x18, 0x00000800u},  /* PTCR4 */ {0x1C, 0x00004000u},  /* PDCR4 */
     {0x20, 0x00000800u},  /* PTCR5 */ {0x24, 0x00002000u},  /* PDCR5 */
     {0x28, 0x00000800u},  /* PTCR6 */ {0x2C, 0x00000000u},  /* PDCR6 */
+    {0x30, 0x00000800u},              {0x34, 0x0000C000u},
 };
 
 class Imx51Audmux : public Peripheral {
@@ -40,7 +42,8 @@ public:
         return bd && bd->GetSocId() == SocId::Imx51;
     }
     void OnReady() override {
-        for (const auto& r : kResets) regs_[r.off >> 2] = r.val;
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -56,6 +59,11 @@ public:
     void RestoreState(StateReader& r) override { r.ReadBytes("regs", regs_.data(), sizeof(regs_)); }
 
 private:
+    void ResetRegisters() {
+        regs_.fill(0u);
+        for (const auto& r : kResets) regs_[r.off >> 2] = r.val;
+    }
+
     std::array<uint32_t, kSize / 4> regs_{};
 };
 

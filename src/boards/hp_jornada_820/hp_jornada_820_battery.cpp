@@ -3,6 +3,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/host_widget_registry.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../socs/sa11xx/sa11xx_intc.h"
 #include "../../socs/sa11xx/sa11xx_sp1_uart.h"
 #include <cerfcore/state/state_stream.h>
@@ -56,6 +57,11 @@ void HpJornada820Battery::OnReady() {
     packets_.SetRate(clock_->ClockRate(), kPacketRate);
     packets_.Start(clock_->Cycles());
     ArmNextPacket();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        packets_.Start(clock_->Cycles());
+        next_packet_ = 0;
+        ArmNextPacket();
+    });
 }
 
 void HpJornada820Battery::SendPacket() {

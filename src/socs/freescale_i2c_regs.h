@@ -27,6 +27,7 @@ constexpr uint16_t kI2srIbb  = 0x20u;
 constexpr uint16_t kI2srIal  = 0x10u;
 constexpr uint16_t kI2srIif  = 0x02u;
 constexpr uint16_t kI2srRxak = 0x01u;
+constexpr uint16_t kI2srReset = kI2srIcf | kI2srRxak;
 
 }
 

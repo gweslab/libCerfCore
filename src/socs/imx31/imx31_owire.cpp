@@ -14,19 +14,17 @@ namespace cerfcore {
 
 namespace {
 
-/* MCIMX31RM Ch 22, 1-Wire at 0x43F9_C000. Table 22-4: RPP, WR0 and WR1 are self-clearing;
-   RDST "is valid after the WR1/RD bit is self cleared". */
 constexpr uint32_t kBase = 0x43F9C000u;
-constexpr uint32_t kSize = 0x00000008u;  /* CONTROL/TIME_DIVIDER/RESET (Table 22-1) */
+constexpr uint32_t kSize = 0x00000008u;
 
 constexpr uint32_t kControl     = 0x00u;
 constexpr uint32_t kTimeDivider = 0x02u;
 constexpr uint32_t kReset       = 0x04u;
 
-constexpr uint16_t kCtrlRpp  = 1u << 7;  /* Reset/Presence Pulse, self-clearing (Table 22-4) */
-constexpr uint16_t kCtrlWr0  = 1u << 5;  /* Write 0 bit, self-clearing */
-constexpr uint16_t kCtrlWr1  = 1u << 4;  /* Write 1 / Read, self-clearing */
-constexpr uint16_t kCtrlRdst = 1u << 3;  /* Read-bit result (1 = sampled high) */
+constexpr uint16_t kCtrlRpp  = 1u << 7;
+constexpr uint16_t kCtrlWr0  = 1u << 5;
+constexpr uint16_t kCtrlWr1  = 1u << 4;
+constexpr uint16_t kCtrlRdst = 1u << 3;
 constexpr uint16_t kCtrlStrobes = kCtrlRpp | kCtrlWr0 | kCtrlWr1;
 
 class Imx31Owire : public Peripheral {
@@ -41,7 +39,9 @@ public:
         module_clocks_ = &emu_.Get<FreescaleModuleClocks>();
         module_clocks_->RegisterGateListener([this] { RunHeldStrobes(); });
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
-            control_ &= static_cast<uint16_t>(~kCtrlStrobes);
+            control_      = 0;
+            time_divider_ = 0;
+            reset_        = 0;
         });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
@@ -88,8 +88,6 @@ private:
                 RunHeldStrobes();
                 return;
             case kTimeDivider: time_divider_ = value; return;
-            /* RST=1 holds the module in reset, clearing its registers
-               (Table 22-8); release with RST=0. */
             case kReset:
                 reset_ = value;
                 if (value & 1u) control_ = 0;
@@ -110,7 +108,7 @@ private:
     FreescaleModuleClocks* module_clocks_ = nullptr;
 };
 
-}  /* namespace */
+}
 
 REGISTER_SERVICE(Imx31Owire);
 

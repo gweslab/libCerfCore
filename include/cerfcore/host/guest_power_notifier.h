@@ -15,6 +15,7 @@ public:
 
     void NotifyPowerDown();
     void NotifyReboot();
+    void NotifyResetReleased();
     void NotifyResume(ResumeSource src);
     void NotifyHardReset();
 

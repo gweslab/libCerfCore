@@ -53,6 +53,11 @@ void CompaqIpaqH3000MicroLed::SetLed(const uint8_t* req, uint8_t len) {
     led_ = Setting{req[0], req[1], req[2], req[3]};
 }
 
+void CompaqIpaqH3000MicroLed::PowerOn() {
+    std::lock_guard<std::mutex> lk(mtx_);
+    led_ = Setting{};
+}
+
 void CompaqIpaqH3000MicroLed::SaveState(StateWriter& w) {
     std::lock_guard<std::mutex> lk(mtx_);
     w.Write("micro_led_color", led_.color);

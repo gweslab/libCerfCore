@@ -61,6 +61,8 @@ protected:
         emu_.Get<Vr41xxIcu>().SetSysint1Source(kSiuIntr, pending);
     }
 
+    void OnLineReset(ResetLineKind kind) override;
+
     uint32_t ReadExtReg(uint32_t idx) override;
     void     WriteExtReg(uint32_t idx, uint32_t value) override;
 

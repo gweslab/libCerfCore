@@ -142,7 +142,8 @@ void Serial16550::ResetRegisters() {
     {
         std::lock_guard<std::mutex> lk(mu_);
         ClearRegistersLocked();
-        dll_ = dlm_ = 0;
+        dll_ = static_cast<uint8_t>(cfg_.divisor_reset & 0xFFu);
+        dlm_ = static_cast<uint8_t>(cfg_.divisor_reset >> 8);
     }
     RefreshControlLines();
 }
@@ -153,6 +154,11 @@ void Serial16550::MasterReset() {
         ClearRegistersLocked();
     }
     RefreshControlLines();
+}
+
+void Serial16550::LineReset(ResetLineKind kind) {
+    if (kind == ResetLineKind::Rtc) ResetRegisters();
+    else                            MasterReset();
 }
 
 void Serial16550::ClearRegistersLocked() {

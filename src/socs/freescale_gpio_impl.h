@@ -8,6 +8,7 @@
 #include "imx51/imx51_id.h"
 #include "imx51/imx51_iomuxc.h"
 #include "../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "irq_controller.h"
 
@@ -55,6 +56,7 @@ public:
             RefreshPadMasks();
             iomuxc_->RegisterPadListener([this] { OnPadChange(); });
         }
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -99,7 +101,7 @@ public:
        software-I2C "HIC1:" on GPIO4.16/17, hsi2c.dll sub_C09F18D8) observes the
        guest's SCL/SDA edges through a write callback and reads the master-driven
        level via these getters; it drives the line back through SetInputPin. */
-    void SetWriteObserver(std::function<void()> cb) { write_obs_ = std::move(cb); }
+    void AddWriteObserver(std::function<void()> cb) { write_obs_.push_back(std::move(cb)); }
     void SetObserverState(std::function<void(StateWriter&)> save,
                           std::function<void(StateReader&)> restore) {
         obs_save_    = std::move(save);
@@ -146,9 +148,8 @@ public:
             if (off == kOffEdgeSel) { edge_sel_ = value; RecomputeIrq(); return; }
         }
         switch (off) {
-            case kOffDr:   dr_   = value; if (write_obs_) write_obs_(); return;
-            case kOffGdir:
-                gdir_ = value; if (write_obs_) write_obs_(); return;
+            case kOffDr:   dr_   = value; NotifyWrite(); return;
+            case kOffGdir: gdir_ = value; NotifyWrite(); return;
             case kOffIcr1: icr1_ = value; RecomputeIrq(); return;
             case kOffIcr2: icr2_ = value; RecomputeIrq(); return;
             case kOffImr:  imr_  = value; RecomputeIrq(); return;
@@ -199,6 +200,31 @@ protected:
     }
 
 private:
+    void ResetRegisters() {
+        if constexpr (kHasIrq) {
+            std::lock_guard<std::mutex> lk(irq_mu_);
+            ClearRegisters();
+            RecomputeIrqLocked();
+        } else {
+            ClearRegisters();
+        }
+        NotifyWrite();
+    }
+
+    void NotifyWrite() {
+        for (auto& fn : write_obs_) fn();
+    }
+
+    void ClearRegisters() {
+        dr_       = 0;
+        gdir_     = 0;
+        icr1_     = 0;
+        icr2_     = 0;
+        imr_      = 0;
+        isr_      = 0;
+        edge_sel_ = 0;
+    }
+
     void RefreshPadMasks() {
         input_mask_  = iomuxc_->InputPathMask(kBase);
         output_mask_ = iomuxc_->GpioPadMask(kBase);
@@ -328,7 +354,7 @@ private:
     uint32_t input_mask_  = 0xFFFFFFFFu;
     uint32_t output_mask_ = 0xFFFFFFFFu;
     Imx51Iomuxc* iomuxc_  = nullptr;
-    std::function<void()> write_obs_;  /* fired on DR/GDIR write (bit-bang observers) */
+    std::vector<std::function<void()>> write_obs_;
     std::function<void(StateWriter&)> obs_save_;
     std::function<void(StateReader&)> obs_restore_;
     std::vector<std::function<void(uint32_t, bool)>> input_listeners_;

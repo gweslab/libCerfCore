@@ -10,6 +10,7 @@
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../execution/engine_bridge.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstring>
@@ -24,6 +25,15 @@ bool CerfVirtCursor::ShouldRegister() {
 
 void CerfVirtCursor::OnReady() {
     emu_.Get<PeripheralDispatcher>().Register(this);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        if (emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) return;
+        {
+            std::lock_guard<std::mutex> lk(shape_mutex_);
+            shape_     = GuestCursorShape{};
+            has_shape_ = false;
+        }
+        seq_.fetch_add(1u);
+    });
     const uint32_t pa = emu_.Get<BoardContext>().GuestAdditionsWindowBase() +
                         CerfVirt::kCurStageOffset;
     EmulatedMemory& mem = emu_.Get<EmulatedMemory>();

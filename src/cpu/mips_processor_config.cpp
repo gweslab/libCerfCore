@@ -44,6 +44,13 @@ void MipsProcessorConfig::OnReady() {
     phys_addr_mask_ = c.Number("phys_addr_mask");
     device_ip_mask_ = c.Number("device_ip_mask");
 
+    config_reset_     = c.Number("config_reset");
+    config_writable_  = c.Number("config_writable");
+    config_zero_only_ = c.Number("config_zero_only");
+    status_reset_     = c.Number("status_reset");
+    status_writable_  = c.Number("status_writable");
+    status_zero_only_ = c.Number("status_zero_only");
+
     if (tlb_size_ == 0u || tlb_size_ > cerfengine::kMipsTlbMax)
         emu_.Get<ConfigReader>().Fail(c.Origin(kTlbSize), "'" + CfgKeyPath({config_key::kCpuConfig, kTlbSize}) +
                                                               "' must be between 1 and " +

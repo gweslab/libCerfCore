@@ -125,8 +125,20 @@ protected:
     void OnTouchReady() override {
         emu_.Get<Sa11xxSp1Uart>().AttachEndpoint(this);
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            const bool power_on = kind == ResetLineKind::Rtc;
+            const bool reported_warm = emu_.Get<GuestCpuReset>().DeliveredResetReportedWarm();
+            if (power_on) {
+                emu_.Get<CompaqIpaqH3000MicroDisplay>().PowerOn();
+                emu_.Get<CompaqIpaqH3000MicroLed>().PowerOn();
+            }
             std::lock_guard<std::mutex> lk(state_mtx_);
-            boot_type_ = kind == ResetLineKind::Rtc ? kBootPowerOn : kBootReset;
+            boot_type_ = power_on && !reported_warm ? kBootPowerOn : kBootReset;
+            if (!power_on) return;
+            state_    = kWaitSof;
+            rx_id_    = 0;
+            rx_len_   = 0;
+            rx_count_ = 0;
+            for (auto& b : rx_buf_) b = 0u;
         });
     }
 

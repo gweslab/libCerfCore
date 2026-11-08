@@ -7,7 +7,6 @@
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../socs/s3c2410/s3c2410_eint_source.h"
 #include "../../socs/s3c2410/s3c2410_spi.h"
-#include <cerfcore/state/emulation_freeze.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <iterator>
@@ -59,11 +58,9 @@ void SamsungSmdk2410KeyboardController::OnReady() {
 }
 
 void SamsungSmdk2410KeyboardController::QueueScancode(uint8_t scancode) {
-    emu_.Get<EmulationFreeze>().RunOrQueue([this, scancode] {
-        std::lock_guard<std::mutex> lk(mutex_);
-        queue_.push_back(scancode);
-        if (!awaiting_ack_) { PresentLocked(); }
-    });
+    std::lock_guard<std::mutex> lk(mutex_);
+    queue_.push_back(scancode);
+    if (!awaiting_ack_) { PresentLocked(); }
 }
 
 /* devemu_wm5 kbdmouse.dll: the IST sub_14D5DF4 takes one byte per interrupt

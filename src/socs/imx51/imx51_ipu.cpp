@@ -5,6 +5,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "imx51_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/host/host_presentation.h>
 #include "imx51_ipu_cpmem.h"
@@ -47,6 +48,9 @@ public:
     }
     void OnReady() override {
         regs_.assign(kSize / 4, 0u);
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            regs_.assign(kSize / 4, 0u);
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

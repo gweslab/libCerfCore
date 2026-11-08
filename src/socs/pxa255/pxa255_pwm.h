@@ -6,6 +6,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "pxa255_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -27,6 +28,8 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa255;
     }
     void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -63,6 +66,13 @@ public:
 
 private:
     enum : uint32_t { kCTRL = 0x00u, kDUTY = 0x04u, kPERVAL = 0x08u };
+
+    void ResetRegisters() {
+        ctrl_   = 0;
+        duty_   = 0;
+        perval_ = 0x004u;
+    }
+
     uint32_t ctrl_ = 0, duty_ = 0, perval_ = 0;
 };
 

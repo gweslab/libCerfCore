@@ -43,6 +43,10 @@ private:
     static constexpr uint32_t kKpasmkp3 = 0x40u;
     static constexpr uint32_t kKpkdi    = 0x48u;
 
+    static constexpr uint32_t kKpkdiReset = 0x0064u;
+    static constexpr uint32_t kKpasReset  = 0x000000FFu;
+
+    void     ResetRegistersLocked();
     uint32_t ReadRegLocked (uint32_t off);
     void     WriteRegLocked(uint32_t off, uint32_t value);
 
@@ -61,10 +65,10 @@ private:
     uint32_t kprec_ = 0;
     /* Intel PXA27x Developer's Manual 280000-001 Table 18-13: Interval field
        defaults to 100 ms upon reset. */
-    uint32_t kpkdi_ = 0x0064u;
+    uint32_t kpkdi_ = kKpkdiReset;
     /* Intel PXA27x Developer's Manual 280000-001 Table 18-7 reset column:
        RP and CP reset to 0b1111 (data invalid). */
-    uint32_t kpas_  = 0x000000FFu;
+    uint32_t kpas_  = kKpasReset;
     /* Intel PXA27x Developer's Manual 280000-001 Tables 18-9..18-12 reset column. */
     uint32_t kpasmkp_[4] = {};
 

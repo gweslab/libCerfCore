@@ -27,7 +27,7 @@ bool PhilipsVelo1DramCardIdEeprom::ShouldRegister() {
            FindPhilipsVelo1DramCard(bd->GetBoardId()) != nullptr;
 }
 
-void PhilipsVelo1DramCardIdEeprom::OnReady() {
+void PhilipsVelo1DramCardIdEeprom::FillCells() {
     const PhilipsVelo1DramCardProfile& card =
         *FindPhilipsVelo1DramCard(emu_.Get<BoardContext>().GetBoardId());
     auto& id_rom = Cells();

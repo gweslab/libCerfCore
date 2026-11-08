@@ -10,13 +10,19 @@
 #include "../../socs/vr4122/vr4122_id.h"
 #include "../vr5500/vr5500_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfengine/mips/mips_cpu.h>
 #include <cerfengine/mips/mips_cpu_state.h>
+#include "../../execution/mips_engine_bridge.h"
+#include "../mips/mips_core_clock.h"
 #include "../mips/mips_cp0_ops.h"
 #include "../mips_processor_config.h"
 
 namespace cerfcore {
 
 namespace {
+
+constexpr uint32_t kConfigEcShift = 28u;
+constexpr uint32_t kConfigM16     = 1u << 20;
 
 int32_t RegOffset(uint32_t rd) {
     switch (rd) {
@@ -61,6 +67,12 @@ public:
     void OnReady() override {
         config_ = &emu_.Get<MipsProcessorConfig>();
         ops_    = &emu_.Get<MipsCp0Ops>();
+        MipsEngineBridge& bridge = emu_.Get<MipsEngineBridge>();
+        cpu_state_ = bridge.Engine().Get<cerfengine::MipsCpu>().State();
+        config_at_reset_ = config_->ConfigReset() | (emu_.Get<MipsCoreClock>().ConfigEc() << kConfigEcShift);
+        if (config_->HasMips16()) config_at_reset_ |= kConfigM16;
+        bridge.RegisterResetListener([this] { ApplyColdReset(); });
+        ApplyColdReset();
     }
 
     cerfengine::MipsCp0Decision Decide(uint32_t rd) override {
@@ -90,12 +102,30 @@ public:
             d.write         = &MipsCp0Ops::WriteEntryHiR4000;
             d.write_context = ops_;
         }
+        if (rd == cerfengine::MipsCp0::kStatus) {
+            d.write_mask = config_->StatusWritable();
+            d.zero_only  = config_->StatusZeroOnly();
+        }
+        if (rd == cerfengine::MipsCp0::kConfig) {
+            d.write_mask = config_->ConfigWritable();
+            d.zero_only  = config_->ConfigZeroOnly();
+        }
+        if (rd == cerfengine::MipsCp0::kCause) {
+            d.write_mask = kMipsCauseSoftwareIp;
+        }
         return d;
     }
 
 private:
-    MipsProcessorConfig* config_ = nullptr;
-    MipsCp0Ops*          ops_    = nullptr;
+    void ApplyColdReset() {
+        cpu_state_->cp0_status = config_->StatusReset();
+        cpu_state_->cp0_config = config_at_reset_;
+    }
+
+    MipsProcessorConfig*      config_          = nullptr;
+    MipsCp0Ops*               ops_             = nullptr;
+    cerfengine::MipsCpuState* cpu_state_       = nullptr;
+    uint32_t                  config_at_reset_ = 0;
 };
 
 }

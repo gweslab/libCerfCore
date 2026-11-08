@@ -1,6 +1,7 @@
 #include "nec_mobilepro_900_series_board_window.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -14,6 +15,11 @@ namespace {
 class NecMobilepro900SeriesBoardCpld : public NecMobilepro900SeriesBoardWindow {
 public:
     using NecMobilepro900SeriesBoardWindow::NecMobilepro900SeriesBoardWindow;
+
+    void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { heartbeat_ = 0; });
+        NecMobilepro900SeriesBoardWindow::OnReady();
+    }
 
     uint32_t MmioBase() const override { return 0x13000000u; }
 

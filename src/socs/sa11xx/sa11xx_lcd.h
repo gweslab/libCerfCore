@@ -46,9 +46,12 @@ public:
     void RestoreState(StateReader& r) override;
 
 private:
+    static constexpr uint32_t kLcsrLdd = 0x1u;
+
     std::vector<std::function<void()>> enable_listeners_;
+    bool     enable_dropped_by_reset_ = false;
     uint32_t lccr0_ = 0;
-    uint32_t lcsr_  = 0;
+    uint32_t lcsr_  = kLcsrLdd;
     uint32_t dbar1_ = 0;
     uint32_t dbar2_ = 0;
     uint32_t lccr1_ = 0;

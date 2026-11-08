@@ -42,6 +42,11 @@ bool CasioJx670Eeprom::TryWriteWord(uint32_t off, uint32_t value) {
     }
 }
 
+void CasioJx670Eeprom::PowerOnRegisters() {
+    ctrl_a110_ = 0;
+    ctrl_a118_ = 0;
+}
+
 void CasioJx670Eeprom::SaveState(StateWriter& w) const {
     w.Write("ctrl_a110", ctrl_a110_);
     w.Write("ctrl_a118", ctrl_a118_);

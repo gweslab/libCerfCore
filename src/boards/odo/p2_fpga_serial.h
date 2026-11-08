@@ -28,6 +28,7 @@ public:
     bool Write(uint32_t slot_off, uint16_t value);
 
     void SetCsrABits(uint16_t bits);
+    void PowerOn();
 
     /* Exact register snapshot: bypasses Write()'s W1C / read-only masking,
        which would otherwise corrupt the restored csr_a_. */

@@ -1,6 +1,7 @@
 #include "../../socs/spi_slave.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/boards/board_context.h>
 #include "ford_sync_gen2_family_id.h"
 #include "../../socs/imx51/imx51_ecspi1.h"
@@ -33,6 +34,9 @@ public:
            ready-wait sub_C0D8383C times out and IPDMonitorThread reboots; the chip
            has no processing delay in CERF, so hold it high. */
         emu_.Get<Imx51Gpio4>().SetInputPin(23, true);
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            reg_ = len_ = data_idx_ = phase_ = 0;
+        });
     }
 
     uint8_t Exchange(uint8_t mosi) override {

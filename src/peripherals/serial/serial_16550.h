@@ -3,6 +3,8 @@
 #include "serial_line.h"
 #include "serial_line_timer.h"
 
+#include <cerfcore/socs/guest_cpu_reset.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -50,6 +52,8 @@ public:
            VR4102 SIU (SIUIE IE[0], UM 24.2.4), but a separate RTOIE on the PXA255
            (IER.4, Table 10-7). */
         uint8_t cti_ier_bit = 0x01;
+
+        uint16_t divisor_reset = 0;
     };
 
     Serial16550(SerialEndpoint* endpoint, IrqLineFn irq_line, Config cfg, SerialLineTimer& timer);
@@ -94,6 +98,7 @@ public:
     void Reset();
     void ResetRegisters();
     void MasterReset();
+    void LineReset(ResetLineKind kind);
     void ResendEndpointInputs();
 
     void PostRestoreLine();

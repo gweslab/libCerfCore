@@ -217,6 +217,11 @@ bool FordSyncGen2IlpSignals::AppendSignalIndication(uint32_t sigid, std::size_t 
     return true;
 }
 
+void FordSyncGen2IlpSignals::PowerOn() {
+    for (auto& subs : sub_tids_) subs.clear();
+    cycle_ = 0u;
+}
+
 void FordSyncGen2IlpSignals::SaveState(StateWriter& w) const {
     for (std::size_t i = 0; i < kSignalCount; ++i) {
         w.Write<uint32_t>("subscriber_count", static_cast<uint32_t>(sub_tids_[i].size()));

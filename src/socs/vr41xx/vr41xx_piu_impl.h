@@ -435,8 +435,9 @@ private:
        19.3.1). "When PENCHGINTR is cleared to 0, PENSTC indicates the touch panel contact
        state" (VR4121 UM 20.3.1). */
     void ApplyResetLocked() {
-        state_     = kStDisable;
-        cnt_cfg_   = 0;
+        state_       = kStDisable;
+        adps_return_ = kStStandby;
+        cnt_cfg_     = 0;
         intreg_    = 0;
         sivl_      = M.sivl_power_on;
         stbl_      = kStblPowerOn;

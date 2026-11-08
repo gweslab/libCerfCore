@@ -4,6 +4,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "imx31_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -14,10 +15,28 @@ namespace {
 
 constexpr uint32_t kAipsRegionSize  = 0x00001000u;
 constexpr uint32_t kPacrReset       = 0x44444444u;
+constexpr uint32_t kPacr1Reset      = 0x54444444u;
+
+constexpr uint32_t kFirstAccessControl = 2u;
+
+constexpr uint32_t kAccessControlReset[9] = {
+    kPacr1Reset, kPacrReset, kPacrReset, kPacrReset,
+    kPacr1Reset, kPacrReset, kPacrReset, kPacrReset, kPacrReset,
+};
 
 class Imx31AipsBase : public Peripheral {
 public:
     using Peripheral::Peripheral;
+
+    bool ShouldRegister() override {
+        auto* bd = emu_.TryGet<BoardContext>();
+        return bd && bd->GetSocId() == SocId::Imx31;
+    }
+    void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
+        emu_.Get<PeripheralDispatcher>().Register(this);
+    }
 
     uint32_t MmioSize() const override { return kAipsRegionSize; }
     uint32_t ReadWord (uint32_t addr) override;
@@ -28,11 +47,11 @@ public:
     void RestoreState(StateReader& r) override { r.ReadBytes("regs", regs_, sizeof(regs_)); }
 
 protected:
-    uint32_t regs_[11] = {
-        0u, 0u,
-        kPacrReset, kPacrReset, kPacrReset, kPacrReset,
-        kPacrReset, kPacrReset, kPacrReset, kPacrReset, kPacrReset,
-    };
+    void ResetRegisters() {
+        for (uint32_t i = 0; i < 9u; ++i) regs_[kFirstAccessControl + i] = kAccessControlReset[i];
+    }
+
+    uint32_t regs_[11] = {};
 
     static bool OffsetToIndex(uint32_t off, uint32_t* index_out) {
         if      (off == 0x00) { *index_out = 0; return true; }
@@ -66,26 +85,12 @@ void Imx31AipsBase::WriteWord(uint32_t addr, uint32_t value) {
 class Imx31AipsA : public Imx31AipsBase {
 public:
     using Imx31AipsBase::Imx31AipsBase;
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetSocId() == SocId::Imx31;
-    }
-    void OnReady() override {
-        emu_.Get<PeripheralDispatcher>().Register(this);
-    }
     uint32_t MmioBase() const override { return 0x43F00000u; }
 };
 
 class Imx31AipsB : public Imx31AipsBase {
 public:
     using Imx31AipsBase::Imx31AipsBase;
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetSocId() == SocId::Imx31;
-    }
-    void OnReady() override {
-        emu_.Get<PeripheralDispatcher>().Register(this);
-    }
     uint32_t MmioBase() const override { return 0x53F00000u; }
 };
 

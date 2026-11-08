@@ -7,6 +7,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../boards/toshiba_gigabeat_s/toshiba_gigabeat_s_family_id.h"
 #include "../peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -146,6 +147,10 @@ public:
 
     void OnReady() override {
         backing_.assign(kNorSize, 0xFFu);
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            mode_  = Mode::ReadArray;
+            stage_ = Stage::Idle;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

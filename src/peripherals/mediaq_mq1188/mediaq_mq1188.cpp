@@ -7,11 +7,64 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstring>
 
 namespace cerfcore {
+
+namespace {
+
+struct ResetBits {
+    uint32_t first;
+    uint32_t last;
+    uint32_t mask;
+    uint32_t value;
+};
+
+constexpr uint32_t kAll = 0xFFFFFFFFu;
+
+constexpr ResetBits kResetBits[] = {
+    {0x000u, 0x010u, kAll,    0u},
+    {0x080u, 0x088u, 0xFu,    0u},
+    {0x100u, 0x10Cu, kAll,    0u},
+    {0x180u, 0x180u, kAll,    0u},
+    {0x184u, 0x184u, 0xFFu,   0u},
+    {0x198u, 0x19Cu, 0xFFFFu, 0u},
+    {0x200u, 0x200u, kAll,    0u},
+    {0x230u, 0x230u, kAll,    0u},
+    {0x280u, 0x284u, kAll,    0u},
+    {0x290u, 0x290u, 0xFu,    0u},
+    {0x2A0u, 0x2ACu, 0xFFu,   0u},
+    {0x2C0u, 0x2C4u, kAll,    0u},
+    {0x2CCu, 0x2CCu, kAll,    0u},
+    {0x300u, 0x320u, kAll,    0u},
+    {0x380u, 0x380u, kAll,    0u},
+    {0x384u, 0x384u, kAll,    0xF0000000u},
+    {0x388u, 0x39Cu, kAll,    0u},
+    {0x500u, 0x500u, 0xFFu,   0x10u},
+    {0x504u, 0x530u, kAll,    0u},
+    {0x534u, 0x534u, kAll,    0x2EDFu},
+    {0x538u, 0x53Cu, kAll,    0u},
+    {0x540u, 0x540u, 0xFFFFu, 0u},
+    {0x544u, 0x544u, kAll,    0x0628u},
+    {0x548u, 0x548u, kAll,    0x1102u},
+    {0x54Cu, 0x558u, kAll,    0u},
+    {0x600u, 0x604u, kAll,    0u},
+    {0x608u, 0x608u, kAll,    0x0FFCFCFFu},
+    {0x60Cu, 0x61Cu, kAll,    0u},
+    {0x628u, 0x628u, kAll,    0xF0030000u},
+    {0x62Cu, 0x62Cu, 0xFFFu,  0u},
+    {0x638u, 0x638u, 0xFFu,   0u},
+    {0x63Cu, 0x63Cu, kAll,    0u},
+    {0x1000u, 0x1028u, kAll,  0u},
+    {0x102Cu, 0x102Cu, 0xFFu, 0u},
+    {0x1030u, 0x1048u, kAll,  0u},
+    {0x1060u, 0x107Cu, kAll,  0u},
+};
+
+}
 
 bool MediaQMq1188::ShouldRegister() {
     auto* bd = emu_.TryGet<BoardContext>();
@@ -24,8 +77,21 @@ Fatal& MediaQMq1188::OwnerFatal() {
 
 void MediaQMq1188::OnReady() {
     sram_.assign(kApertureSize, 0u);
-    reg_[kDc01R / 4u] = 0xF0000000u;   /* DC01R reset value (Table 4-2). */
+    ResetRegisters();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        ResetRegisters();
+        mode_latch_.Publish(emu_, false, 0u, 0u);
+        ge_.PowerOnReset();
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void MediaQMq1188::ResetRegisters() {
+    for (const ResetBits& b : kResetBits) {
+        for (uint32_t off = b.first; off <= b.last; off += 4u) {
+            reg_[off / 4u] = (reg_[off / 4u] & ~b.mask) | b.value;
+        }
+    }
 }
 
 bool MediaQMq1188::IsEnabled() const {

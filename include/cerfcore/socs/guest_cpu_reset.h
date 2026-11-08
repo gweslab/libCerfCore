@@ -19,6 +19,7 @@ public:
     virtual void LatchWarmReset()     = 0;   /* CPU reset, RAM preserved */
     virtual void LatchColdReset()     = 0;   /* CPU reset, RAM lost */
     virtual void LatchWatchdogReset() = 0;   /* watchdog expiry */
+    virtual void ReportOnlyWarmReset() = 0;
 };
 
 /* A register's reset value depends on which reset line drove it: the VR41xx register
@@ -42,8 +43,12 @@ public:
 
     void ColdReset();
 
+    void ColdResetReportingWarm();
+
     /* Any thread. SoC watchdog expiry (e.g. OSMR3 match with OWER.WME=1). */
     void WatchdogReset();
+
+    void ResetWithLatchedCause(ResetLineKind kind);
 
     /* OnReady-time only. Listeners model devices wired to the board's
        reset line (RESET_OUT): they run at reset delivery on the JIT
@@ -56,6 +61,7 @@ public:
     void OnResetDelivered();
 
     bool DeliveredResetWasResume() const { return delivered_is_resume_; }
+    bool DeliveredResetReportedWarm() const { return delivered_reported_warm_; }
     bool LineHeld() const { return line_held_; }
     bool Delivering() const { return delivering_.load(std::memory_order_acquire); }
     ResetLineKind DeliveringKind() const { return delivering_kind_.load(std::memory_order_acquire); }
@@ -64,12 +70,16 @@ public:
     void RestoreState(StateReader& r);
 
 private:
+    void Request(ResetLineKind kind);
+
     ResetCauseLatch*                                latch_ = nullptr;
+    std::atomic<bool>                               report_warm_pending_{false};
     std::vector<std::function<void(ResetLineKind)>> reset_listeners_;
     std::vector<std::function<void()>>              release_listeners_;
     std::atomic<ResetLineKind>                      pending_kind_{ResetLineKind::Other};
     std::atomic<bool>                               pending_is_resume_{false};
     bool                                            delivered_is_resume_ = false;
+    bool                                            delivered_reported_warm_ = false;
     bool                                            line_held_           = false;
     std::atomic<bool>                               delivering_{false};
     std::atomic<ResetLineKind>                      delivering_kind_{ResetLineKind::Other};

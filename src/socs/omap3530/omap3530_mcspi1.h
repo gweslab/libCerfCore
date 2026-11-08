@@ -50,8 +50,11 @@ public:
     }
 
 private:
+    static constexpr uint32_t kModulctrlReset = 0x00000004u;
+    static constexpr uint32_t kChconfReset    = 0x00060000u;
+
     struct Channel {
-        uint32_t    chconf  = 0;
+        uint32_t    chconf  = kChconfReset;
         uint32_t    chctrl  = 0;
         uint32_t    rx      = 0;
         bool        rx_full = false;
@@ -69,6 +72,7 @@ private:
         }
     };
 
+    void     ResetModuleLocked();
     void     PerformTransfer(uint32_t channel_index, uint32_t tx_word);
     uint32_t WordLength(const Channel& c) const;
 
@@ -80,7 +84,7 @@ private:
     uint32_t irqenable_    = 0;
     uint32_t wakeupenable_ = 0;
     uint32_t syst_         = 0;
-    uint32_t modulctrl_    = 0;
+    uint32_t modulctrl_    = kModulctrlReset;
     Channel  channels_[kNumChannels];
 };
 

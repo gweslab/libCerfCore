@@ -198,14 +198,19 @@ void CerfVirtFramebuffer::OnReady() {
 }
 
 void CerfVirtFramebuffer::SaveState(StateWriter& w) {
-    uint32_t gw = 0, gh = 0;
-    Geometry(gw, gh);
-    w.Write("bpp", Bpp());
+    uint32_t gw = 0, gh = 0, bpp = 0, scanout = 0;
+    {
+        std::lock_guard<std::mutex> lock(mode_mu_);
+        Geometry(gw, gh);
+        bpp     = Bpp();
+        scanout = ScanoutOffset();
+    }
+    w.Write("bpp", bpp);
     w.Write("width", gw);
     w.Write("height", gh);
     w.Write("quarter", Quarter());
     w.Write("primary_reserve", PrimaryReserveBytes());
-    w.Write("scanout_offset", ScanoutOffset());
+    w.Write("scanout_offset", scanout);
     w.Write<uint8_t>("any_write", any_write_ ? 1u : 0u);
     for (uint32_t i = 0; i < 256u; ++i) w.Write("palette", palette_[i]);
     std::vector<uint8_t> pages;

@@ -17,6 +17,7 @@ public:
     using Service::Service;
 
     bool ShouldRegister() override;
+    void OnReady() override;
 
     uint32_t GrantMdhRateKhz(uint32_t index, uint32_t min_khz,
                              uint32_t max_khz);

@@ -22,6 +22,7 @@ public:
     GuestCycleClock::Rate ResetRate() const override { return state_->ResetRate(); }
     uint64_t CyclesPerCountTick() const override { return state_->CyclesPerCountTick(); }
     uint64_t CyclesPerTclkCounterTick() const override { return state_->CyclesPerTclkCounterTick(); }
+    uint32_t ConfigEc() const override { return state_->ConfigEc(); }
 
 private:
     const Vr4122ClockState* state_ = nullptr;

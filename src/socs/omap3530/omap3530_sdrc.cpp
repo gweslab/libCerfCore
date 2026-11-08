@@ -49,6 +49,8 @@ protected:
         }
         return nullptr;
     }
+
+    bool KeptByWarmReset(uint32_t) const override { return true; }
 };
 
 }  /* namespace */

@@ -8,6 +8,7 @@
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/arm/arm_jit.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 namespace cerfcore {
 
@@ -35,6 +36,17 @@ bool Imx31Avic::ShouldRegister() {
 
 void Imx31Avic::OnReady() {
     jit_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::ArmJit>();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        std::lock_guard<std::mutex> guard(state_mtx_);
+        intcntl_   = 0;
+        nimask_    = 0x1Fu;
+        intenable_ = 0;
+        inttype_   = 0;
+        intfrc_    = 0;
+        for (uint32_t& p : niprio_) p = 0;
+        for (uint32_t& v : vector_) v = 0;
+        NotifyLocked();
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 

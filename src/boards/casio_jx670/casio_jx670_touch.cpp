@@ -197,6 +197,18 @@ uint64_t CasioJx670Touch::SampleHzLocked() const {
     return param_308_;
 }
 
+void CasioJx670Touch::PowerOnRegisters() {
+    std::lock_guard<std::mutex> lk(mtx_);
+    ctrl_300_ = param_308_ = param_30C_ = param_310_ = param_318_ = 0;
+    cfg_3C8_ = 0;
+    for (uint16_t& v : adc0_) v = 0;
+    for (uint16_t& v : adc1_) v = 0;
+    sampling_ = false;
+    sample_pending_.store(false, std::memory_order_release);
+    pen_event_.store(false, std::memory_order_release);
+    int_enable_.store(0u, std::memory_order_release);
+}
+
 void CasioJx670Touch::StartSamplingLocked() {
     const GuestCycleClock::Rate rate = clock_->ClockRate();
     const uint64_t hz = SampleHzLocked();

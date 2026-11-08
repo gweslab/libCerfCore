@@ -51,6 +51,9 @@ void SmallPageNandFlash::PowerUp() {
     page_          = 0;
     data_column_   = 0;
     id_index_      = 0;
+    write_protect_known_ = false;
+    write_protect_       = false;
+    std::memset(page_buf_, 0, sizeof(page_buf_));
 }
 
 uint32_t SmallPageNandFlash::PointerColumn() const {

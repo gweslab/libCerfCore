@@ -6,6 +6,7 @@
 #include "../../lcd/display_size_latch.h"
 #include "../../peripherals/peripheral_dispatcher.h"
 #include "../../socs/vr41xx/vr41xx_giu.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/boards/board_context.h>
 #include "casio_tomcat_family_id.h"
@@ -31,6 +32,10 @@ bool CasioTomcatLcd::ShouldRegister() {
 
 void CasioTomcatLcd::OnReady() {
     fb_.assign(kFbSize, 0u);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        for (uint8_t& c : ctrl_) c = 0u;
+        size_latch_.Reset();
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 

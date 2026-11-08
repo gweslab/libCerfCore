@@ -72,6 +72,10 @@ public:
 protected:
     const char* Label() const override { return "PRM_CLOCK_CONTROL"; }
 
+    void SeedPowerOnLocked(const std::vector<uint32_t>&) override {
+        regs_[kOffClksel / 4u] = boot_sel_;
+    }
+
     const char* RegisterName(uint32_t off) const override {
         switch (off) {
         case 0x40: return "PRM_CLKSEL";
@@ -79,6 +83,8 @@ protected:
         }
         return nullptr;
     }
+
+    bool KeptByWarmReset(uint32_t off) const override { return off == 0x40u || off == 0x70u; }
 
 private:
     uint32_t boot_sel_ = 0;

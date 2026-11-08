@@ -10,6 +10,8 @@
 #include <cerfcore/state/state_stream.h>
 #include "hp_jornada_820_pcmcia.h"
 
+#include <algorithm>
+
 namespace cerfcore {
 
 namespace {
@@ -38,7 +40,11 @@ void HpJornada820CompanionAsic::OnReady() {
        clean on hardware; the guest re-inits it with F6+F4 (no FF reset), so flush
        any queued pre-suspend motion that would otherwise sit ahead of the F6 ACK
        and desync the re-init handshake. */
-    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { mouse_.Reset(); });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        mouse_.Reset();
+        std::fill(store_.begin(), store_.end(), uint8_t{0});
+        intr_pending_ = 0;
+    });
     ps2_samples_.Attach([this] { OnPs2Sample(); });
     ps2_samples_.Start({mouse_.SampleRate(), 1u});
 }

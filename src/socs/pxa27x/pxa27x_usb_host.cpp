@@ -6,6 +6,7 @@
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 
@@ -116,6 +117,7 @@ public:
 
     void OnReady() override {
         ResetRegs();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegs(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
         LOG(Boot, "Pxa27xUsbHost: OpenHCI 1.0a at PA 0x%08X (NDP=%u, no devices)\n",
             kBase, kPorts);

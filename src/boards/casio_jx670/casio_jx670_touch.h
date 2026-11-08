@@ -22,6 +22,7 @@ class StateReader;
 class CasioJx670Touch {
 public:
     void Init(CerfEmulator& emu, std::function<void()> on_status_change);
+    void PowerOnRegisters();
 
     bool TryReadByte (uint32_t off, uint8_t&  out);
     bool TryWriteByte(uint32_t off, uint8_t   value);

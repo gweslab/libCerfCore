@@ -25,6 +25,17 @@ constexpr ClkselRow kClksel[8] = {
     {12u, 5u, 0x39u}, {11u, 5u, 0x38u}, {10u, 6u, 0x78u}, {0u, 0u, 0x00u},
 };
 
+constexpr uint8_t kEcReserved = 0xFFu;
+constexpr uint8_t kConfigEcOfVtdiv[8] = {kEcReserved, kEcReserved, 1u, 3u, 4u, 5u, 6u, kEcReserved};
+
+constexpr bool StrapRowsHaveConfigEc() {
+    for (const ClkselRow& r : kClksel) {
+        if (r.clksp != 0u && (r.vtdiv >= 8u || kConfigEcOfVtdiv[r.vtdiv] == kEcReserved)) return false;
+    }
+    return true;
+}
+static_assert(StrapRowsHaveConfigEc());
+
 constexpr uint64_t kPClockMult = 98u;
 constexpr uint16_t kTclkDivWritable = 0x0107u;
 constexpr uint16_t kVtDivMask = 0x7u;
@@ -81,6 +92,8 @@ uint64_t Vr4122ClockState::CyclesPerCountTick() const {
 uint64_t Vr4122ClockState::CyclesPerTclkCounterTick() const {
     return VtDivMode();
 }
+
+uint32_t Vr4122ClockState::ConfigEc() const { return kConfigEcOfVtdiv[strap_vtdiv_]; }
 
 void Vr4122ClockState::ActiveRestored() { emu_.Get<MipsCoreClock>().CountRateRestored(); }
 

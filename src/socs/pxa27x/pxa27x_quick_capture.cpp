@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 
@@ -24,6 +25,8 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa270;
     }
     void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -109,7 +112,12 @@ private:
     /* Table 27-24 (page 27-27) CICR0 reset row sets defined bits 9:0 (TOM,
        RDAVM, FEM, EOLM, PERRM, QDM, CDM, SOFM, EOFM, FOM); every other QCI
        reset row is 0. */
-    uint32_t regs_[(kCibr2 / 4u) + 1u] = { 0x000003FFu };
+    void ResetRegisters() {
+        for (uint32_t& r : regs_) r = 0u;
+        regs_[0] = 0x000003FFu;
+    }
+
+    uint32_t regs_[(kCibr2 / 4u) + 1u] = {};
 };
 
 }  /* namespace */

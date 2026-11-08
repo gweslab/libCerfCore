@@ -3,6 +3,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/host_request_channel.h>
 #include "../../socs/pxa255/pxa255_btuart.h"
@@ -114,6 +115,11 @@ void NecMobilepro900SeriesPcoCompanion::OnReady() {
     btuart.SetEndpoint(this);
     emu_.Get<Pxa255Gpio>().RegisterOutputObserver(
         [this](const Pxa2xxGpio::OutputPins& pins, bool resync) { OnResetPin(pins, resync); });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        if (kind != ResetLineKind::Rtc) return;
+        ResetPic();
+        pic_held_ = false;
+    });
     LOG(Periph, "[PCO] bound as the BTUART's serial endpoint\n");
 }
 
@@ -121,12 +127,15 @@ void NecMobilepro900SeriesPcoCompanion::OnResetPin(const Pxa2xxGpio::OutputPins&
                                                    bool resync) {
     if (resync || !pins.Driven(kPicResetGpio)) return;
     const bool high = pins.High(kPicResetGpio);
-    if (high && !pic_held_) ResetPic();
+    if (high && !pic_held_) {
+        LOG(Periph, "[PCO] PIC reset: GPIO %u driven high\n", kPicResetGpio);
+        ResetPic();
+    }
     pic_held_ = high;
 }
 
 void NecMobilepro900SeriesPcoCompanion::ResetPic() {
-    LOG(Periph, "[PCO] PIC reset: GPIO %u driven high\n", kPicResetGpio);
+    for (auto& b : cmd_) b = 0u;
     cmd_len_          = 0u;
     data_left_        = 0u;
     report_period_ms_ = 0u;

@@ -8,6 +8,8 @@
 #include <cerfcore/state/state_stream.h>
 #include "siemens_simpad_cs3_sink.h"
 
+#include <cerfcore/socs/guest_cpu_reset.h>
+
 #include <cstdint>
 
 namespace cerfcore {
@@ -37,6 +39,7 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::SiemensSimpad;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { shadow_ = 0; });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

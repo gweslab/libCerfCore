@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <array>
 #include <cstdint>
@@ -9,9 +10,6 @@ namespace cerfcore {
 
 class FreescaleModuleClocks;
 
-/* i.MX51 NAND Flash Controller (NFC v3), MCIMX51RM Ch 45. State owner for both
-   non-contiguous register windows: registered for the IP window (0x83FDB000);
-   the AXI window (0xCFFF1000) forwards here via Imx51NfcAxiWindow. */
 class Imx51Nfc : public Peripheral {
 public:
     using Peripheral::Peripheral;
@@ -36,6 +34,12 @@ public:
     void RestoreState(StateReader& r) override;
 
 private:
+    static constexpr uint32_t kCfg2Reset      = 0x0040223Du;
+    static constexpr uint32_t kCfg3Reset      = 0x00020600u;
+    static constexpr uint32_t kDelayLineReset = 0x00000010u;
+    static constexpr uint32_t kWrProtectReset = 0x49249200u;
+
+    void     ResetRegisters(ResetLineKind kind);
     void     Launch(uint32_t value);
     void     RunHeldLaunch();
     void     ExecuteLaunch(uint32_t value);
@@ -52,19 +56,19 @@ private:
 
     std::array<uint8_t, 0x200> spare_{};
     uint8_t  nand_cmd_  = 0;
-    std::array<uint32_t, 12> nand_add_{};   /* NAND_ADD0..11 (0x1E04..0x1E30) */
+    std::array<uint32_t, 12> nand_add_{};
     uint32_t cfg1_       = 0;
-    uint32_t ecc_status_ = 0;               /* ECC_STATUS_RESULT (0=no error) */
-    uint32_t status_sum_ = 0;               /* STATUS_SUM */
+    uint32_t ecc_status_ = 0;
+    uint32_t status_sum_ = 0;
     uint32_t launch_     = 0;
     bool     launch_held_ = false;
 
-    uint32_t wr_protect_ = 0;
+    uint32_t wr_protect_ = kWrProtectReset;
     std::array<uint32_t, 8> unlock_{};
-    uint32_t cfg2_       = 0x0040223Du;
-    uint32_t cfg3_       = 0x00020600u;
+    uint32_t cfg2_       = kCfg2Reset;
+    uint32_t cfg3_       = kCfg3Reset;
     uint32_t axi_error_  = 0;
-    uint32_t delay_line_ = 0;
+    uint32_t delay_line_ = kDelayLineReset;
 
     bool     int_pending_ = false;
     bool     creq_        = false;
@@ -72,8 +76,8 @@ private:
     std::array<uint8_t, 5> addr_bytes_{};
     uint32_t addr_idx_ = 0;
 
-    uint64_t seq_data_off_  = 0;   /* NAND Read-Cache: page being loaded */
-    uint64_t seq_cache_off_ = 0;   /* NAND Read-Cache: page served by the next data-output */
+    uint64_t seq_data_off_  = 0;
+    uint64_t seq_cache_off_ = 0;
 
     FreescaleModuleClocks* module_clocks_ = nullptr;
 };

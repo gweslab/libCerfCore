@@ -5,6 +5,7 @@
 #include "imx51_id.h"
 #include "imx51_power_gate_line.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "../freescale_module_clocks.h"
 
@@ -35,6 +36,7 @@ public:
     }
     void OnReady() override {
         module_clocks_ = &emu_.Get<FreescaleModuleClocks>();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { PowerDown(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
         emu_.Get<Imx51PowerGateLine>().RegisterBlock(Imx51PowerGatedBlock::kVpu,
                                                      [this] { PowerDown(); });

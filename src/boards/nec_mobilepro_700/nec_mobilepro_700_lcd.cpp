@@ -7,6 +7,7 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -18,6 +19,10 @@ bool NecMobilepro700Lcd::ShouldRegister() {
 
 void NecMobilepro700Lcd::OnReady() {
     fb_.assign(kVramSize, 0u);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        fb_written_ = false;
+        size_latch_.Reset();
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 

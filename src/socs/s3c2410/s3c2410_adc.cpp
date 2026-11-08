@@ -5,7 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include "../../peripherals/peripheral_dispatcher.h"
-#include <cerfcore/state/emulation_freeze.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "../irq_controller.h"
 #include "s3c2410_touch_calibration.h"
@@ -25,6 +25,7 @@ constexpr uint32_t kOffDat1 = 0x10u;
 
 /* UM p. 16-7 ADCCON: [15] ECFLG read only, [14] PRSCEN, [13:6] PRSCVL,
    [5:3] SEL_MUX, [2] STDBM, [1] READ_START, [0] ENABLE_START. */
+constexpr uint32_t kConReset       = 0x3FC4u;
 constexpr uint32_t kConEcflg       = 1u << 15;
 constexpr uint32_t kConWritable    = 0x7FFFu;
 constexpr uint32_t kConStdbm       = 1u << 2;
@@ -33,6 +34,7 @@ constexpr uint32_t kConEnableStart = 1u << 0;
 
 /* UM p. 16-8 ADCTSC: [8] Reserved, [7] YM_SEN, [6] YP_SEN, [5] XM_SEN,
    [4] XP_SEN, [3] PULL_UP, [2] AUTO_PST, [1:0] XY_PST. */
+constexpr uint32_t kTscReset     = 0x058u;
 constexpr uint32_t kTscWritable  = 0x1FFu;
 /* Linux drivers/input/touchscreen/s3c2410_ts.c INT_DOWN 0 / INT_UP (1 << 8),
    written as WAIT4INT|INT_DOWN 0xD3 and WAIT4INT|INT_UP 0x1D3. */
@@ -43,6 +45,7 @@ constexpr uint32_t kXyPstNoOperation = 0u;
 constexpr uint32_t kXyPstWaitForInt  = 3u;
 
 /* UM p. 16-9 ADCDLY: DELAY [15:0]. */
+constexpr uint32_t kDlyReset    = 0x00FFu;
 constexpr uint32_t kDlyWritable = 0xFFFFu;
 
 /* UM p. 16-10 ADCDAT0 / p. 16-11 ADCDAT1: [15] UPDOWN, [14] AUTO_PST,
@@ -65,8 +68,23 @@ bool S3C2410Adc::ShouldRegister() {
 }
 
 void S3C2410Adc::OnReady() {
+    {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        ResetRegistersLocked();
+    }
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        ResetRegistersLocked();
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
     emu_.Get<S3C2410HeldSourceLevels>().RegisterSub(kMainSourceAdc, kSubSourceTc, this);
+}
+
+void S3C2410Adc::ResetRegistersLocked() {
+    con_   = kConReset;
+    tsc_   = kTscReset;
+    dly_   = kDlyReset;
+    ecflg_ = false;
 }
 
 bool S3C2410Adc::LevelAsserted(int sub_source_bit) {
@@ -192,18 +210,16 @@ void S3C2410Adc::WriteWord(uint32_t addr, uint32_t value) {
 }
 
 void S3C2410Adc::SetPen(bool down, uint16_t sample_x, uint16_t sample_y) {
-    emu_.Get<EmulationFreeze>().RunOrQueue([this, down, sample_x, sample_y] {
-        bool raise_touch = false;
-        {
-            std::lock_guard<std::mutex> lk(state_mutex_);
-            pen_down_   = down;
-            pen_x_      = sample_x;
-            pen_y_      = sample_y;
-            raise_touch = PenInterruptAssertedLocked();
-        }
-        if (raise_touch)
-            emu_.Get<IrqController>().AssertSubIrq(kMainSourceAdc, kSubSourceTc);
-    });
+    bool raise_touch = false;
+    {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        pen_down_   = down;
+        pen_x_      = sample_x;
+        pen_y_      = sample_y;
+        raise_touch = PenInterruptAssertedLocked();
+    }
+    if (raise_touch)
+        emu_.Get<IrqController>().AssertSubIrq(kMainSourceAdc, kSubSourceTc);
 }
 
 void S3C2410Adc::SaveState(StateWriter& w) {

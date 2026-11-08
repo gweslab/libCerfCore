@@ -3,7 +3,6 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
-#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 
@@ -28,13 +27,6 @@ public:
     void OnReady() override {
         mmio_base_ = emu_.Get<IsaDebugPortConfig>().IsaWindowBase() + kUartOffset;
         Uart16550::OnReady();
-        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
-            if (kind == ResetLineKind::Rtc) {
-                ResetRegisters();
-            } else {
-                MasterReset();
-            }
-        });
     }
 
     uint32_t MmioBase() const override { return mmio_base_; }

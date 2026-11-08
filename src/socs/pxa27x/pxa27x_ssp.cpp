@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../irq_controller.h"
 
 #include <cstdint>
@@ -25,6 +26,11 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa270;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            sscr0_ = sscr1_ = ssitr_ = ssto_ = sspsp_ = sstsa_ = ssrsa_ = ssacd_ = 0u;
+            sticky_ = 0u;
+            UpdateIrq();
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

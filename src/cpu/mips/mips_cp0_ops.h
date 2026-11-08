@@ -5,6 +5,7 @@
 #include <cerfcore/core/service.h>
 #include "../../execution/guest_cycle_clock.h"
 #include <cerfengine/calling_convention.h>
+#include <cerfengine/mips/mips_cpu_state.h>
 #include "../../socs/cycle_anchored_counter.h"
 
 namespace cerfengine { struct MipsCpuState; }
@@ -15,6 +16,8 @@ namespace cerfcore {
 class MipsCoreClock;
 class MipsProcessorConfig;
 class MipsTlbModel;
+
+inline constexpr uint32_t kMipsCauseSoftwareIp = 0x3u << cerfengine::MipsCauseBit::kIP;
 
 class MipsCp0Ops : public Service {
 public:

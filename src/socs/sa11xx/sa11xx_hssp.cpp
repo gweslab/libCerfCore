@@ -5,6 +5,7 @@
 #include "sa1110_id.h"
 #include "sa1100_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -24,6 +25,9 @@ public:
         return bd && (bd->GetSocId() == SocId::Sa1110 || bd->GetSocId() == SocId::Sa1100);
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            hscr0_ &= ~(kHscr0Rxe | kHscr0Txe);
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -69,6 +73,9 @@ private:
             default:   return;
         }
     }
+
+    static constexpr uint32_t kHscr0Txe = 1u << 3;
+    static constexpr uint32_t kHscr0Rxe = 1u << 4;
 
     uint32_t hscr0_ = 0, hscr1_ = 0;
 };

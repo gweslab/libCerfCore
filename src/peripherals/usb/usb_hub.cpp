@@ -149,6 +149,18 @@ uint32_t UsbHub::OnBulkIn(uint8_t /*ep*/, uint8_t* dst, uint32_t max) {
     return 1u;
 }
 
+void UsbHub::ResetToDefault() {
+    UsbDevice::ResetToDefault();
+    for (int i = 0; i < NumPorts(); ++i) {
+        port_status_[static_cast<size_t>(i)] = 0u;
+        port_change_[static_cast<size_t>(i)] = 0u;
+        if (UsbDevice* dev = ports_[static_cast<size_t>(i)].Device()) {
+            dev->ResetToDefault();
+            OnPortConnectChanged(i);
+        }
+    }
+}
+
 void UsbHub::OnPortConnectChanged(int port_index) {
     if (port_index < 0 || port_index >= NumPorts()) return;
     auto& status = port_status_[static_cast<size_t>(port_index)];

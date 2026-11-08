@@ -56,12 +56,18 @@ private:
 
     BusOps   WriteRegLocked(uint32_t off, uint16_t value);
     void     ApplyBusOps(const BusOps& ops);
+    void     FinishBusOps(const BusOps& ops);
+    void     HardwareReset();
     uint16_t GpioDataInLocked() const;
     bool     IntLevelLocked() const;
     void     LatchInputEdgesLocked();
     BusOps   ApplyOutputsLocked();
+    BusOps   OutputOpsLocked();
     BusOps   SoftResetLocked();
+    void     ClearRegistersLocked();
     void     UpdateIntLocked();
+
+    static constexpr uint16_t kPowerOnDataIn = 0x1FFF;
 
     mutable std::mutex mu_;
 
@@ -82,7 +88,7 @@ private:
     uint16_t ctrl_            = 0;
     bool     int_asserted_    = false;
 
-    uint16_t prev_datain_    = 0x1FFF;
+    uint16_t prev_datain_    = kPowerOnDataIn;
     bool     ready_ireq_low_ = false;
 };
 

@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "omap3530_sdma.h"
 
 namespace cerfcore {
@@ -48,7 +49,24 @@ bool Omap3530Mcspi1::ShouldRegister() {
 }
 
 void Omap3530Mcspi1::OnReady() {
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        std::lock_guard<std::mutex> lk(mu_);
+        sysconfig_ = wakeupenable_ = syst_ = 0;
+        ResetModuleLocked();
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
+}
+
+void Omap3530Mcspi1::ResetModuleLocked() {
+    irqstatus_ = 0;
+    irqenable_ = 0;
+    modulctrl_ = kModulctrlReset;
+    for (auto& c : channels_) {
+        c.chconf  = kChconfReset;
+        c.chctrl  = 0;
+        c.rx      = 0;
+        c.rx_full = false;
+    }
 }
 
 void Omap3530Mcspi1::RegisterSlave(uint32_t channel, McspiSlave* slave) {
@@ -157,15 +175,7 @@ void Omap3530Mcspi1::WriteWord(uint32_t addr, uint32_t value) {
             sysconfig_ = value;
             if (value & kSysconfigSoftReset) {
                 sysconfig_ &= ~kSysconfigSoftReset;
-                irqstatus_ = 0;
-                irqenable_ = 0;
-                modulctrl_ = 0;
-                for (auto& c : channels_) {
-                    c.chconf  = 0;
-                    c.chctrl  = 0;
-                    c.rx      = 0;
-                    c.rx_full = false;
-                }
+                ResetModuleLocked();
             }
             goto fire_then_release;
         case kOffSysstatus:    goto fire_then_release;

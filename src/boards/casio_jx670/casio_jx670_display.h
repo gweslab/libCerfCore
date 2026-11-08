@@ -14,6 +14,7 @@ class StateReader;
 class CasioJx670Display {
 public:
     void Init(CerfEmulator& emu);
+    void PowerOnRegisters();
 
     bool TryReadByte (uint32_t off, uint8_t&  out);
     bool TryReadHalf (uint32_t off, uint16_t& out);

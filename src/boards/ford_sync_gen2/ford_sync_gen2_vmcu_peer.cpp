@@ -7,6 +7,7 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/product_name.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/host/user_alert.h>
 #include "ford_sync_gen2_family_id.h"
@@ -44,6 +45,18 @@ bool FordSyncGen2VmcuPeer::ShouldRegister() {
 void FordSyncGen2VmcuPeer::OnReady() {
     uart_ = &emu_.Get<Imx51Uart2>();
     uart_->AttachEndpoint(this);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        state_            = PeerState::Down;
+        peer_tid_         = 1u;
+        inbound_tx_seq_   = 0u;
+        pm_tx_seq_        = 0u;
+        pm_state_pushed_  = false;
+        tx_frame_.clear();
+        next_rx_.fill(0u);
+        discarding_frame_ = false;
+        emu_.Get<FordSyncGen2IlpChannel>().PowerOn();
+        emu_.Get<FordSyncGen2VmcuDiagChannel>().PowerOn();
+    });
 }
 
 std::vector<uint8_t> FordSyncGen2VmcuPeer::EncodeFrame(const uint8_t* payload,

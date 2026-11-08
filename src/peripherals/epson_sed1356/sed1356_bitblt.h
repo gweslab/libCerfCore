@@ -33,6 +33,16 @@ public:
     void SaveState(StateWriter& w) const;
     void RestoreState(StateReader& r);
 
+    void Reset() {
+        p_              = {};
+        cpu_op_active_  = false;
+        words_per_line_ = 0;
+        lines_done_     = 0;
+        read_line_      = 0;
+        in_fifo_.clear();
+        out_fifo_.clear();
+    }
+
 private:
     enum Op : uint8_t {                      /* Table 8-32 / Table 10-2. */
         kWriteRop          = 0x0,

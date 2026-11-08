@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -53,6 +54,7 @@ public:
 
     void OnReady() override {
         ResetRegs();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegs(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
         LOG(Boot, "S3C2410UsbHost: OpenHCI 1.0a at PA 0x%08X (NDP=2, no devices)\n",
             kBase);

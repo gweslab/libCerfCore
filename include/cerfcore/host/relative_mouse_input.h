@@ -18,8 +18,6 @@ public:
     using Service::Service;
     ~RelativeMouseInput() override = default;
 
-    /* dx > 0 right, dy > 0 down (screen convention); button_mask is the
-       current button state. Called on motion or a button transition. */
     virtual void OnRelativeMove(int dx, int dy, uint32_t button_mask) = 0;
 
     /* PointerSource - concretes override SourceName per controller. */

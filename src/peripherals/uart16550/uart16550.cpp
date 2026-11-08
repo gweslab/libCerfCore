@@ -5,8 +5,11 @@ namespace cerfcore {
 void Uart16550::OnReady() {
     device_clock_ = &emu_.Get<ExternalDeviceClock>();
     line_timer_   = &device_clock_->AddTimer([this] { OnLineTimer(); });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) { OnLineReset(kind); });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
+
+void Uart16550::OnLineReset(ResetLineKind kind) { LineReset(kind); }
 
 void Uart16550::SaveState(StateWriter& w) {
     Serial16550::SaveState(w);

@@ -8,6 +8,7 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/boards/board_context.h>
 #include "omap3530_id.h"
 
@@ -24,6 +25,21 @@ bool Omap3530Intc::ShouldRegister() {
 
 void Omap3530Intc::OnReady() {
     jit_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::ArmJit>();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        for (Bank& b : banks_) {
+            b.mir = 0xFFFFFFFFu;
+            b.isr = 0;
+        }
+        for (uint32_t& l : ilr_) l = 0;
+        sysconfig_  = 0;
+        control_    = 0;
+        protection_ = 0;
+        idle_       = 0;
+        threshold_  = 0xFFu;
+        if (HasPendingUnmasked()) jit_->SetInterruptPending();
+        else                      jit_->ClearInterruptPending();
+    });
 }
 
 int Omap3530Intc::BankIndex(uint32_t off, uint32_t* bank_off_out) {

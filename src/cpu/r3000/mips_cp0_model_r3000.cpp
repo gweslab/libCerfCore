@@ -8,7 +8,9 @@
 #include "../../socs/pr31x00/pr31500_id.h"
 #include "../../socs/pr31x00/pr31700_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfengine/mips/mips_cpu.h>
 #include <cerfengine/mips/mips_cpu_state.h>
+#include "../../execution/mips_engine_bridge.h"
 #include "../mips/mips_cp0_ops.h"
 #include "../mips_processor_config.h"
 #include "tx39_config_register.h"
@@ -62,6 +64,10 @@ public:
         config_     = &emu_.Get<MipsProcessorConfig>();
         ops_        = &emu_.Get<MipsCp0Ops>();
         config_reg_ = &emu_.Get<Tx39ConfigRegister>();
+        MipsEngineBridge& bridge = emu_.Get<MipsEngineBridge>();
+        cpu_state_ = bridge.Engine().Get<cerfengine::MipsCpu>().State();
+        bridge.RegisterResetListener([this] { cpu_state_->cp0_status = config_->StatusReset(); });
+        cpu_state_->cp0_status = config_->StatusReset();
     }
 
     cerfengine::MipsCp0Decision Decide(uint32_t rd) override {
@@ -85,13 +91,21 @@ public:
             d.write         = &Tx39ConfigRegister::WriteConfig;
             d.write_context = config_reg_;
         }
+        if (rd == Tx39Cp0::kStatus) {
+            d.write_mask = config_->StatusWritable();
+            d.zero_only  = config_->StatusZeroOnly();
+        }
+        if (rd == Tx39Cp0::kCause) {
+            d.write_mask = kMipsCauseSoftwareIp;
+        }
         return d;
     }
 
 private:
-    MipsProcessorConfig* config_     = nullptr;
-    MipsCp0Ops*          ops_        = nullptr;
-    Tx39ConfigRegister*  config_reg_ = nullptr;
+    MipsProcessorConfig*      config_     = nullptr;
+    MipsCp0Ops*               ops_        = nullptr;
+    Tx39ConfigRegister*       config_reg_ = nullptr;
+    cerfengine::MipsCpuState* cpu_state_  = nullptr;
 };
 
 }

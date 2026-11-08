@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include "../../peripherals/smsc_usb3317/usb3317_ulpi_phy.h"
 #include "../../peripherals/usb/usb_host_port.h"
 #include "../../execution/guest_cycle_clock.h"
 #include "../freescale_usb_frame_index.h"
@@ -56,9 +57,9 @@ private:
     static constexpr uint32_t kCoreSpan    = 0x00000200u;   /* per-core EHCI block */
     static constexpr uint32_t kNonCore     = 0x00000800u;   /* control block start */
     static constexpr uint32_t kCores       = kNonCore / kCoreSpan;
-    static constexpr uint8_t  kPhyRegCount = 0x40u;
 
     void     ResetController();
+    void     PowerOnPhys();
     void     RefreshTransceiverClocks(FreescaleLowPowerMode mode);
     bool     Core0IsDevice() const;
     uint32_t ReadLocked(uint32_t off);
@@ -90,7 +91,7 @@ private:
     UsbHostPort otg_host_root_port_{*this, 0};
 
     std::array<uint32_t, kSize / 4> regs_{};
-    std::array<std::array<uint8_t, kPhyRegCount>, kCores> phy_{};
+    std::array<Usb3317UlpiPhy, kCores> phys_{};
 
     std::mutex              async_schedule_mtx_;
     GuestCycleClock*        clock_ = nullptr;

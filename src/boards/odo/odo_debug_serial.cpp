@@ -1,3 +1,4 @@
+#include "odo_dma_pointer_pair.h"
 #include "p2_fpga_serial.h"
 
 #include <cerfcore/peripherals/peripheral_base.h>
@@ -10,6 +11,7 @@
 #include <cerfcore/cpu/emulated_memory.h>
 #include "../../tracing/kernel_debug_sink.h"
 #include "../../peripherals/peripheral_dispatcher.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -21,83 +23,25 @@ namespace cerfcore {
 
 namespace {
 
-constexpr uint32_t kDramPaBase        = 0x0C000000u;
-
-constexpr uint32_t kSlotDmaLow        = 0x00u;
-constexpr uint32_t kSlotDmaHigh       = 0x04u;
-constexpr uint32_t kDmaPairSize       = 0x08u;
-
 constexpr uint32_t kDebugSerCsrPa     = 0x10002000u;
 constexpr uint32_t kDebugSerRxDmaPa   = 0x10000810u;
 constexpr uint32_t kDebugSerTxDmaPa   = 0x10010810u;
 
-class DmaPointerPair : public Peripheral {
+class DmaPointerPair : public OdoDmaPointerPair {
 public:
-    using Peripheral::Peripheral;
-
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
-    }
-    void OnReady() override {
-        emu_.Get<PeripheralDispatcher>().Register(this);
-    }
-
-    uint32_t MmioSize() const override final { return kDmaPairSize; }
+    using OdoDmaPointerPair::OdoDmaPointerPair;
 
     virtual const char* PortName() const = 0;
 
     void WriteHalf(uint32_t addr, uint16_t value) override {
         const uint32_t off = addr - MmioBase();
-        if (off != kSlotDmaLow && off != kSlotDmaHigh) {
-            HaltUnsupportedAccess("WriteHalf", addr, value);
-        }
+        if (!IsSlot(off)) HaltUnsupportedAccess("WriteHalf", addr, value);
 #if CERF_DEV_MODE
         LOG(SocUart, "Odo %s write +0x%02X = 0x%04X\n",
             PortName(), off, value);
 #endif
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        if (off == kSlotDmaLow) dma_low_  = value;
-        else                    dma_high_ = value;
+        Store(off, value);
     }
-
-    /* Recombine LOW + HIGH into a chip-effective 24-bit address,
-       add DRAM PA base for the CPU-side PA. HIGH masked to 8 bits
-       defensively (the kernel already does this in OEMWriteDebugByte
-       line 222 via `& 0xff`). */
-    uint32_t GetEffectivePa() {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        const uint32_t chip_addr =
-            (static_cast<uint32_t>(dma_high_ & 0xFFu) << 16) |
-            static_cast<uint32_t>(dma_low_);
-        return kDramPaBase + chip_addr;
-    }
-
-    void SaveState(StateWriter& w) override {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        w.Write("dma_low", dma_low_);
-        w.Write("dma_high", dma_high_);
-    }
-    void RestoreState(StateReader& r) override {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        r.Read("dma_low", dma_low_);
-        r.Read("dma_high", dma_high_);
-    }
-
-protected:
-    uint16_t StoredLow()  {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        return dma_low_;
-    }
-    uint16_t StoredHigh() {
-        std::lock_guard<std::mutex> lk(state_mutex_);
-        return dma_high_;
-    }
-
-private:
-    mutable std::mutex state_mutex_;
-    uint16_t           dma_low_  = 0;
-    uint16_t           dma_high_ = 0;
 };
 
 class OdoDebugSerialTxDma : public DmaPointerPair {
@@ -141,6 +85,7 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::Odo;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { core_.PowerOn(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
         LOG(SocUart, "Odo DEBUG_SER: TX implemented "
                 "(HwScreen + cerf.log); RX not implemented; "

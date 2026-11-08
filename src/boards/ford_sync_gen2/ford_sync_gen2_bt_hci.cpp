@@ -3,8 +3,10 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/boards/board_context.h>
 #include "ford_sync_gen2_family_id.h"
+#include "../../socs/imx51/imx51_gpio1.h"
 #include "../../socs/imx51/imx51_uart1.h"
 #include <cerfcore/state/state_stream.h>
 
@@ -13,6 +15,8 @@
 namespace cerfcore {
 
 namespace {
+
+constexpr uint32_t kBtResetnPin = 24u;
 
 constexpr uint8_t kH4Event        = 0x04u;  /* H4 event packet type indicator */
 constexpr uint8_t kEvtCmdComplete = 0x0Eu;  /* Command Complete event code     */
@@ -58,12 +62,33 @@ bool FordSyncGen2BtHci::ShouldRegister() {
 }
 
 void FordSyncGen2BtHci::OnReady() {
-    uart_ = &emu_.Get<Imx51Uart1>();
+    uart_  = &emu_.Get<Imx51Uart1>();
+    gpio1_ = &emu_.Get<Imx51Gpio1>();
     uart_->AttachEndpoint(this);
+    gpio1_->AddWriteObserver([this] { OnResetLine(); });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        if (kind == ResetLineKind::Rtc) PowerOn();
+    });
     LOG(Board, "[BT] endpoint attached to UART1 (COM1) @0x73FBC000\n");
 }
 
+void FordSyncGen2BtHci::PowerOn() {
+    for (auto& b : cmd_) b = 0u;
+    n_ = 0;
+    for (int i = 0; i < 6; ++i) bd_addr_[i] = kFactoryBdAddr[i];
+}
+
+void FordSyncGen2BtHci::OnResetLine() {
+    const bool held = gpio1_->PinIsOutput(kBtResetnPin) && !gpio1_->PinOutLevel(kBtResetnPin);
+    if (held && !reset_held_) {
+        PowerOn();
+        LOG(Board, "[BT] BT_RESETn asserted (GPIO1.24 low)\n");
+    }
+    reset_held_ = held;
+}
+
 void FordSyncGen2BtHci::OnGuestTx(uint8_t byte) {
+    if (reset_held_) return;
     if (n_ == 0) {
         if (byte != 0x01u) return;   /* resync to the H4 command type byte */
         cmd_[0] = byte;
@@ -157,12 +182,14 @@ void FordSyncGen2BtHci::SaveState(StateWriter& w) {
     w.Write<uint32_t>("cmd_len", n_);
     w.WriteBytes("cmd", cmd_, sizeof(cmd_));
     w.WriteBytes("bd_addr", bd_addr_, sizeof(bd_addr_));
+    w.Write("bt_reset_held", reset_held_);
 }
 
 void FordSyncGen2BtHci::RestoreState(StateReader& r) {
     r.Read("cmd_len", n_);
     r.ReadBytes("cmd", cmd_, sizeof(cmd_));
     r.ReadBytes("bd_addr", bd_addr_, sizeof(bd_addr_));
+    r.Read("bt_reset_held", reset_held_);
 }
 
 REGISTER_SERVICE(FordSyncGen2BtHci);

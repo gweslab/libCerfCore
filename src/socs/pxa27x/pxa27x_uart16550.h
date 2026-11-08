@@ -30,6 +30,7 @@ public:
               /* Table 10-8 IER bit 4 RTOIE: "Receiver Time-Out Interrupt Enable
                  (Source IIR[TOD])". */
               .cti_ier_bit = 0x10u,
+              .divisor_reset = 0x0002u,
           }) {}
 
     bool ShouldRegister() override {

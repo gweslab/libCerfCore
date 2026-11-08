@@ -5,6 +5,7 @@
 #include "../../cpu/vr5500/vr5500_id.h"
 #include "../../peripherals/peripheral_dispatcher.h"
 #include "../../tracing/kernel_debug_sink.h"
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <cstdint>
@@ -49,6 +50,9 @@ public:
         return bd && bd->GetSocId() == SocId::Vr5500;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            for (UartRegs& u : regs_) u.ier = u.fcr = u.lcr = u.mcr = u.scr = 0;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

@@ -3,6 +3,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/service.h>
 #include <cerfcore/host/host_widget_registry.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../peripherals/pcmcia/pcmcia_auto_insert.h"
 #include "../../peripherals/pcmcia/pcmcia_slot.h"
 #include "../../peripherals/pcmcia/pcmcia_space_router.h"
@@ -37,6 +38,9 @@ public:
         gpio.SetInputLevel(kGpioReady, true);
 
         emu_.Get<PcmciaAutoInsert>().InsertDefaultNetworkCard(slot_);
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            if (kind == ResetLineKind::Rtc) slot_.PowerCycleCard();
+        });
     }
 
     void OnShutdown() override { slot_.OnShutdown(); }

@@ -7,6 +7,8 @@
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
 
+#include <cerfcore/socs/guest_cpu_reset.h>
+
 #include <cstdint>
 
 namespace cerfcore {
@@ -26,6 +28,7 @@ public:
         return bd && bd->GetBoardFamilyId() == BoardFamilyId::Pangolin;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { enable_ = 0; });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

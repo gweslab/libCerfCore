@@ -2,6 +2,7 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../socs/sa11xx/sa11xx_ppc.h"
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/boards/board_context.h>
@@ -40,6 +41,9 @@ public:
     void OnReady() override {
         ppc_ = &emu_.Get<Sa11xxPpc>();
         ppc_->RegisterOutputListener([this] { OnPpcOutputs(); });
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            if (kind == ResetLineKind::Rtc) ResetMcu();
+        });
     }
 
     Pins WiredTo() const override { return Pins::SerialPort4; }
@@ -95,12 +99,14 @@ private:
 
     void OnPpcOutputs() {
         const bool low = LfclkDrivenLow();
-        if (low && !lfclk_low_) ResetMcu();
+        if (low && !lfclk_low_) {
+            LOG(Periph, "[J720MCU] reset: L_FCLK driven low\n");
+            ResetMcu();
+        }
         lfclk_low_ = low;
     }
 
     void ResetMcu() {
-        LOG(Periph, "[J720MCU] reset: L_FCLK driven low\n");
         response_.clear();
         param_bytes_left_ = 0;
         param_            = Param::None;

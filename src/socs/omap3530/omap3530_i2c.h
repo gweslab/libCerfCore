@@ -7,6 +7,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 #include <deque>
@@ -26,6 +27,10 @@ public:
         return bd && bd->GetSocId() == SocId::Omap3530;
     }
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            std::lock_guard<std::mutex> lk(state_mutex_);
+            ApplyResetLocked();
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

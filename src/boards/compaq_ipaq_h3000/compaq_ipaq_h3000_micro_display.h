@@ -21,6 +21,8 @@ public:
 
     uint32_t BacklightLoad() const;
 
+    void PowerOn();
+
     void SaveState(StateWriter& w);
     void RestoreState(StateReader& r);
 

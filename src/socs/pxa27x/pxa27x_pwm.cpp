@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 
 #include <cstdint>
 
@@ -25,6 +26,8 @@ public:
         return bd && bd->GetSocId() == SocId::Pxa270;
     }
     void OnReady() override {
+        ResetRegisters();
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { ResetRegisters(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -74,9 +77,13 @@ private:
 
     /* Table 23-4 (page 23-9) PWMPCR reset row "... 0 0 0 0 0 0 0 1 0 0"; the
        Table 23-2 and Table 23-3 reset rows are all zeros. */
-    uint32_t regs_[(kPcrB / 4u) + 1u] = {
-        0u, 0u, 0x00000004u, 0u, 0u, 0u, 0x00000004u,
-    };
+    void ResetRegisters() {
+        for (uint32_t& r : regs_) r = 0u;
+        regs_[2] = 0x00000004u;
+        regs_[6] = 0x00000004u;
+    }
+
+    uint32_t regs_[(kPcrB / 4u) + 1u] = {};
 };
 
 /* Table 23-5 (page 23-10): "0x40B0_0000 PWMCR0", "0x40B0_0010 PWMCR2". */

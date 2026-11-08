@@ -3,6 +3,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/host/host_widget_registry.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../peripherals/pcmcia/pcmcia_space_router.h"
 #include <cerfcore/boards/board_context.h>
 #include "hp_jornada_820_family_id.h"
@@ -36,6 +37,11 @@ void HpJornada820Pcmcia::OnReady() {
     auto& widgets = emu_.Get<HostWidgetRegistry>();
     widgets.Register(&slot0_);
     widgets.Register(&slot1_);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        if (kind != ResetLineKind::Rtc) return;
+        slot0_.PowerCycleCard();
+        slot1_.PowerCycleCard();
+    });
 }
 
 void HpJornada820Pcmcia::OnShutdown() {

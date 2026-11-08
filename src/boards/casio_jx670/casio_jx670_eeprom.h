@@ -16,6 +16,8 @@ public:
     bool TryReadWord (uint32_t off, uint32_t& out);
     bool TryWriteWord(uint32_t off, uint32_t  value);
 
+    void PowerOnRegisters();
+
     void SaveState(StateWriter& w) const;
     void RestoreState(StateReader& r);
 

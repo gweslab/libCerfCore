@@ -35,10 +35,7 @@ void IsaExcaSocketPair::StartSockets() {
     auto& reg = emu_.Get<HostWidgetRegistry>();
     reg.Register(&slot0_);
     reg.Register(&slot1_);
-    sequencer_.Run([this] {
-        return ExcaSocketUpdates{{ {&slot0_, ExcaWriteEffect::SocketOff()},
-                                   {&slot1_, ExcaWriteEffect::SocketOff()} }};
-    });
+    ResetController();
     auto& reset = emu_.Get<GuestCpuReset>();
     reset.RegisterResetListener([this](ResetLineKind) { ResetController(); });
     reset.RegisterResetReleaseListener([this] {

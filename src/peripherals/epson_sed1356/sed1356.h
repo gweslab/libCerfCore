@@ -3,6 +3,7 @@
 #include "../../lcd/display_mode_latch.h"
 #include "../../socs/raster_scan_peripheral.h"
 #include "sed1356_bitblt.h"
+#include "sed1356_lut.h"
 
 #include <cstdint>
 #include <unordered_set>
@@ -81,6 +82,9 @@ public:
     void     VramStore(uint32_t off, uint32_t value, uint32_t width);
 
 private:
+    void HardwareReset();
+    uint8_t MemSelectResetValue();
+
     static constexpr uint32_t kRegWindow      = 0x200u;
     static constexpr uint32_t kMediaPlugBase  = 0x1000u;
     static constexpr uint32_t kMediaPlugEnd   = 0x100Au;
@@ -92,9 +96,6 @@ private:
     uint8_t  Reg(uint32_t off) const { return reg_[off]; }
     uint8_t  RegRead (uint32_t off);
     void     RegWrite(uint32_t off, uint8_t value);
-    uint8_t  ReadLutData();
-    void     WriteLutData(uint8_t value);
-    void     StepLutPointer();
     void     PublishOnLcdEnableEdge();
 
     ScanShape ScanShapeLocked() const override;
@@ -127,13 +128,7 @@ private:
     uint32_t vram_mask_        = 0;   /* size-1 if power-of-2, else 0 (use mod). */
     uint8_t  product_rev_code_ = 0;
 
-    /* Two 256-entry RGB LUTs of 4-bit components (§8.3.13: LCD + CRT/TV).
-       lut_rgb_latch_ holds R,G written before the committing B write. */
-    uint8_t lcd_lut_[256][3] = {};
-    uint8_t crt_lut_[256][3] = {};
-    uint8_t lut_index_     = 0;   /* entry pointer (REG[1E2h] write resets). */
-    uint8_t lut_component_ = 0;   /* 0=R 1=G 2=B, auto-increments (§8.3.13). */
-    uint8_t lut_rgb_latch_[2] = {};
+    Sed1356Lut lut_;
 
     DisplayModeLatch mode_latch_;
 

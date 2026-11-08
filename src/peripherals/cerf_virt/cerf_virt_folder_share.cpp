@@ -16,6 +16,7 @@
 #include <cerfcore/core/log.h>
 #include <cerfcore/core/share_folder_mount_name.h>
 #include <cerfcore/core/utf16.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <string>
@@ -46,6 +47,10 @@ public:
     }
 
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            if (emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) return;
+            result_ = 0;
+        });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 

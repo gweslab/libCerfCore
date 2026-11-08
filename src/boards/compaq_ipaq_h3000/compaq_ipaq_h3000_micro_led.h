@@ -20,6 +20,7 @@ public:
     void OnReady() override;
 
     void SetLed(const uint8_t* req, uint8_t len);
+    void PowerOn();
 
     void SaveState(StateWriter& w);
     void RestoreState(StateReader& r);

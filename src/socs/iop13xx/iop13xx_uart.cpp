@@ -13,7 +13,7 @@ namespace {
 
 class Iop13xxUart : public Uart16550 {
 public:
-    explicit Iop13xxUart(CerfEmulator& emu) : Uart16550(emu, Config{}) {}
+    explicit Iop13xxUart(CerfEmulator& emu) : Uart16550(emu, Config{.divisor_reset = 0x0002u}) {}
 
     bool ShouldRegister() override {
         auto* bd = emu_.TryGet<BoardContext>();

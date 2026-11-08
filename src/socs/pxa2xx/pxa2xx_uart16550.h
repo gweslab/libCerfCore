@@ -30,6 +30,11 @@ public:
 protected:
     uint32_t RegStride() const override { return 4u; }
 
+    void OnLineReset(ResetLineKind) override {
+        ResetRegisters();
+        isr_ = 0;
+    }
+
     void SetInterruptLine(bool pending) override {
         auto& intc = emu_.Get<IrqController>();
         if (pending) intc.AssertIrq  (static_cast<int>(IntcBit()));

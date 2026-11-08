@@ -14,12 +14,8 @@ bool Vr4122Dsiu::ShouldRegister() {
     return emu_.Get<BoardContext>().GetSocId() == SocId::Vr4122;
 }
 
-void Vr4122Dsiu::OnReady() {
-    Uart16550::OnReady();
-    /* VR4102 UM 7.1.4: a reset "initializes the entire internal state except for the RTC
-       timer and the PMU". */
-    emu_.Get<GuestCpuReset>().RegisterResetListener(
-        [this](ResetLineKind) { Serial16550::Reset(); });
+void Vr4122Dsiu::OnLineReset(ResetLineKind) {
+    Serial16550::Reset();
 }
 
 /* DSIUINTREG D11 INTDSIU (VR4131 UM 11.2.3 p193). */

@@ -11,6 +11,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/cpu/emulated_memory.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <atomic>
@@ -80,6 +81,10 @@ public:
     }
 
     void OnReady() override {
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            for (auto& word : clock_known_) word.store(0u, std::memory_order_release);
+            for (auto& held : clock_refcount_) held.store(0u, std::memory_order_release);
+        });
         emu_.Get<Msm8255RpcServerRegistry>().Register(this);
     }
 

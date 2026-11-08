@@ -138,6 +138,10 @@ void Iop13xxCp6::LatchWatchdogReset() {
     /* Intel 81341/81342 Developer's Manual, section 10.4.2, Table 448. */
     rcsr_ |= kResetCauseWatchdog;
 }
+void Iop13xxCp6::ReportOnlyWarmReset() {
+    std::lock_guard<std::mutex> guard(state_mutex_);
+    rcsr_ = kResetCauseCoreTargeted;
+}
 
 uint32_t Iop13xxCp6::InterruptVectorLocked() const {
     for (uint32_t bank = 0; bank < 4; ++bank) {

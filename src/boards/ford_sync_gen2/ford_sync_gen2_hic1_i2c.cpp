@@ -4,6 +4,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/boards/board_context.h>
 #include "ford_sync_gen2_family_id.h"
@@ -55,7 +56,14 @@ public:
            else it times out (0x102) every clock and the I2C crawls. */
         gpio_->SetInputPin(kScl, true);
         gpio_->SetInputPin(kSda, true);
-        gpio_->SetWriteObserver([this] { OnEdge(); });
+        gpio_->AddWriteObserver([this] { OnEdge(); });
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            cs42448_.Reset();
+            map_set_   = false;
+            auto_incr_ = false;
+            dm_byte_   = 0;
+            reg_       = 0;
+        });
         gpio_->SetObserverState([this](StateWriter& w) { SaveBus(w); },
                                 [this](StateReader& r) { RestoreBus(r); });
     }

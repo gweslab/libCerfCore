@@ -5,6 +5,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -39,6 +40,12 @@ void CasioJx670Modem::OnReady() {
     line_timer_   = &device_clock_->AddTimer([this] { uart_->OnLineTimer(); });
     uart_ = std::make_unique<Serial16550>(
         nullptr, [this](bool a) { OnUartIrq(a); }, Serial16550::Config{}, *this);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        ctrl_8600_   = 0;
+        socket_a1c0_ = 0;
+        socket_a1c4_ = 0;
+        uart_->LineReset(kind);
+    });
 }
 
 void CasioJx670Modem::ArmLineTimer(int64_t delay_ns) { device_clock_->Arm(*line_timer_, delay_ns); }

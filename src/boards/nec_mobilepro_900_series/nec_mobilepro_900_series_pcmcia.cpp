@@ -2,6 +2,7 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/host/host_widget_registry.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../peripherals/pcmcia/pcmcia_auto_insert.h"
 #include "../../peripherals/pcmcia/pcmcia_space_router.h"
 #include "../../socs/pxa255/pxa255_gpio.h"
@@ -42,6 +43,11 @@ void NecMobilepro900SeriesPcmcia::OnReady() {
     }
 
     emu_.Get<PcmciaAutoInsert>().InsertDefaultNetworkCard(slot1_);
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        if (kind != ResetLineKind::Rtc) return;
+        slot0_.PowerCycleCard();
+        slot1_.PowerCycleCard();
+    });
 }
 
 void NecMobilepro900SeriesPcmcia::OnShutdown() {

@@ -30,6 +30,7 @@ public:
 protected:
     const char* Label() const override { return "CM_DSS"; }
     const char* RegisterName(uint32_t off) const override;
+    bool        KeptByWarmReset(uint32_t off) const override { return off == 0x20u || off == 0x4Cu; }
 
 private:
     void ApplyResetsLocked();

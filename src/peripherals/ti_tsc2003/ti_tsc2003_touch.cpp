@@ -6,6 +6,7 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/state/hibernation.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <utility>
@@ -21,6 +22,16 @@ bool Tsc2003Touch::ShouldRegister() {
 
 void Tsc2003Touch::OnReady() {
     emu_.Get<Hibernation>().RegisterPostRestoreListener([this] { DrivePenIrq(); });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        if (kind != ResetLineKind::Rtc) return;
+        penirq_en_.store(true, std::memory_order_release);
+        result_       = 0;
+        read_idx_     = 0;
+        result_valid_ = false;
+    });
+    emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
+        if (emu_.Get<GuestCpuReset>().DeliveringKind() == ResetLineKind::Rtc) UpdatePenIrq();
+    });
 }
 
 void Tsc2003Touch::SetState(uint16_t adc_x, uint16_t adc_y, bool pen_down) {
