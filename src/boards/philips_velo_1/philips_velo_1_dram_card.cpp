@@ -4,6 +4,8 @@
 #include "../../peripherals/i2c/i2c_bit_bang_target.h"
 #include "../../socs/pr31x00/pr31x00_io.h"
 #include <cerfcore/boards/board_context.h>
+#include "../../core/board_config.h"
+#include "../dram_card_param.h"
 #include "philips_velo_1_dram_card_id_eeprom.h"
 #include "philips_velo_1_family_id.h"
 
@@ -28,8 +30,8 @@ public:
     using Pr31x00MfioSlave::Pr31x00MfioSlave;
 
     bool ShouldRegister() override {
-        auto& bd = emu_.Get<BoardContext>();
-        return bd.GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1 && bd.DramCardBytes() != 0u;
+        return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1 &&
+               emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes) != 0u;
     }
 
     void OnReady() override {

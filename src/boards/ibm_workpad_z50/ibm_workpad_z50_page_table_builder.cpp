@@ -1,6 +1,8 @@
 #include "../mips_kseg_page_table_builder.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "../../core/board_config.h"
+#include "../dram_card_param.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/cpu/memory_kind.h>
 #include "ibm_workpad_z50_dram_layout.h"
@@ -31,7 +33,7 @@ public:
         card_ = Kseg0RomSpan(kKseg0Base + straps.RomCardPa(),
                              kKseg0Base + kIbmWorkpadZ50RomSpaceEndPa);
         dram_ = { kDram };
-        const uint32_t card_bytes = emu_.Get<BoardContext>().DramCardBytes();
+        const uint32_t card_bytes = emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes);
         for (uint32_t off = 0; off < card_bytes; off += kIbmWorkpadZ50DramBankBytes) {
             const uint32_t pa = kIbmWorkpadZ50ExpansionDramPa + off;
             dram_.push_back({ kKseg0Base + pa, pa, kIbmWorkpadZ50DramBankBytes });

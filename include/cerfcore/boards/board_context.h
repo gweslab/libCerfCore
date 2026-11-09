@@ -32,8 +32,6 @@ public:
     virtual uint32_t GuestAdditionsWindowBase() const { return 0xF0000000u; }
     uint32_t         GuestAdditionsWindowSize() const;
 
-    uint32_t DramCardBytes() const;
-
 private:
     const DbBoard*     board_      = nullptr;
     const DbSoc*       soc_        = nullptr;

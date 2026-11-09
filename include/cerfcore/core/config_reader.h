@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config_enum_value.h"
 #include "config_json.h"
 #include "log.h"
 #include "service.h"
@@ -7,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -61,6 +63,8 @@ public:
                                          const std::string& path, const std::string& ctx);
     bool                     ReadOptBool(const nlohmann::json& obj, const char* key, const std::string& path,
                                          const std::string& ctx);
+    std::string              ReadEnumId(const nlohmann::json& value, std::span<const ConfigEnumValue> values,
+                                        const std::string& path, const std::string& key);
 };
 
 }

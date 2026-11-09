@@ -3,10 +3,10 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
+#include "../../core/board_config.h"
 #include "../../peripherals/peripheral_dispatcher.h"
-#include "sharp_mobilon_hc4500_id.h"
-#include "sharp_mobilon_hc4500_8mb_id.h"
-#include "sharp_mobilon_hc4600_id.h"
+#include "../backlight_param_id.h"
+#include "sharp_mobilon_hc_family_id.h"
 
 #include <cstdint>
 
@@ -19,9 +19,8 @@ public:
     using Peripheral::Peripheral;
 
     bool ShouldRegister() override {
-        const std::string_view id = emu_.Get<BoardContext>().GetBoardId();
-        return id == BoardId::SharpMobilonHc4500 || id == BoardId::SharpMobilonHc45008mb ||
-               id == BoardId::SharpMobilonHc4600;
+        return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::SharpMobilonHc &&
+               emu_.Get<BoardConfig>().EnumId(BoardConfigParamId::Backlight) == "installed";
     }
 
     void OnReady() override {

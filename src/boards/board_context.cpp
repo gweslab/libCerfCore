@@ -63,10 +63,6 @@ uint32_t BoardContext::GuestAdditionsWindowSize() const {
     return board_->ga_window_size;
 }
 
-uint32_t BoardContext::DramCardBytes() const {
-    return board_->dram_card_bytes;
-}
-
 uint32_t BoardContext::ResolveGuestAdditionsColorDepth() const {
     const uint32_t configured =
         emu_.Get<DeviceConfig>().board_configurable_screen_bpp;

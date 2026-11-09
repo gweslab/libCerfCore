@@ -1,6 +1,8 @@
 #include "ibm_workpad_z50_gpio_buffers.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "../../core/board_config.h"
+#include "../dram_card_param.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
@@ -38,7 +40,7 @@ bool IbmWorkpadZ50GpioBuffers::ShouldRegister() {
 void IbmWorkpadZ50GpioBuffers::OnReady() {
     straps_  = &emu_.Get<IbmWorkpadZ50MemberStraps>();
     battery_ = &emu_.Get<IbmWorkpadZ50Battery>();
-    extension_ram_strap_ = ExtensionRamStrap(emu_.Get<BoardContext>().DramCardBytes());
+    extension_ram_strap_ = ExtensionRamStrap(emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes));
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
         cs0_out_.store(0u, std::memory_order_release);
         cs1_out_.store(0u, std::memory_order_release);

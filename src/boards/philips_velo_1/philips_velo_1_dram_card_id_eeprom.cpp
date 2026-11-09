@@ -1,6 +1,8 @@
 #include "philips_velo_1_dram_card_id_eeprom.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "../../core/board_config.h"
+#include "../dram_card_param.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include "philips_velo_1_dram_card_profile.h"
 #include "philips_velo_1_family_id.h"
@@ -41,11 +43,12 @@ REGISTER_SERVICE(PhilipsVelo1DramCardIdEeprom);
 bool PhilipsVelo1DramCardIdEeprom::ShouldRegister() {
     auto* bd = emu_.TryGet<BoardContext>();
     return bd && bd->GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1 &&
-           CardProfile(bd->DramCardBytes()) != nullptr;
+           CardProfile(emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes)) != nullptr;
 }
 
 void PhilipsVelo1DramCardIdEeprom::FillCells() {
-    const PhilipsVelo1DramCardProfile& card = *CardProfile(emu_.Get<BoardContext>().DramCardBytes());
+    const PhilipsVelo1DramCardProfile& card =
+        *CardProfile(emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes));
     auto& id_rom = Cells();
     id_rom.fill(0);
     id_rom[16]  = kSignature;

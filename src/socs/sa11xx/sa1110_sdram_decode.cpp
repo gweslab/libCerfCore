@@ -6,6 +6,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include <cerfcore/state/state_stream.h>
 #include "../../execution/engine_bridge.h"
 #include <cerfengine/arm/arm_mmu.h>
 
@@ -36,15 +37,31 @@ bool Sa1110SdramDecode::ShouldRegister() {
 
 void Sa1110SdramDecode::OnReady() {
     const auto& geometry = emu_.Get<Sa1110SdramGeometry>();
-    const uint32_t rows    = geometry.RowBits();
-    const uint32_t columns = geometry.ColumnBits();
-    const uint32_t banks   = geometry.BankBits();
-    if (banks != 2u || rows < 12u || rows > 13u || columns < 8u || columns > 10u)
+    rows_    = geometry.RowBits();
+    columns_ = geometry.ColumnBits();
+    banks_   = geometry.BankBits();
+    if (banks_ != 2u || rows_ < 12u || rows_ > 13u || columns_ < 8u || columns_ > 10u)
         emu_.Get<Fatal>().Die("Sa1110SdramDecode: SDRAM with %u row, %u column and %u bank "
-                              "address bits is not modeled", rows, columns, banks);
-    const uint32_t native_drac = rows + banks - kRowBitsAtDrac0;
+                              "address bits is not modeled", rows_, columns_, banks_);
+    const uint32_t native_drac = rows_ + banks_ - kRowBitsAtDrac0;
     for (uint32_t drac = 0; drac < decodes_.size(); ++drac)
-        decodes_[drac] = Build(rows, columns, drac, native_drac);
+        decodes_[drac] = Build(rows_, columns_, drac, native_drac);
+}
+
+void Sa1110SdramDecode::SaveState(StateWriter& w) const {
+    w.Write("sdram_row_bits", rows_);
+    w.Write("sdram_column_bits", columns_);
+    w.Write("sdram_bank_bits", banks_);
+}
+
+void Sa1110SdramDecode::RestoreState(StateReader& r) const {
+    uint32_t rows = 0, columns = 0, banks = 0;
+    r.Read("sdram_row_bits", rows);
+    r.Read("sdram_column_bits", columns);
+    r.Read("sdram_bank_bits", banks);
+    if (rows != rows_ || columns != columns_ || banks != banks_)
+        r.Reject("[SA1110] the image has SDRAM with %u row, %u column and %u bank address bits, "
+                 "this board has %u, %u and %u", rows, columns, banks, rows_, columns_, banks_);
 }
 
 /* SA-1110 Developer's Manual §10.4.1 Table 10-7 (p. 10-30): DRA 14:0 = IA 24:10 at

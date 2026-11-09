@@ -46,6 +46,14 @@ bool ConfigReader::ReadOptBool(const nlohmann::json& obj, const char* key, const
     return value;
 }
 
+std::string ConfigReader::ReadEnumId(const nlohmann::json& value, std::span<const ConfigEnumValue> values,
+                                     const std::string& path, const std::string& key) {
+    if (!value.is_string()) Fail(path, "'" + key + "' must be a string");
+    std::string id = value.get<std::string>();
+    if (!FindConfigEnumValue(values, id)) Fail(path, "'" + key + "' has the unknown value '" + id + "'");
+    return id;
+}
+
 const nlohmann::json* ConfigReader::ReadOptObjectArray(const nlohmann::json& obj, const char* key,
                                                        const std::string& path, const std::string& ctx) {
     if (!obj.contains(key) || obj[key].is_null()) return nullptr;

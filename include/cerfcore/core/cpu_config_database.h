@@ -1,6 +1,7 @@
 #pragma once
 
 #include "board_database.h"
+#include "config_enum_value.h"
 #include "service.h"
 
 #include <nlohmann/json_fwd.hpp>
@@ -24,17 +25,12 @@ inline constexpr char kType[]    = "type";
 
 enum class CpuConfigParamType { Boolean, Integer, Hex, Enum };
 
-struct CpuConfigEnumValue {
-    std::string id;
-    std::string name;
-};
-
 struct CpuConfigParam {
-    std::string                     id;
-    std::string                     name;
-    CpuArch                         arch;
-    CpuConfigParamType              type;
-    std::vector<CpuConfigEnumValue> enum_values;
+    std::string                  id;
+    std::string                  name;
+    CpuArch                      arch;
+    CpuConfigParamType           type;
+    std::vector<ConfigEnumValue> enum_values;
 };
 
 struct CpuConfigValue {

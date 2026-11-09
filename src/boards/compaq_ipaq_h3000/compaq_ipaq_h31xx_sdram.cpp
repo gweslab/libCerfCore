@@ -1,7 +1,9 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include "../../core/board_config.h"
 #include "../../socs/sa11xx/sa1110_sdram_geometry.h"
-#include "ipaq_h31xx_id.h"
+#include "../ram_param_id.h"
+#include "compaq_ipaq_h3000_family_id.h"
 
 namespace cerfcore {
 
@@ -14,7 +16,8 @@ public:
     using Sa1110SdramGeometry::Sa1110SdramGeometry;
 
     bool ShouldRegister() override {
-        return emu_.Get<BoardContext>().GetBoardId() == BoardId::IpaqH31xx;
+        return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::CompaqIpaqH3000 &&
+               emu_.Get<BoardConfig>().EnumId(BoardConfigParamId::Ram) == "16mb";
     }
 
     uint32_t RowBits() const override    { return 12; }

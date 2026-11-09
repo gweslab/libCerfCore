@@ -28,6 +28,7 @@ private:
                     const std::string& ctx);
     void LoadMeta(const nlohmann::json& root, DeviceMeta& meta, const std::string& path);
     void LoadBoard(const nlohmann::json& root, DeviceConfig& config, const std::string& path);
+    void LoadBoardConfig(const nlohmann::json& board, DeviceConfig& config, const std::string& path);
     void LoadGaAutorun(const nlohmann::json& ga, DeviceConfig& config, const std::string& path);
     void LoadFeatures(const nlohmann::json& root, DeviceConfig& config, const std::string& path);
     void LoadNetwork(const nlohmann::json& root, DeviceConfig& config, const std::string& path);

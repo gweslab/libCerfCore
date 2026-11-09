@@ -5,6 +5,8 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
+#include "../../core/board_config.h"
+#include "../dram_card_param.h"
 #include "philips_velo_1_family_id.h"
 
 #include <cstdint>
@@ -73,7 +75,7 @@ public:
 
         RequireRamEndWithin(*hdr, kDramVaBase, kDramSize);
 
-        card_bytes_ = emu_.Get<BoardContext>().DramCardBytes();
+        card_bytes_ = emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes);
 
         LOG(Boot, "PhilipsVelo1PageTableBuilder: ROM kva=0x%08X pa=0x%08X size=0x%X, "
                   "DRAM pa=0x%08X size=0x%X span=0x%X (ulRAMEnd=0x%08X), "

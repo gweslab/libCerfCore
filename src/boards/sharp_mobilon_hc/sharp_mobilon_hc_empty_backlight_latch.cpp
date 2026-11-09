@@ -1,10 +1,10 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/peripherals/peripheral_base.h>
+#include "../../core/board_config.h"
 #include "../../peripherals/peripheral_dispatcher.h"
-#include "sharp_mobilon_hc4000_id.h"
-#include "sharp_mobilon_hc4100_id.h"
-#include "sharp_mobilon_hc4100_8mb_id.h"
+#include "../backlight_param_id.h"
+#include "sharp_mobilon_hc_family_id.h"
 
 #include <cstdint>
 
@@ -17,9 +17,8 @@ public:
     using Peripheral::Peripheral;
 
     bool ShouldRegister() override {
-        const std::string_view id = emu_.Get<BoardContext>().GetBoardId();
-        return id == BoardId::SharpMobilonHc4000 || id == BoardId::SharpMobilonHc4100 ||
-               id == BoardId::SharpMobilonHc41008mb;
+        return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::SharpMobilonHc &&
+               emu_.Get<BoardConfig>().EnumId(BoardConfigParamId::Backlight) == "none";
     }
 
     void OnReady() override { emu_.Get<PeripheralDispatcher>().Register(this); }

@@ -74,10 +74,7 @@ void CpuConfigDatabase::OnReady() {
         param.name = p.at(kName).get<std::string>();
         param.arch = CpuArchFromName(p.at(kArch).get<std::string>());
         param.type = ValueByName(kParamTypes, p.at(db_key::kType).get<std::string>());
-        if (param.type == CpuConfigParamType::Enum)
-            for (const auto& v : p.at(kEnumValues))
-                param.enum_values.push_back(
-                    CpuConfigEnumValue{v.at(kId).get<std::string>(), v.at(kName).get<std::string>()});
+        if (param.type == CpuConfigParamType::Enum) param.enum_values = ParseConfigEnumValues(p.at(kEnumValues));
         params_.push_back(std::move(param));
     }
 
@@ -138,11 +135,7 @@ CpuConfigValue CpuConfigDatabase::ParseValue(const CpuConfigParam& param, const 
             emu_.Get<ConfigReader>().Fail(path, "'" + where + "' must be a 32-bit hex string such as \"0x1F\"");
         break;
     case CpuConfigParamType::Enum:
-        if (!value.is_string()) emu_.Get<ConfigReader>().Fail(path, "'" + where + "' must be a string");
-        if (std::none_of(param.enum_values.begin(), param.enum_values.end(),
-                         [&](const CpuConfigEnumValue& e) { return e.id == value.get<std::string>(); }))
-            emu_.Get<ConfigReader>().Fail(path, "'" + where + "' has the unknown value '" +
-                                                    value.get<std::string>() + "'");
+        emu_.Get<ConfigReader>().ReadEnumId(value, param.enum_values, path, where);
         break;
     }
     return ValueOf(param, value);

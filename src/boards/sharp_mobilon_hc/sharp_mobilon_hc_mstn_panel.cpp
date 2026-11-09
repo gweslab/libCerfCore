@@ -2,9 +2,9 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/boards/board_context.h>
-#include "sharp_mobilon_hc4000_id.h"
-#include "sharp_mobilon_hc4100_id.h"
-#include "sharp_mobilon_hc4100_8mb_id.h"
+#include "../../core/board_config.h"
+#include "../lcd_panel_param_id.h"
+#include "sharp_mobilon_hc_family_id.h"
 
 namespace cerfcore {
 
@@ -15,9 +15,8 @@ public:
     using Pr31x00Panel::Pr31x00Panel;
 
     bool ShouldRegister() override {
-        const std::string_view id = emu_.Get<BoardContext>().GetBoardId();
-        return id == BoardId::SharpMobilonHc4000 || id == BoardId::SharpMobilonHc4100 ||
-               id == BoardId::SharpMobilonHc41008mb;
+        return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::SharpMobilonHc &&
+               emu_.Get<BoardConfig>().EnumId(BoardConfigParamId::LcdPanel) == "monochrome_stn";
     }
 
     bool Color() const override { return false; }

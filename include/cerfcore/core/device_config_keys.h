@@ -10,6 +10,7 @@ inline constexpr char kVerMajor[]              = "ver_major";
 inline constexpr char kVerMinor[]              = "ver_minor";
 inline constexpr char kBoard[]                 = "board";
 inline constexpr char kId[]                    = "id";
+inline constexpr char kConfig[]                = "config";
 inline constexpr char kScreenWidth[]           = "configurable_screen_width";
 inline constexpr char kScreenHeight[]          = "configurable_screen_height";
 inline constexpr char kScreenDpi[]             = "configurable_screen_dpi";

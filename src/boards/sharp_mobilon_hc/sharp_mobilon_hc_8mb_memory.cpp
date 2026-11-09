@@ -2,8 +2,9 @@
 
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
-#include "sharp_mobilon_hc4100_8mb_id.h"
-#include "sharp_mobilon_hc4500_8mb_id.h"
+#include "../../core/board_config.h"
+#include "../ram_param_id.h"
+#include "sharp_mobilon_hc_family_id.h"
 
 #include <cstdint>
 
@@ -16,8 +17,8 @@ public:
     using SharpMobilonHcMemory::SharpMobilonHcMemory;
 
     bool ShouldRegister() override {
-        const std::string_view id = emu_.Get<BoardContext>().GetBoardId();
-        return id == BoardId::SharpMobilonHc41008mb || id == BoardId::SharpMobilonHc45008mb;
+        return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::SharpMobilonHc &&
+               emu_.Get<BoardConfig>().EnumId(BoardConfigParamId::Ram) == "8mb";
     }
 
     uint32_t MemConfig0Banks() const override { return 0x00002000u; }

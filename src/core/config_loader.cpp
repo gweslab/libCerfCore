@@ -88,7 +88,26 @@ void ConfigLoader::LoadBoard(const json& root, DeviceConfig& config, const std::
     if (b.contains(config_key::kId))
         config.board_id = Reader().ReadOptString(b, config_key::kId, path, config_key::kBoard);
 
+    LoadBoardConfig(b, config, path);
     emu_.Get<ConfigMutableFields>().LoadScreenFields(b, config, path);
+}
+
+void ConfigLoader::LoadBoardConfig(const json& board, DeviceConfig& config, const std::string& path) {
+    if (!board.contains(config_key::kConfig)) return;
+    const auto&       c   = board[config_key::kConfig];
+    const std::string ctx = CfgKeyPath({config_key::kBoard, config_key::kConfig});
+    if (!c.is_object()) Reader().Fail(path, "'" + ctx + "' must be an object");
+    const auto& db = emu_.Get<BoardDatabase>();
+    for (const auto& [id, value] : c.items()) {
+        const std::string         key   = CfgKeyPath({ctx, id});
+        const DbBoardConfigParam* param = db.FindBoardConfigParam(id);
+        if (!param) Reader().Fail(path, "'" + key + "' is not a board configuration parameter");
+        if (value.is_null()) {
+            config.board_config.erase(id);
+            continue;
+        }
+        config.board_config[id] = BoardConfigEntry{Reader().ReadEnumId(value, param->enum_values, path, key), path};
+    }
 }
 
 void ConfigLoader::LoadGaAutorun(const json& ga, DeviceConfig& config, const std::string& path) {

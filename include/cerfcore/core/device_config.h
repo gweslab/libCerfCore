@@ -3,12 +3,18 @@
 #include "service.h"
 #include "sd_card_cid.h"
 #include <cstdint>
+#include <map>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
 namespace cerfcore {
+
+struct BoardConfigEntry {
+    std::string value;
+    std::string path;
+};
 
 struct BundledUsbMedia {
     std::string file;
@@ -69,6 +75,8 @@ struct DeviceConfig : public Service {
     std::string device_name;
 
     std::string board_id;
+
+    std::map<std::string, BoardConfigEntry, std::less<>> board_config;
 
     DeviceMeta meta;
 

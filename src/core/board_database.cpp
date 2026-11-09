@@ -45,7 +45,6 @@ constexpr char kWidth[]                    = "width";
 constexpr char kHeight[]                   = "height";
 constexpr char kGaColorDepth[]             = "ga_color_depth";
 constexpr char kGaWindowSize[]             = "ga_window_size";
-constexpr char kDramCardBytes[]            = "dram_card_bytes";
 constexpr char kDynamicScaleFactor[]       = "dynamic_scale_factor";
 constexpr char kRomPlacingMode[]           = "rom_placing_mode";
 constexpr char kConfigurableScreen[]       = "configurable_screen";
@@ -53,6 +52,10 @@ constexpr char kDeviceYear[]               = "device_year";
 constexpr char kNotes[]                    = "notes";
 constexpr char kFeatureId[]                = "feature_id";
 constexpr char kSupported[]                = "supported";
+constexpr char kBoardConfigParams[]        = "board_config_params";
+constexpr char kBoardConfig[]              = "board_config";
+constexpr char kDefault[]                  = "default";
+constexpr char kEnumValues[]               = "enum_values";
 
 constexpr std::pair<std::string_view, SupportLevel> kSupportLevels[] = {
     {CERF_SUPPORT_BOOTABLE_FULL, SupportLevel::BootableFull},
@@ -110,6 +113,29 @@ void MergeFeatures(const json& row, std::vector<DbFeatureSupport>& out) {
     }
 }
 
+void MergeBoardConfig(const json& row, std::vector<DbBoardConfigSetting>& out) {
+    const json settings = row.value(kBoardConfig, json::object());
+    for (const auto& [id, s] : settings.items()) {
+        const DbBoardConfigSetting* existing = FindBoardConfigSetting(out, id);
+        DbBoardConfigSetting        setting  = existing ? *existing : DbBoardConfigSetting{id, {}, {}};
+        if (s.contains(kDefault)) setting.default_value = s.at(kDefault).get<std::string>();
+        if (s.contains(kValues)) setting.values = s.at(kValues).get<std::vector<std::string>>();
+        if (existing) out[size_t(existing - out.data())] = std::move(setting);
+        else          out.push_back(std::move(setting));
+    }
+}
+
+}
+
+bool DbBoardConfigSetting::Accepts(std::string_view value) const {
+    return std::find(values.begin(), values.end(), value) != values.end();
+}
+
+const DbBoardConfigSetting* FindBoardConfigSetting(std::span<const DbBoardConfigSetting> settings,
+                                                   std::string_view param_id) {
+    for (const DbBoardConfigSetting& s : settings)
+        if (s.param_id == param_id) return &s;
+    return nullptr;
 }
 
 void BoardDatabase::OnReady() {
@@ -138,6 +164,10 @@ void BoardDatabase::OnReady() {
         device_features_.push_back(std::move(row));
     }
 
+    for (const auto& p : root.at(kBoardConfigParams))
+        board_config_params_.push_back(DbBoardConfigParam{p.at(kId).get<std::string>(), p.at(kName).get<std::string>(),
+                                                          ParseConfigEnumValues(p.at(kEnumValues))});
+
     const json& families = root.at(kBoardFamilies);
     for (const auto& f : families)
         board_families_.push_back(DbBoardFamily{f.at(kId).get<std::string>(), f.at(kName).get<std::string>()});
@@ -162,7 +192,6 @@ void BoardDatabase::OnReady() {
         }
         row.ga_color_depth      = v.ValueOr(kGaColorDepth, kDefaultGaColorDepth);
         row.ga_window_size      = v.ValueOr(kGaWindowSize, kDefaultGaWindowSize);
-        row.dram_card_bytes     = v.ValueOr(kDramCardBytes, 0u);
         row.dynamic_scale_factor = v.ValueOr(kDynamicScaleFactor, 0);
         row.rom_placing_mode    = ValueByName(kRomPlacingModes, v.Value<std::string>(kRomPlacingMode));
         row.configurable_screen = v.ValueOr(kConfigurableScreen, false);
@@ -171,8 +200,17 @@ void BoardDatabase::OnReady() {
         for (std::string& note : b.value(kNotes, std::vector<std::string>())) row.notes.push_back(std::move(note));
         MergeFeatures(family, row.features);
         MergeFeatures(b, row.features);
+        MergeBoardConfig(family, row.config);
+        MergeBoardConfig(b, row.config);
+        std::ranges::sort(row.config, {}, [this](const DbBoardConfigSetting& s) { return FindBoardConfigParam(s.param_id); });
         boards_.push_back(std::move(row));
     }
+}
+
+const DbBoardConfigParam* BoardDatabase::FindBoardConfigParam(std::string_view id) const {
+    for (const auto& p : board_config_params_)
+        if (p.id == id) return &p;
+    return nullptr;
 }
 
 const DbGaPalette* BoardDatabase::DefaultGaPalette(uint32_t bpp) const {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config_enum_value.h"
 #include "service.h"
 #include <cerfengine/isa.h>
 
@@ -58,6 +59,23 @@ struct DbGaPalette {
     std::vector<uint32_t> colors;
 };
 
+struct DbBoardConfigParam {
+    std::string                  id;
+    std::string                  name;
+    std::vector<ConfigEnumValue> enum_values;
+};
+
+struct DbBoardConfigSetting {
+    std::string              param_id;
+    std::string              default_value;
+    std::vector<std::string> values;
+
+    bool Accepts(std::string_view value) const;
+};
+
+const DbBoardConfigSetting* FindBoardConfigSetting(std::span<const DbBoardConfigSetting> settings,
+                                                   std::string_view param_id);
+
 struct DbBoard {
     std::string                   id;
     std::string                   name;
@@ -69,13 +87,13 @@ struct DbBoard {
     std::optional<DbLcdPanelSize> lcd_panel_size;
     uint32_t                      ga_color_depth;
     uint32_t                      ga_window_size;
-    uint32_t                      dram_card_bytes;
     int                           dynamic_scale_factor;
     RomPlacingMode                rom_placing_mode;
     bool                          configurable_screen;
     uint32_t                      device_year;
     std::vector<std::string>      notes;
     std::vector<DbFeatureSupport> features;
+    std::vector<DbBoardConfigSetting> config;
 };
 
 class BoardDatabase : public Service {
@@ -99,6 +117,8 @@ public:
     std::span<const DbGaPalette> GaPalettes() const { return ga_palettes_; }
     const DbGaPalette*           DefaultGaPalette(uint32_t bpp) const;
 
+    const DbBoardConfigParam* FindBoardConfigParam(std::string_view id) const;
+
     const DbBoard*       FindBoard(std::string_view id) const;
     const DbSoc&         Soc(std::string_view id) const;
     const DbSocFamily&   SocFamily(std::string_view id) const;
@@ -114,6 +134,7 @@ private:
     std::string              ga_shared_folder_mount_point_;
     std::vector<std::string> ga_video_driver_names_;
     std::vector<DbGaPalette> ga_palettes_;
+    std::vector<DbBoardConfigParam> board_config_params_;
 };
 
 }

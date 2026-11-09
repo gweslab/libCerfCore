@@ -1154,6 +1154,104 @@
       "icon": "serial_modem"
     }
   ],
+  "board_config_params": [
+    {
+      "id": "dram_card",
+      "name": "DRAM card",
+      "enum_values": [
+        {
+          "id": "none",
+          "name": "None"
+        },
+        {
+          "id": "1mb",
+          "name": "1 MB"
+        },
+        {
+          "id": "2mb",
+          "name": "2 MB"
+        },
+        {
+          "id": "4mb",
+          "name": "4 MB"
+        },
+        {
+          "id": "8mb",
+          "name": "8 MB"
+        },
+        {
+          "id": "16mb",
+          "name": "16 MB"
+        },
+        {
+          "id": "32mb",
+          "name": "32 MB"
+        }
+      ]
+    },
+    {
+      "id": "ram",
+      "name": "RAM",
+      "enum_values": [
+        {
+          "id": "4mb",
+          "name": "4 MB"
+        },
+        {
+          "id": "8mb",
+          "name": "8 MB"
+        },
+        {
+          "id": "12mb",
+          "name": "12 MB"
+        },
+        {
+          "id": "16mb",
+          "name": "16 MB"
+        },
+        {
+          "id": "32mb",
+          "name": "32 MB"
+        },
+        {
+          "id": "64mb",
+          "name": "64 MB"
+        }
+      ]
+    },
+    {
+      "id": "lcd_panel",
+      "name": "LCD panel",
+      "enum_values": [
+        {
+          "id": "color_tft",
+          "name": "Color TFT"
+        },
+        {
+          "id": "color_dstn",
+          "name": "Color DSTN"
+        },
+        {
+          "id": "monochrome_stn",
+          "name": "Monochrome STN"
+        }
+      ]
+    },
+    {
+      "id": "backlight",
+      "name": "Backlight",
+      "enum_values": [
+        {
+          "id": "none",
+          "name": "None"
+        },
+        {
+          "id": "installed",
+          "name": "Installed"
+        }
+      ]
+    }
+  ],
   "board_families": [
     {
       "id": "samsung_smdk2410",
@@ -1258,6 +1356,16 @@
       "name": "Compaq iPAQ H3000",
       "soc_id": "sa1110",
       "device_year": 2000,
+      "board_config": {
+        "ram": {
+          "default": "32mb",
+          "values": ["16mb", "32mb", "64mb"]
+        },
+        "lcd_panel": {
+          "default": "color_tft",
+          "values": ["color_tft", "monochrome_stn"]
+        }
+      },
       "device_features": [
         {
           "feature_id": "sound",
@@ -1889,6 +1997,12 @@
       "name": "IBM WorkPad z50",
       "soc_id": "vr4121",
       "device_year": 1999,
+      "board_config": {
+        "dram_card": {
+          "default": "none",
+          "values": ["none", "32mb"]
+        }
+      },
       "device_features": [
         {
           "feature_id": "mouse",
@@ -2047,6 +2161,12 @@
       "name": "Philips Velo 1",
       "soc_id": "pr31500",
       "device_year": 1997,
+      "board_config": {
+        "dram_card": {
+          "default": "none",
+          "values": ["none", "1mb", "2mb", "4mb", "8mb", "16mb"]
+        }
+      },
       "device_features": [
         {
           "feature_id": "touch",
@@ -2102,6 +2222,20 @@
       "name": "Sharp Mobilon HC",
       "soc_id": "pr31700",
       "device_year": 1997,
+      "board_config": {
+        "ram": {
+          "default": "12mb",
+          "values": ["4mb", "8mb", "12mb", "16mb"]
+        },
+        "lcd_panel": {
+          "default": "monochrome_stn",
+          "values": ["monochrome_stn", "color_dstn"]
+        },
+        "backlight": {
+          "default": "none",
+          "values": ["none", "installed"]
+        }
+      },
       "device_features": [
         {
           "feature_id": "touch",
@@ -2495,7 +2629,15 @@
       "board_family_id": "compaq_ipaq_h3000",
       "support_level": "bootable_full",
       "internal__spec_divergences": "16 MB RAM, 15-level grayscale STN panel",
-      "device_year": 2001
+      "device_year": 2001,
+      "board_config": {
+        "ram": {
+          "default": "16mb"
+        },
+        "lcd_panel": {
+          "default": "monochrome_stn"
+        }
+      }
     },
     {
       "id": "ipaq_h3660_h3670",
@@ -2504,7 +2646,12 @@
       "board_family_id": "compaq_ipaq_h3000",
       "support_level": "bootable_full",
       "internal__spec_divergences": "64 MB RAM",
-      "device_year": 2001
+      "device_year": 2001,
+      "board_config": {
+        "ram": {
+          "default": "64mb"
+        }
+      }
     },
     {
       "id": "ipaq_h37xx",
@@ -2513,7 +2660,12 @@
       "board_family_id": "compaq_ipaq_h3000",
       "support_level": "unknown_partial",
       "internal__spec_divergences": "64 MB RAM, 32 MB flash",
-      "device_year": 2001
+      "device_year": 2001,
+      "board_config": {
+        "ram": {
+          "default": "64mb"
+        }
+      }
     },
     {
       "id": "jornada_820",
@@ -2925,60 +3077,6 @@
       "internal__spec_divergences": "32 MB ROM, Japanese keyboard, Japanese ROM"
     },
     {
-      "id": "ibm_workpad_z50_dram_32mb",
-      "name": "IBM WorkPad z50 (32 MB DRAM card)",
-      "short_name": "WorkPad z50",
-      "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
-      "internal__spec_divergences": "32 MB DRAM card, 48 MB RAM",
-      "dram_card_bytes": 33554432
-    },
-    {
-      "id": "ibm_workpad_z50_canada_dram_32mb",
-      "name": "IBM WorkPad z50 (Canada, 32 MB DRAM card)",
-      "short_name": "WorkPad z50",
-      "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
-      "internal__spec_divergences": "Canadian French keyboard, 32 MB DRAM card, 48 MB RAM",
-      "dram_card_bytes": 33554432
-    },
-    {
-      "id": "ibm_workpad_z50_uk_dram_32mb",
-      "name": "IBM WorkPad z50 (UK, 32 MB DRAM card)",
-      "short_name": "WorkPad z50",
-      "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
-      "internal__spec_divergences": "EMEA main board, no modem, UK keyboard, 32 MB DRAM card, 48 MB RAM",
-      "dram_card_bytes": 33554432
-    },
-    {
-      "id": "ibm_workpad_z50_france_dram_32mb",
-      "name": "IBM WorkPad z50 (France, 32 MB DRAM card)",
-      "short_name": "WorkPad z50",
-      "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
-      "internal__spec_divergences": "EMEA main board, no modem, French keyboard, French ROM, 32 MB DRAM card, 48 MB RAM",
-      "dram_card_bytes": 33554432
-    },
-    {
-      "id": "ibm_workpad_z50_germany_dram_32mb",
-      "name": "IBM WorkPad z50 (Germany, 32 MB DRAM card)",
-      "short_name": "WorkPad z50",
-      "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
-      "internal__spec_divergences": "EMEA main board, no modem, German keyboard, German ROM, 32 MB DRAM card, 48 MB RAM",
-      "dram_card_bytes": 33554432
-    },
-    {
-      "id": "ibm_workpad_z50_japan_dram_32mb",
-      "name": "IBM WorkPad z50 (Japan, 32 MB DRAM card)",
-      "short_name": "WorkPad z50",
-      "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
-      "internal__spec_divergences": "32 MB ROM, Japanese keyboard, Japanese ROM, 32 MB DRAM card, 48 MB RAM",
-      "dram_card_bytes": 33554432
-    },
-    {
       "id": "nec_rockhopper",
       "name": "NEC Rockhopper SG2_VR5500",
       "short_name": "Rockhopper",
@@ -3034,51 +3132,6 @@
       "support_level": "bootable_full"
     },
     {
-      "id": "philips_velo_1_dram_1mb",
-      "name": "Philips Velo 1 (1 MB DRAM Miniature Card)",
-      "short_name": "Velo 1",
-      "board_family_id": "philips_velo_1",
-      "support_level": "bootable_full",
-      "internal__spec_divergences": "1 MB DRAM Miniature Card in slot 1",
-      "dram_card_bytes": 1048576
-    },
-    {
-      "id": "philips_velo_1_dram_2mb",
-      "name": "Philips Velo 1 (2 MB DRAM Miniature Card)",
-      "short_name": "Velo 1",
-      "board_family_id": "philips_velo_1",
-      "support_level": "bootable_full",
-      "internal__spec_divergences": "2 MB DRAM Miniature Card in slot 1",
-      "dram_card_bytes": 2097152
-    },
-    {
-      "id": "philips_velo_1_dram_4mb",
-      "name": "Philips Velo 1 (4 MB DRAM Miniature Card)",
-      "short_name": "Velo 1",
-      "board_family_id": "philips_velo_1",
-      "support_level": "bootable_full",
-      "internal__spec_divergences": "4 MB DRAM Miniature Card in slot 1",
-      "dram_card_bytes": 4194304
-    },
-    {
-      "id": "philips_velo_1_dram_8mb",
-      "name": "Philips Velo 1 (8 MB DRAM Miniature Card)",
-      "short_name": "Velo 1",
-      "board_family_id": "philips_velo_1",
-      "support_level": "bootable_full",
-      "internal__spec_divergences": "8 MB DRAM Miniature Card in slot 1",
-      "dram_card_bytes": 8388608
-    },
-    {
-      "id": "philips_velo_1_dram_16mb",
-      "name": "Philips Velo 1 (16 MB DRAM Miniature Card)",
-      "short_name": "Velo 1",
-      "board_family_id": "philips_velo_1",
-      "support_level": "bootable_full",
-      "internal__spec_divergences": "16 MB DRAM Miniature Card in slot 1",
-      "dram_card_bytes": 16777216
-    },
-    {
       "id": "sharp_mobilon_hc4100",
       "name": "Sharp Mobilon HC-4100",
       "short_name": "Mobilon HC-4100",
@@ -3091,7 +3144,12 @@
       "short_name": "Mobilon HC-4100",
       "board_family_id": "sharp_mobilon_hc",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "8 MB RAM"
+      "internal__spec_divergences": "8 MB RAM",
+      "board_config": {
+        "ram": {
+          "default": "8mb"
+        }
+      }
     },
     {
       "id": "sharp_mobilon_hc4000",
@@ -3099,7 +3157,12 @@
       "short_name": "Mobilon HC-4000",
       "board_family_id": "sharp_mobilon_hc",
       "support_level": "unknown_partial",
-      "internal__spec_divergences": "4 MB RAM"
+      "internal__spec_divergences": "4 MB RAM",
+      "board_config": {
+        "ram": {
+          "default": "4mb"
+        }
+      }
     },
     {
       "id": "sharp_mobilon_hc4500",
@@ -3107,7 +3170,18 @@
       "short_name": "Mobilon HC-4500",
       "board_family_id": "sharp_mobilon_hc",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "256-colour STN panel, NiMH battery, 16 MB RAM"
+      "internal__spec_divergences": "256-colour STN panel, NiMH battery, 16 MB RAM",
+      "board_config": {
+        "ram": {
+          "default": "16mb"
+        },
+        "lcd_panel": {
+          "default": "color_dstn"
+        },
+        "backlight": {
+          "default": "installed"
+        }
+      }
     },
     {
       "id": "sharp_mobilon_hc4500_8mb",
@@ -3115,7 +3189,18 @@
       "short_name": "Mobilon HC-4500",
       "board_family_id": "sharp_mobilon_hc",
       "support_level": "bootable_full",
-      "internal__spec_divergences": "256-colour STN panel, NiMH battery, 8 MB RAM"
+      "internal__spec_divergences": "256-colour STN panel, NiMH battery, 8 MB RAM",
+      "board_config": {
+        "ram": {
+          "default": "8mb"
+        },
+        "lcd_panel": {
+          "default": "color_dstn"
+        },
+        "backlight": {
+          "default": "installed"
+        }
+      }
     },
     {
       "id": "sharp_mobilon_hc4600",
@@ -3124,7 +3209,18 @@
       "board_family_id": "sharp_mobilon_hc",
       "support_level": "bootable_full",
       "internal__spec_divergences": "256-colour panel, 16 MB RAM",
-      "device_year": 1998
+      "device_year": 1998,
+      "board_config": {
+        "ram": {
+          "default": "16mb"
+        },
+        "lcd_panel": {
+          "default": "color_dstn"
+        },
+        "backlight": {
+          "default": "installed"
+        }
+      }
     },
     {
       "id": "siemens_mp377",
