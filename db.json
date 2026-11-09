@@ -3030,14 +3030,14 @@
       "name": "IBM WorkPad z50",
       "short_name": "WorkPad z50",
       "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support"
+      "support_level": "bootable_full"
     },
     {
       "id": "ibm_workpad_z50_canada",
       "name": "IBM WorkPad z50 (Canada)",
       "short_name": "WorkPad z50",
       "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
+      "support_level": "bootable_partial",
       "internal__spec_divergences": "Canadian French keyboard"
     },
     {
@@ -3045,7 +3045,7 @@
       "name": "IBM WorkPad z50 (UK)",
       "short_name": "WorkPad z50",
       "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
+      "support_level": "unknown_partial",
       "internal__spec_divergences": "EMEA main board, no modem, UK keyboard"
     },
     {
@@ -3053,7 +3053,7 @@
       "name": "IBM WorkPad z50 (France)",
       "short_name": "WorkPad z50",
       "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
+      "support_level": "unknown_partial",
       "internal__spec_divergences": "EMEA main board, no modem, French keyboard, French ROM"
     },
     {
@@ -3061,7 +3061,7 @@
       "name": "IBM WorkPad z50 (Germany)",
       "short_name": "WorkPad z50",
       "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
+      "support_level": "unknown_partial",
       "internal__spec_divergences": "EMEA main board, no modem, German keyboard, German ROM"
     },
     {
@@ -3069,7 +3069,7 @@
       "name": "IBM WorkPad z50 (Japan)",
       "short_name": "WorkPad z50",
       "board_family_id": "ibm_workpad_z50",
-      "support_level": "no_support",
+      "support_level": "bootable_partial",
       "internal__spec_divergences": "32 MB ROM, Japanese keyboard, Japanese ROM"
     },
     {
