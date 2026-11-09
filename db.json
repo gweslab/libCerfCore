@@ -2006,47 +2006,43 @@
       "device_features": [
         {
           "feature_id": "mouse",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "keyboard",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "guest_additions",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "sound",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "mic",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "pcmcia",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "serial",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "phone_line",
           "supported": true
         },
         {
-          "feature_id": "network",
-          "supported": false
-        },
-        {
           "feature_id": "battery",
-          "supported": false
+          "supported": true
         },
         {
           "feature_id": "suspend",
-          "supported": false
+          "supported": true
         }
       ],
       "notes": [],
