@@ -11,6 +11,8 @@ namespace cerfcore {
 
 namespace {
 
+constexpr Vr41xxAudioPin kSpeakerPins[] = {{49, Vr41xxPinDrive::kHigh}};
+
 class IbmWorkpadZ50AudioSwitch : public Vr41xxGpioAudioSwitch {
 public:
     using Vr41xxGpioAudioSwitch::Vr41xxGpioAudioSwitch;
@@ -27,8 +29,7 @@ public:
     }
 
 protected:
-    int            SpeakerGpio() const override    { return 49; }
-    Vr41xxPinDrive SpeakerOnLevel() const override { return Vr41xxPinDrive::kHigh; }
+    std::span<const Vr41xxAudioPin> SpeakerPins() const override { return kSpeakerPins; }
 };
 
 }

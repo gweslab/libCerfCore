@@ -24,6 +24,7 @@ public:
 
     /* GPIO(31:0) pins (VR4121 UM 19.2.1/19.2.2, VR4102 UM 18.2.1/18.2.2). */
     virtual void SetPinLevel(int pin, bool level) = 0;
+    virtual void ReleasePin(int pin) = 0;
 
     virtual bool GetPinLevel(int pin) = 0;
 
@@ -38,6 +39,9 @@ public:
 
     virtual void RegisterPinDeviceState(std::function<void(StateWriter&)> save,
                                         std::function<void(StateReader&)> restore) = 0;
+
+    virtual uint16_t ReadPullRegister(uint32_t off)                  = 0;
+    virtual void     WritePullRegister(uint32_t off, uint16_t value) = 0;
 };
 
 }

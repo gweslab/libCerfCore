@@ -2,6 +2,7 @@
 
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
 #include "../../socs/vr41xx/vr41xx_giu.h"
 #include "ibm_workpad_z50_family_id.h"
 
@@ -28,10 +29,17 @@ public:
     uint32_t IsaIoBase() const override { return kIsaIoBase; }
     uint32_t IsaMemBase() const override { return kIsaMemBase; }
     uint16_t SlotBConfiguration() const override { return kSlotBCompactFlash; }
+    std::string SlotALabel() const override { return "PC Card"; }
     bool     SensePullupsOnCardVcc(int bank) const override { return bank == kCompactFlashBank; }
 
     void SetIrqLevel(bool active) override {
         emu_.Get<Vr41xxGiu>().SetPinLevel(kIrqGiuPin, active);
+    }
+
+    bool GpioPinsWired() const override { return false; }
+
+    uint8_t GpioInputLevels() const override {
+        emu_.Get<Fatal>().Die("IbmWorkpadZ50Vrc4171aBoard: read of a VRC4171A GPIO pin in input mode");
     }
 };
 

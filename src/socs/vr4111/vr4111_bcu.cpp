@@ -1,6 +1,8 @@
 #include "../vr41xx/vr41xx_bcu_impl.h"
 
+#include "../vr41xx/vr41xx_clock_strap.h"
 #include "vr4111_bus_error.h"
+#include "vr4111_core_clock_model.h"
 
 #include <cstdint>
 #include "vr4111_id.h"
@@ -21,7 +23,7 @@ constexpr Vr41xxRegWindowModel kModel = {
     /*base=*/0x0B000000u,
     /*size=*/0x20u,
     /*num_regs=*/12u,
-    /*word_pairs=*/false,
+    true,
     {
         /* 0x00 BCUCNTREG1 (UM 11.2.1 p264): R/W D15/14/13/12/10/8/6/4/1/0,
            RFU-read-0 D11/9/7/5/3/2, RTCRST and Other-resets rows both 0. */
@@ -40,6 +42,10 @@ constexpr Vr41xxRegWindowModel kModel = {
            RTCRST 0x0200; Other resets 0 on D15:14, Undefined on D13:0. */
         { ReadKind::kStored, WriteKind::kStored, 0x3FFFu, 0x0200u, 0xC000u,
           OtherReset::kReset, 0x3FFFu },
+        {},
+        {},
+        {},
+        { ReadKind::kStored, WriteKind::kFatal, 0x0000u, 0x0000u },
     },
 };
 
@@ -68,12 +74,33 @@ const char* SpeedEncodingRejected(uint16_t speed, uint16_t cnt1) {
 constexpr uint32_t kErrStAddr     = 0x0B00000Cu;
 constexpr uint16_t kErrStReserved = 0xFFFEu;
 
+constexpr uint16_t kRevIdVr4111 = 0x2000u;
+
+constexpr uint16_t kDiv2b = 0x8000u;
+constexpr uint16_t kDiv3b = 0x4000u;
+constexpr uint16_t kDiv4b = 0x2000u;
+
+constexpr uint16_t DivSelectBit(uint64_t pclock_per_tclock) {
+    return pclock_per_tclock == 2u ? kDiv2b : pclock_per_tclock == 3u ? kDiv3b : pclock_per_tclock == 4u ? kDiv4b : 0u;
+}
+
+constexpr bool EveryRowSelectsOneDivider() {
+    for (const Vr41xxClkselRow& row : kVr4111CoreClock.rows) {
+        if (DivSelectBit(Vr41xxPclockPerTclock(kVr4111CoreClock, row)) == 0u) return false;
+    }
+    return true;
+}
+
+static_assert(EveryRowSelectsOneDivider(), "every VR4111 CLKSEL row must give TClock = PClock / 2, 3 or 4");
+
 class Vr4111Bcu : public Vr41xxBcuBase<SocId::Vr4111, kModel> {
 public:
     using Vr41xxBcuBase::Vr41xxBcuBase;
 
     uint16_t ReadHalf(uint32_t addr) override {
         if (addr == kErrStAddr) return emu_.Get<Vr4111BusError>().ReadStatus();
+        if (addr - kModel.base == vr41xx_bcu::kOffRevId) return kRevIdVr4111;
+        if (addr - kModel.base == vr41xx_bcu::kOffClkSpeed) return ClkSpeedReg();
         return Vr41xxBcuBase::ReadHalf(addr);
     }
 
@@ -99,6 +126,13 @@ public:
     }
 
     void PostRestore() override { emu_.Get<Vr4111BusError>().PostRestore(); }
+
+private:
+    uint16_t ClkSpeedReg() const {
+        const Vr41xxClkselRow& row = emu_.Get<Vr41xxClockStrap>().StrapRow(kVr4111CoreClock.rows);
+        const uint16_t divider = DivSelectBit(Vr41xxPclockPerTclock(kVr4111CoreClock, row));
+        return static_cast<uint16_t>(((kDiv2b | kDiv3b | kDiv4b) & ~divider) | row.clksp);
+    }
 
 protected:
     const char* EncodingRejected(uint32_t off, uint16_t value) const override {

@@ -182,45 +182,48 @@ void RomPlacer::OnReady() {
         }
 
         {
-            uint32_t flash_va_base = 0;
-            uint32_t flash_pa_base = 0;
-            uint32_t flash_size    = 0;
-            bool     have_flash    = false;
+            uint32_t image_va   = 0;
+            uint32_t image_pa   = 0;
+            uint32_t region_pa  = 0;
+            uint64_t region_end = 0;
+            bool     have_nv    = false;
             for (const auto& xip : rom.xips) {
                 const uint32_t va = xip.load_offset;
                 const uint32_t pa = page_tables.VaToPa(va);
                 for (const auto& reg : page_tables.BackedMemoryRegions()) {
-                    if (reg.kind != MemoryKind::kFlash) continue;
+                    if (reg.kind != MemoryKind::kFlash &&
+                        reg.kind != MemoryKind::kRom) continue;
                     if (pa < reg.pa_base) continue;
                     if (pa >= reg.pa_base + reg.size) continue;
-                    flash_va_base = va;
-                    flash_pa_base = reg.pa_base;
-                    flash_size    = reg.size;
-                    have_flash    = true;
+                    image_va   = va;
+                    image_pa   = pa;
+                    region_pa  = reg.pa_base;
+                    region_end = uint64_t(reg.pa_base) + reg.size;
+                    have_nv    = true;
                     break;
                 }
-                if (have_flash) break;
+                if (have_nv) break;
             }
-            if (have_flash) {
-                const uint32_t bank_va_base =
-                    flash_va_base - (page_tables.VaToPa(flash_va_base)
-                                     - flash_pa_base);
+            if (have_nv) {
                 const bool whole_flash =
                     rom.is_symbol_flash
-                    && page_tables.VaToPa(rom.whole_flash_va) == flash_pa_base;
+                    && page_tables.VaToPa(rom.whole_flash_va) == region_pa;
+                const uint32_t dest_pa = whole_flash ? region_pa : image_pa;
+                const uint32_t dest_va = image_va - (image_pa - dest_pa);
                 const uint8_t* src =
                     whole_flash ? rom.raw.data() : rom.flat.data();
                 const size_t   len =
                     whole_flash ? rom.raw.size() : rom.flat.size();
-                const size_t file_len = std::min<size_t>(len, flash_size);
-                mem.CopyIn(flash_pa_base, src, file_len);
+                const size_t file_len =
+                    std::min<size_t>(len, size_t(region_end - dest_pa));
+                mem.CopyIn(dest_pa, src, file_len);
                 LOG(Boot,
-                    "RomPlacer %s: full flash image %zu bytes placed at "
+                    "RomPlacer %s: full non-volatile image %zu bytes placed at "
                     "kva=0x%08X..0x%08X  pa=0x%08X..0x%08X  "
                     "(fills inter-XIP gaps incl. XIPCHAIN table)\n",
                     rom.filename.c_str(), file_len,
-                    bank_va_base, uint32_t(bank_va_base + file_len),
-                    flash_pa_base, uint32_t(flash_pa_base + file_len));
+                    dest_va, uint32_t(dest_va + file_len),
+                    dest_pa, uint32_t(dest_pa + file_len));
             } else if (rom.has_imgfs) {
                 LOG(Caution,
                     "RomPlacer %s: IMGFS present but no XIP region maps "

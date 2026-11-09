@@ -4,6 +4,8 @@
 #include "nec_vrc4171a_board.h"
 
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
 
 namespace cerfcore {
@@ -21,6 +23,8 @@ public:
     bool     IoUpperDecode();
     uint16_t ReadTopLevel(uint32_t port);
     void     WriteTopLevel(uint32_t port, uint16_t value);
+    bool     SocketPowered(int bank) { return Slot(bank).IsPowered(); }
+    bool     DisplayClocksEnabled();
 
 protected:
     const char* ChipName() const override { return "VRC4171A"; }
@@ -46,6 +50,7 @@ protected:
     void        AfterRestoreLocked() override;
 
 private:
+    std::optional<std::string> SlotBLabel();
     void     ApplyChipModesLocked();
     uint16_t InterruptStatusLocked();
 
@@ -53,6 +58,7 @@ private:
 
     uint16_t config1_ = 0u;
     uint16_t config2_ = 0u;
+    uint16_t gpio_pcs_ = 0u;
     uint8_t  card_detect_control_[2] = { 0u, 0u };
     uint8_t  global_control_[2]      = { 0u, 0u };
     uint8_t  voltage_select_[2]      = { 0u, 0u };

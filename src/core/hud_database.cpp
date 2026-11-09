@@ -38,6 +38,7 @@ constexpr char kRow[]            = "row";
 constexpr char kColumn[]         = "column";
 constexpr char kButton[]         = "button";
 constexpr char kDpad[]           = "dpad";
+constexpr char kRocker[]         = "rocker";
 constexpr char kGrow[]           = "grow";
 constexpr char kKeys[]           = "keys";
 constexpr char kLabel[]          = "label";
@@ -52,6 +53,7 @@ constexpr char kRight[]          = "right";
 constexpr char kCenter[]         = "center";
 constexpr char kShape[]          = "shape";
 constexpr char kPortrait[]       = "portrait";
+constexpr char kLandscape[]      = "landscape";
 
 constexpr std::pair<std::string_view, HudSide> kSides[] = {
     {"top", HudSide::kTop}, {"bottom", HudSide::kBottom}, {"left", HudSide::kLeft}, {"right", HudSide::kRight}};
@@ -94,14 +96,19 @@ HudButton Button(const json& object) {
     return button;
 }
 
+HudDpad Rocker(const json& object) {
+    HudDpad rocker;
+    rocker.up     = Keys(object.at(kUp));
+    rocker.down   = Keys(object.at(kDown));
+    rocker.center = OptKeys(object, kCenter);
+    return rocker;
+}
+
 HudDpad Dpad(const json& object) {
-    HudDpad dpad;
-    dpad.up     = Keys(object.at(kUp));
-    dpad.down   = Keys(object.at(kDown));
-    dpad.left   = Keys(object.at(kLeft));
-    dpad.right  = Keys(object.at(kRight));
-    dpad.center = OptKeys(object, kCenter);
-    dpad.shape  = ValueByName(kShapes, object.value(kShape, std::string("rounded")));
+    HudDpad dpad = Rocker(object);
+    dpad.left    = Keys(object.at(kLeft));
+    dpad.right   = Keys(object.at(kRight));
+    dpad.shape   = ValueByName(kShapes, object.value(kShape, std::string("rounded")));
     return dpad;
 }
 
@@ -125,6 +132,9 @@ public:
         } else if (const auto dpad = value.find(kDpad); dpad != value.end()) {
             node.kind = HudNode::Kind::kDpad;
             node.dpad = Dpad(*dpad);
+        } else if (const auto rocker = value.find(kRocker); rocker != value.end()) {
+            node.kind = HudNode::Kind::kDpad;
+            node.dpad = Rocker(*rocker);
         } else if (const auto sticker = value.find(kSticker); sticker != value.end()) {
             node.kind    = HudNode::Kind::kSticker;
             node.sticker = Face(*sticker);
@@ -141,13 +151,13 @@ public:
         return panel;
     }
 
-    HudPanel PortraitPanel(const json& object) const {
-        const auto portrait = object.find(kPortrait);
-        if (portrait == object.end()) return Panel(object);
+    HudPanel FormPanel(const json& object, const char* form_key) const {
+        const auto form = object.find(form_key);
+        if (form == object.end()) return Panel(object);
         HudPanel panel;
         Shape(object, panel);
         const bool across = AcrossX(panel.side);
-        Shape(*portrait, panel);
+        Shape(*form, panel);
         panel.root = Node(object.at(kContent), across != AcrossX(panel.side));
         return panel;
     }
@@ -194,14 +204,15 @@ void HudDatabase::OnReady() {
         hud.gap = h.value(kGap, 0.0);
         for (const json& panel : h.at(kPanels)) {
             hud.panels.push_back(reader.Panel(panel));
-            hud.portrait_panels.push_back(reader.PortraitPanel(panel));
+            hud.portrait_panels.push_back(reader.FormPanel(panel, kPortrait));
+            hud.landscape_panels.push_back(reader.FormPanel(panel, kLandscape));
         }
         huds_.push_back(std::move(hud));
     }
 }
 
 const std::vector<HudPanel>& DbHud::InsidePanels(double area_w, double area_h) const {
-    return area_h > area_w ? portrait_panels : panels;
+    return area_h > area_w ? portrait_panels : landscape_panels;
 }
 
 const DbLcdPanelSize& DbHud::ScreenFor(double width, double height) const {

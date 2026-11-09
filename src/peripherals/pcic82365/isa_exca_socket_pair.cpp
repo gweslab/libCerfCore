@@ -15,14 +15,14 @@ constexpr uint32_t kPortIndex      = 0x0u;
 constexpr unsigned kIndexBankShift = 6u;
 constexpr uint8_t  kIndexSubMask   = 0x3Fu;
 constexpr uint8_t  kRegInterfaceStatus = 0x01u;
+constexpr uint8_t  kRegCardStatusChange = 0x04u;
 
 }
 
-IsaExcaSocketPair::IsaExcaSocketPair(CerfEmulator& emu, ExcaPartRules rules, const char* slot0_name,
-                                     const char* slot1_name)
+IsaExcaSocketPair::IsaExcaSocketPair(CerfEmulator& emu, ExcaPartRules rules)
     : Service(emu),
-      slot0_(emu, *this, slot0_name),
-      slot1_(emu, *this, slot1_name),
+      slot0_(emu, *this, std::string()),
+      slot1_(emu, *this, std::string()),
       exca0_(rules),
       exca1_(rules) {}
 
@@ -31,10 +31,15 @@ void IsaExcaSocketPair::OnShutdown() {
     slot1_.OnShutdown();
 }
 
-void IsaExcaSocketPair::StartSockets() {
+void IsaExcaSocketPair::StartSockets(std::string slot0_label, std::optional<std::string> slot1_label) {
     auto& reg = emu_.Get<HostWidgetRegistry>();
+    slot0_.SetLabel(std::move(slot0_label));
     reg.Register(&slot0_);
-    reg.Register(&slot1_);
+    if (slot1_label) {
+        slot1_.SetLabel(std::move(*slot1_label));
+        reg.Register(&slot1_);
+        slot1_wired_ = true;
+    }
     ResetController();
     auto& reset = emu_.Get<GuestCpuReset>();
     reset.RegisterResetListener([this](ResetLineKind) { ResetController(); });
@@ -93,6 +98,9 @@ uint8_t IsaExcaSocketPair::ReadDataLocked(uint32_t port) {
     if (bank >= kSockets)
         return UnbankedDataReadLocked(port);
     const uint8_t sub = index_ & kIndexSubMask;
+    if ((sub == kRegInterfaceStatus || sub == kRegCardStatusChange) && !SocketWired(bank))
+        emu_.Get<Fatal>().Die("[%s] read of INDEX 0x%02X, whose value comes from the pins of a socket the board "
+                              "does not wire", ChipName(), index_);
     uint8_t v = 0u;
     if (ChipReadLocked(bank, sub, &v))
         return v;
@@ -121,6 +129,9 @@ bool IsaExcaSocketPair::DecodeMem(uint32_t off, CardMemHit* hit) {
     std::lock_guard<std::mutex> lk(state_mutex_);
     for (int b = 0; b < kSockets; ++b) {
         if (Exca(b).MapMem(off, &hit->addr, &hit->attribute, &hit->writable, &hit->sixteen_bit)) {
+            if (!SocketWired(b))
+                emu_.Get<Fatal>().Die("[%s] memory access at offset 0x%08X hits a window of a socket the board "
+                                      "does not wire", ChipName(), off);
             hit->bank = b;
             hit->addr = CardAddressLocked(b, hit->addr);
             hit->isolated = InterfaceDisabledLocked(b);
@@ -134,6 +145,9 @@ bool IsaExcaSocketPair::DecodeIo(uint32_t off, CardIoHit* hit) {
     std::lock_guard<std::mutex> lk(state_mutex_);
     for (int b = 0; b < kSockets; ++b) {
         if (Exca(b).MapIo(off, &hit->io, &hit->width)) {
+            if (!SocketWired(b))
+                emu_.Get<Fatal>().Die("[%s] I/O access at offset 0x%08X hits a window of a socket the board does "
+                                      "not wire", ChipName(), off);
             hit->bank = b;
             hit->isolated = InterfaceDisabledLocked(b);
             hit->inpack_gated = InpackGatedLocked(b);

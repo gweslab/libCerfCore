@@ -59,7 +59,9 @@ void Vr41xxAiuMic::WriteValidBits(uint16_t bits) {
 
 uint16_t Vr41xxAiuMic::NextSample() {
     uint8_t pcm[2] = {};
-    if (mic_.Take(pcm, sizeof pcm) != 0u) emu_.Get<AudioActivityWidget>().MarkRx();
+    const bool heard = mic_.Take(pcm, sizeof pcm) != 0u;
+    if (!mic_on_) return kDataReset;
+    if (heard) emu_.Get<AudioActivityWidget>().MarkRx();
     const int sample = static_cast<int16_t>(cerf::le::U16(pcm, 0));
     return static_cast<uint16_t>((sample + 0x8000) >> 6);
 }
@@ -73,11 +75,8 @@ void Vr41xxAiuMic::MoveToDma() {
 }
 
 void Vr41xxAiuMic::Convert() {
-    const bool ad_on = host_.ConverterEnabled(Vr41xxAiuChannel::In);
-    if (!ad_on || !mic_on_) {
-        emu_.Get<Fatal>().Die("Vr41xxAiu: mic A/D conversion with ADENAIU %d and the board microphone %s",
-                              ad_on ? 1 : 0, mic_on_ ? "powered" : "unpowered");
-    }
+    if (!host_.ConverterEnabled(Vr41xxAiuChannel::In))
+        emu_.Get<Fatal>().Die("Vr41xxAiu: mic A/D conversion with ADENAIU 0");
     const uint16_t sample = NextSample();
     if (midatv_) host_.RaiseAiuInt(kMidleIntr);
     midat_  = sample;

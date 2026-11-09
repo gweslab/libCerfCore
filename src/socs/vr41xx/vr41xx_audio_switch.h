@@ -4,8 +4,14 @@
 #include "vr41xx_giu.h"
 
 #include <functional>
+#include <span>
 
 namespace cerfcore {
+
+struct Vr41xxAudioPin {
+    int            gpio;
+    Vr41xxPinDrive on_level;
+};
 
 class Vr41xxAudioSwitch : public Service {
 public:
@@ -25,9 +31,9 @@ public:
 
 protected:
     bool PinAt(int gpio, Vr41xxPinDrive level);
+    bool PinsOn(std::span<const Vr41xxAudioPin> pins);
 
-    virtual int            SpeakerGpio() const    = 0;
-    virtual Vr41xxPinDrive SpeakerOnLevel() const = 0;
+    virtual std::span<const Vr41xxAudioPin> SpeakerPins() const = 0;
 };
 
 }

@@ -1413,6 +1413,59 @@
       "rom_placing_mode": "flat_container"
     },
     {
+      "id": "compaq_aero_1500",
+      "name": "Compaq Aero 1500",
+      "soc_id": "vr4111",
+      "device_year": 1999,
+      "device_features": [
+        {
+          "feature_id": "touch",
+          "supported": true
+        },
+        {
+          "feature_id": "keyboard",
+          "supported": true
+        },
+        {
+          "feature_id": "suspend",
+          "supported": true
+        },
+        {
+          "feature_id": "guest_additions",
+          "supported": true
+        },
+        {
+          "feature_id": "sound",
+          "supported": true
+        },
+        {
+          "feature_id": "mic",
+          "supported": true
+        },
+        {
+          "feature_id": "pcmcia",
+          "supported": true
+        },
+        {
+          "feature_id": "battery",
+          "supported": true
+        },
+        {
+          "feature_id": "serial",
+          "supported": true
+        }
+      ],
+      "notes": [
+        "The guest OS driver doesn't accept keypad input for 7 seconds after boot (OEM's intention, not CERF's bug)"
+      ],
+      "lcd_panel_size": {
+        "width": 240,
+        "height": 320
+      },
+      "ga_window_size": 50331648,
+      "rom_placing_mode": "flat_container"
+    },
+    {
       "id": "hp_jornada_820",
       "name": "HP Jornada 820",
       "soc_id": "sa1100",
@@ -1873,6 +1926,10 @@
         },
         {
           "feature_id": "sound",
+          "supported": true
+        },
+        {
+          "feature_id": "mic",
           "supported": false
         },
         {
@@ -2045,7 +2102,9 @@
           "supported": true
         }
       ],
-      "notes": [],
+      "notes": [
+        "Slow emulation"
+      ],
       "lcd_panel_size": {
         "width": 640,
         "height": 480
@@ -2662,6 +2721,38 @@
           "default": "64mb"
         }
       }
+    },
+    {
+      "id": "compaq_aero_1520",
+      "name": "Compaq Aero 1520",
+      "short_name": "Aero 1520",
+      "board_family_id": "compaq_aero_1500",
+      "support_level": "bootable_full"
+    },
+    {
+      "id": "compaq_aero_1530",
+      "name": "Compaq Aero 1530",
+      "short_name": "Aero 1530",
+      "board_family_id": "compaq_aero_1500",
+      "support_level": "bootable_partial",
+      "internal__spec_divergences": "identical hardware"
+    },
+    {
+      "id": "compaq_aero_1550",
+      "name": "Compaq Aero 1550",
+      "short_name": "Aero 1550",
+      "board_family_id": "compaq_aero_1500",
+      "support_level": "unknown_partial",
+      "internal__spec_divergences": "Pocket PC mask ROM, QLaunch side button in place of the exit button",
+      "device_year": 2000
+    },
+    {
+      "id": "compaq_presario_150",
+      "name": "Compaq Presario 150",
+      "short_name": "Presario 150",
+      "board_family_id": "compaq_aero_1500",
+      "support_level": "unknown_partial",
+      "internal__spec_divergences": "Japanese mask ROM"
     },
     {
       "id": "jornada_820",

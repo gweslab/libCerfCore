@@ -54,6 +54,8 @@ public:
         uint8_t cti_ier_bit = 0x01;
 
         uint16_t divisor_reset = 0;
+
+        bool loopback_ungates_irq = false;
     };
 
     struct Clock {

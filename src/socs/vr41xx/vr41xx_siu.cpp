@@ -1,8 +1,6 @@
 #include "vr41xx_siu.h"
 
-#include "../../execution/engine_bridge.h"
 #include <cerfcore/host/guest_deep_sleep.h>
-#include <cerfengine/mips/mips_interrupt_channel.h>
 
 namespace cerfcore {
 
@@ -15,7 +13,6 @@ void Vr41xxSiu::OnLineReset(ResetLineKind) {
 
 void Vr41xxSiu::OnReady() {
     Uart16550::OnReady();
-    channel_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::MipsInterruptChannel>();
 
     emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
         RefreshClocks();
@@ -38,10 +35,6 @@ void Vr41xxSiu::OnReady() {
     emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] { ApplyModemInputs(); });
     wiring_->RegisterSupplyListener([this] {
         ApplyModemInputs();
-        RefreshControlLines();
-    });
-    channel_->RegisterSuspendListener([this] {
-        suspended_.store(channel_->Suspended(), std::memory_order_release);
         RefreshControlLines();
     });
     emu_.Get<GuestDeepSleep>().RegisterSleepEntryListener([this] {
@@ -116,7 +109,6 @@ void Vr41xxSiu::RestoreState(StateReader& r) {
 
 void Vr41xxSiu::PostRestore() {
     RefreshClocks();
-    suspended_.store(channel_->Suspended(), std::memory_order_release);
     Uart16550::PostRestore();
 }
 
@@ -146,8 +138,7 @@ bool Vr41xxSiu::SupplyOn() { return wiring_->SupplyOn(); }
 
 bool Vr41xxSiu::Rs232PinsLive() {
     if (!modem_) return true;
-    return SupplyOn() && !hibernating_.load(std::memory_order_acquire) &&
-           !suspended_.load(std::memory_order_acquire);
+    return SupplyOn() && !hibernating_.load(std::memory_order_acquire);
 }
 
 bool Vr41xxSiu::Rs232Selected() { return TransmitsOnTxd() && Rs232PinsLive(); }

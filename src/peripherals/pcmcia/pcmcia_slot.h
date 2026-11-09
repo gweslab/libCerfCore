@@ -32,6 +32,8 @@ class PcmciaSlot : public HostWidget {
 public:
     PcmciaSlot(CerfEmulator& emu, PcmciaSlotHost& host, std::string label);
 
+    void SetLabel(std::string label) { label_ = std::move(label); }
+
     bool HasCard()   const { return (pins_.load(std::memory_order_acquire) & kPinPresent) != 0u; }
     bool IsPowered() const {
         constexpr uint8_t live = kPinPresent | kPinPowered;

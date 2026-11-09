@@ -23,6 +23,9 @@ constexpr uint32_t kOffIntHtSelH = 0x1Au;
 constexpr uint32_t kOffPoDatL    = 0x1Cu;
 constexpr uint32_t kOffPoDatH    = 0x1Eu;
 
+constexpr uint32_t kOffUseUpdn  = 0x00u;
+constexpr uint32_t kOffTermUpdn = 0x02u;
+
 constexpr uint16_t kIoSelLWritable = 0x7FFFu;
 
 constexpr uint16_t kPoDatHWritable = 0x0303u;

@@ -97,7 +97,9 @@ const char* RfuEncoding(uint32_t off, uint16_t value) {
 }
 
 using namespace vr4121_bcu;
+using vr41xx_bcu::kOffClkSpeed;
 using vr41xx_bcu::kOffCnt1;
+using vr41xx_bcu::kOffRevId;
 
 constexpr uint32_t kIdxCnt1    = kOffCnt1 / 2u;
 constexpr uint32_t kIdxRamSize = kOffRamSize / 2u;

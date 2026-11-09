@@ -13,7 +13,8 @@ public:
 
     virtual void RunPromptJob(std::function<void()> job) = 0;
     virtual ShutdownChoice Ask(ShutdownTrigger trigger) = 0;
-    virtual void DismissAsCancel() = 0;
+    virtual bool PromptOpen() = 0;
+    virtual void DismissPrompt() = 0;
 
     virtual void BeginTeardown() = 0;
     virtual void CancelTeardown() = 0;

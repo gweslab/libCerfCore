@@ -31,6 +31,7 @@ constexpr Vr41xxGiuModel kModel = {
     /*podat_h_retained_on_reset=*/true,
     0xFFFF7FFFull,
     0u,
+    0x7FFFu,
 };
 
 constexpr uint8_t kPostPoDatLByte = 0xFFu;

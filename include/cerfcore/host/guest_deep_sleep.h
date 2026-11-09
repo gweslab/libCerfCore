@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../core/service.h"
+#include "../state/shutdown_choice.h"
 #include "guest_power_notifier.h"
 
 #include <atomic>
@@ -12,10 +13,6 @@
 
 namespace cerfcore {
 
-/* Deep-sleep recovery: a SoC power-down register write (e.g. SA-1110 PMCR.SF)
-   calls Enter(), which halts the CPU and shows a no-timeout "Shut down CERF?"
-   prompt - Cancel wakes via a sleep-mode reset (GuestCpuReset::SleepWakeReset),
-   OK exits/saves. Generic; each SoC supplies the sleep cause via ResetCauseLatch. */
 /* Implemented by the SoC peripheral owning the sleep-wake reset cause (SA-1110
    RCSR.SMR, PXA255 RCSR.SMR). Non-Service so a Peripheral can implement it; the
    implementer self-registers with GuestDeepSleep from its OnReady. */
@@ -55,6 +52,8 @@ class GuestDeepSleep : public Service {
 public:
     using Service::Service;
 
+    void OnReady() override;
+
     /* OnReady-time only; at most one waker per emulator instance. */
     void RegisterWaker(DeepSleepWaker* waker);
 
@@ -92,6 +91,7 @@ public:
     int64_t ParkWaitNs() const;
 
     void Enter();
+    void RePrompt();
 
     void ObserveAsleep(bool asleep);
     bool Asleep() const { return asleep_.load(std::memory_order_acquire); }
@@ -102,13 +102,17 @@ public:
     void OnFullRestore();
 
 private:
-    void Recover();      /* UI thread: run the prompt and act on the choice. */
+    void Recover();
+    void OnGuestIdle();
+    void MarkSleepEnded();
+    bool ClaimSleepEnd();
+    bool TakePendingLocked(ShutdownChoice& choice);
+    void ApplyChoiceInPark(ShutdownChoice c);
     void RequireNoWakeShape(const char* shape) const;
     void ConsumeSleepSpan();
     int64_t CollectParkWakeDue() const;
     void DeliverWake(ResumeSource src);
     void PowerUpClockStop();
-    void TearDownPromptForHardwareWake();
 
     std::vector<std::function<void()>> power_up_listeners_;
     std::vector<std::function<void()>> user_wake_inputs_;
@@ -125,9 +129,13 @@ private:
     DeepSleepWaker*            waker_                  = nullptr;
     SleepResumeVectorProvider* resume_vector_provider_ = nullptr;
     bool                       power_on_wake_          = false;
-    std::atomic<bool>          active_{false};
     std::atomic<bool>          asleep_{false};
-    std::atomic<bool>          hw_resumed_{false};
+    std::atomic<bool>          off_{false};
+    bool                       sleep_ended_    = false;
+    bool                       choice_pending_ = false;
+    ShutdownChoice             pending_choice_ = ShutdownChoice::Cancel;
+    bool                       prompt_open_ = false;
+    bool                       asking_      = false;
     std::mutex                 resume_mtx_;
     std::condition_variable    resume_cv_;
 };

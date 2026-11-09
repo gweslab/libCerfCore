@@ -54,7 +54,7 @@ constexpr unsigned kMemcs16FullDecode    = 12u;
 }
 
 RicohRf5c396::RicohRf5c396(CerfEmulator& emu)
-    : IsaExcaSocketPair(emu, kExcaRules, "PCMCIA #1", "PCMCIA #2") {}
+    : IsaExcaSocketPair(emu, kExcaRules) {}
 
 bool RicohRf5c396::FittedOnFamily(std::string_view family) {
     return family == BoardFamilyId::NecMobilepro700 || family == BoardFamilyId::NecCronos3e;
@@ -66,7 +66,7 @@ bool RicohRf5c396::ShouldRegister() {
 
 void RicohRf5c396::OnReady() {
     board_ = &emu_.Get<RicohRf5c396Board>();
-    StartSockets();
+    StartSockets("PCMCIA #1", "PCMCIA #2");
 }
 
 void RicohRf5c396::ResetChipLocked() {

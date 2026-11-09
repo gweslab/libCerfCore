@@ -1,6 +1,8 @@
 #pragma once
 
 #include "vr41xx_giu.h"
+#include "vr41xx_giu_input_pins.h"
+#include "vr41xx_giu_interrupts.h"
 #include "vr41xx_giu_regs.h"
 
 #include <cerfcore/boards/board_context.h>
@@ -34,6 +36,7 @@ struct Vr41xxGiuModel {
     bool     podat_h_retained_on_reset;  /* GIUPODATH After-reset / Other-resets column */
     uint64_t hibernate_undriven;
     uint64_t power_down_high;
+    uint16_t pull_pins = 0u;
 };
 
 template <const std::string_view& Soc, const Vr41xxGiuModel& M>
@@ -169,56 +172,47 @@ public:
     }
 
     void SetPinLevel(int pin, bool level) override {
-        if (pin < 0 || pin > 31) {
-            emu_.Get<Fatal>().Die("Vr41xxGiu::SetPinLevel: pin %d is outside GPIO(31:0)", pin);
-        }
         std::lock_guard<std::mutex> lk(mtx_);
+        const bool prev = InputLevelLocked(pin);
+        inputs_.Drive(pin, level);
+        ApplyPinLevelLocked(pin, prev, level);
+    }
 
-        const bool     high = pin >= 16;
-        const uint16_t bit  = static_cast<uint16_t>(1u << (pin & 15));
-        uint16_t&      stat = high ? intstat_h_  : intstat_l_;
-        const uint16_t typ   = high ? inttyp_h_   : inttyp_l_;
-        const uint16_t alsel = high ? intalsel_h_ : intalsel_l_;
-        const uint16_t htsel = high ? inthtsel_h_ : inthtsel_l_;
-        const uint16_t en    = high ? inten_h_    : inten_l_;
+    void ReleasePin(int pin) override {
+        std::lock_guard<std::mutex> lk(mtx_);
+        const bool prev = InputLevelLocked(pin);
+        inputs_.Release(pin);
+        if (((inputs_.Established() >> pin) & 1u) == 0u) return;
+        ApplyPinLevelLocked(pin, prev, InputLevelLocked(pin));
+    }
 
-        const uint32_t pinbit = 1u << pin;
-        const bool     prev   = (level_ & pinbit) != 0;
-        if (level) level_ |= pinbit;
-        else       level_ &= ~pinbit;
-        pmu_->OnGpioLevel(pin, prev, level);
-
-        /* GIUINTTYP "1: Edge" - "an interrupt is triggered when the signal state changes
-           from low to high or from high to low"; "0: Level" - "the level set to the
-           corresponding bit in the GIUINTALSEL register is detected", "1: High active /
-           0: Low active" (VR4121 UM 19.2.9-19.2.12, VR4102 UM 18.2.9-18.2.12). */
-        const bool edge      = (typ & bit) != 0;
-        const bool triggered = edge ? (prev != level) : (level == ((alsel & bit) != 0));
-        const bool hold      = (htsel & bit) != 0;
-
-        if (triggered) {
-            /* INTS is set "when the signal input to the GPIO pin meets the condition set
-               via the GIUINTTYPL ... or the GIUINTALSELL register" (VR4121 UM 19.2.5,
-               19.2.6), but only "when '1' is set to the corresponding INTE bit in the
-               GIUINTENL register and ..." (VR4102 UM 18.2.5, 18.2.6). */
-            if constexpr (M.intstat_sets_while_disabled) {
-                stat |= bit;
-            } else if (en & bit) {
-                stat |= bit;
-            } else if (hold) {
-                /* "If '1' (hold) is set to the INTH bit while the interrupt enable bit is
-                   set to 0 (prohibit interrupts), any change in the pin state is retained
-                   as change data. Therefore, an interrupt still occurs when the interrupt
-                   enable bit is again set to enable interrupts" (VR4102 UM 18.2.13/18.2.14). */
-                (high ? retained_h_ : retained_l_) |= bit;
-            }
-        } else if (!edge && !hold) {
-            /* GIUINTHTSEL "0: Through" - "any interrupt signal input to the corresponding
-               GPIO pin is not held and is instead allowed to pass through" (VR4121 UM
-               19.2.13/19.2.14, VR4102 UM 18.2.13/18.2.14). */
-            stat = static_cast<uint16_t>(stat & ~bit);
+    uint16_t ReadPullRegister(uint32_t off) override {
+        std::lock_guard<std::mutex> lk(mtx_);
+        switch (off) {
+            case kOffUseUpdn:  return inputs_.UseUpdn();
+            case kOffTermUpdn: return inputs_.TermUpdn();
+            default: emu_.Get<Fatal>().Die("Vr41xxGiu: pull register read at window offset 0x%02X", off);
         }
-        DriveIcuLocked();
+    }
+
+    void WritePullRegister(uint32_t off, uint16_t value) override {
+        std::lock_guard<std::mutex> lk(mtx_);
+        if ((value & ~M.pull_pins) != 0u)
+            emu_.Get<Fatal>().Die("Vr41xxGiu: pull register 0x%02X write 0x%04X sets reserved bits", off, value);
+        const uint32_t before = inputs_.Levels();
+        switch (off) {
+            case kOffUseUpdn:  inputs_.SetUseUpdn(value); break;
+            case kOffTermUpdn: inputs_.SetTermUpdn(value); break;
+            default: emu_.Get<Fatal>().Die("Vr41xxGiu: pull register write 0x%04X at window offset 0x%02X", value, off);
+        }
+        CheckPullsInputOnlyLocked();
+        const uint32_t changed = before ^ inputs_.Levels();
+        for (int pin = 0; pin < 16; ++pin) {
+            if (((changed >> pin) & 1u) == 0u) continue;
+            const bool prev = ((before >> pin) & 1u) != 0u;
+            ApplyPinLevelLocked(pin, prev, !prev);
+        }
+        EvaluateLevelsLocked();
     }
 
     void SaveState(StateWriter& w) override {
@@ -238,22 +232,32 @@ public:
     }
 
 private:
+    bool InputLevelLocked(int pin) const { return ((inputs_.Levels() >> pin) & 1u) != 0u; }
+
+    void ApplyPinLevelLocked(int pin, bool prev, bool level) {
+        pmu_->OnGpioLevel(pin, prev, level);
+        irq_.OnPinLevel(pin, prev, level);
+        DriveIcuLocked();
+    }
+
+    void EvaluateLevelsLocked() {
+        irq_.EvaluateLevels(inputs_.Established(), inputs_.Levels());
+        DriveIcuLocked();
+    }
+
+    void CheckPullsInputOnlyLocked() {
+        if (inputs_.UseUpdn() != 0u && iosel_l_ != 0u)
+            emu_.Get<Fatal>().Die("Vr41xxGiu: GIUUSEUPDN 0x%04X with GIUIOSELL 0x%04X", inputs_.UseUpdn(), iosel_l_);
+    }
+
     void SaveRegisters(StateWriter& w) {
         std::lock_guard<std::mutex> lk(mtx_);
         w.Write("iosel_l", iosel_l_);    w.Write("iosel_h", iosel_h_);
         w.Write("piod_out_l", piod_out_l_); w.Write("piod_out_h", piod_out_h_);
         w.Write("podat_l", podat_l_);
         w.Write("podat_h", podat_h_);
-        w.Write("intstat_l", intstat_l_);  w.Write("intstat_h", intstat_h_);
-        w.Write("inten_l", inten_l_);    w.Write("inten_h", inten_h_);
-        w.Write("inttyp_l", inttyp_l_);   w.Write("inttyp_h", inttyp_h_);
-        w.Write("intalsel_l", intalsel_l_); w.Write("intalsel_h", intalsel_h_);
-        w.Write("inthtsel_l", inthtsel_l_); w.Write("inthtsel_h", inthtsel_h_);
-        if constexpr (!M.intstat_sets_while_disabled) {
-            w.Write("retained_l", retained_l_);
-            w.Write("retained_h", retained_h_);
-        }
-        w.Write("level", level_);
+        irq_.Save(w);
+        inputs_.Save(w);
         w.Write<uint8_t>("hibernating", hibernating_ ? 1u : 0u);
     }
 
@@ -263,16 +267,8 @@ private:
         r.Read("piod_out_l", piod_out_l_); r.Read("piod_out_h", piod_out_h_);
         r.Read("podat_l", podat_l_);
         r.Read("podat_h", podat_h_);
-        r.Read("intstat_l", intstat_l_);  r.Read("intstat_h", intstat_h_);
-        r.Read("inten_l", inten_l_);    r.Read("inten_h", inten_h_);
-        r.Read("inttyp_l", inttyp_l_);   r.Read("inttyp_h", inttyp_h_);
-        r.Read("intalsel_l", intalsel_l_); r.Read("intalsel_h", intalsel_h_);
-        r.Read("inthtsel_l", inthtsel_l_); r.Read("inthtsel_h", inthtsel_h_);
-        if constexpr (!M.intstat_sets_while_disabled) {
-            r.Read("retained_l", retained_l_);
-            r.Read("retained_h", retained_h_);
-        }
-        r.Read("level", level_);
+        irq_.Restore(r);
+        inputs_.Restore(r);
         uint8_t hibernating = 0u;
         r.Read("hibernating", hibernating);
         hibernating_ = hibernating != 0u;
@@ -284,7 +280,7 @@ private:
     uint32_t EffectivePinsLocked() const {
         const uint32_t out = (static_cast<uint32_t>(piod_out_h_) << 16) | piod_out_l_;
         const uint32_t sel = (static_cast<uint32_t>(iosel_h_) << 16) | iosel_l_;
-        return (out & sel) | (level_ & ~sel);
+        return (out & sel) | (inputs_.Levels() & ~sel);
     }
 
     uint16_t ReadHalfLocked(uint32_t off) {
@@ -293,25 +289,22 @@ private:
             case kOffIoSelH: return iosel_h_;
             case kOffPiodL:     return static_cast<uint16_t>(EffectivePinsLocked());
             case kOffPiodH:     return static_cast<uint16_t>(EffectivePinsLocked() >> 16);
-            case kOffIntStatL:  return intstat_l_;
-            case kOffIntStatH:  return intstat_h_;
-            case kOffIntEnL:    return inten_l_;
-            case kOffIntEnH:    return inten_h_;
-            case kOffIntTypL:   return inttyp_l_;
-            case kOffIntTypH:   return inttyp_h_;
-            case kOffIntAlSelL: return intalsel_l_;
-            case kOffIntAlSelH: return intalsel_h_;
-            case kOffIntHtSelL: return inthtsel_l_;
-            case kOffIntHtSelH: return inthtsel_h_;
             case kOffPoDatL:    return podat_l_;
             case kOffPoDatH:    return podat_h_;
-            default: HaltUnsupportedAccess("VR41xx GIU ReadHalf", M.base + off, 0);
+            default: {
+                uint16_t value = 0u;
+                if (!irq_.ReadRegister(off, &value)) HaltUnsupportedAccess("VR41xx GIU ReadHalf", M.base + off, 0);
+                return value;
+            }
         }
     }
 
     void WriteHalfLocked(uint32_t off, uint16_t value) {
         switch (off) {
-            case kOffIoSelL: iosel_l_ = static_cast<uint16_t>(value & kIoSelLWritable); return;
+            case kOffIoSelL:
+                iosel_l_ = static_cast<uint16_t>(value & kIoSelLWritable);
+                CheckPullsInputOnlyLocked();
+                return;
             /* GIUIOSELH IOS(31:16) are all R/W (VR4121 UM 19.2.2, VR4102 UM 18.2.2). */
             case kOffIoSelH: iosel_h_ = value; return;
 
@@ -330,48 +323,10 @@ private:
             case kOffPoDatL: podat_l_ = value; return;
             case kOffPoDatH: podat_h_ = static_cast<uint16_t>(value & kPoDatHWritable); return;
 
-            /* GIUINTSTAT INTS: "Cleared to 0 when 1 is written" (VR4121 UM 19.2.5/19.2.6,
-               VR4102 UM 18.2.5/18.2.6), and "any held interrupt signal is cleared when '1'
-               is set to the corresponding bit in the GIUINTSTAT register" (VR4121 UM
-               19.2.13/19.2.14, VR4102 UM 18.2.13/18.2.14). */
-            case kOffIntStatL:
-                intstat_l_  = static_cast<uint16_t>(intstat_l_ & ~value);
-                retained_l_ = static_cast<uint16_t>(retained_l_ & ~value);
-                DriveIcuLocked();
+            default:
+                if (!irq_.WriteRegister(off, value)) HaltUnsupportedAccess("VR41xx GIU WriteHalf", M.base + off, value);
+                EvaluateLevelsLocked();
                 return;
-            case kOffIntStatH:
-                intstat_h_  = static_cast<uint16_t>(intstat_h_ & ~value);
-                retained_h_ = static_cast<uint16_t>(retained_h_ & ~value);
-                DriveIcuLocked();
-                return;
-
-            /* "An interrupt still occurs when the interrupt enable bit is again set to
-               enable interrupts" (VR4102 UM 18.2.13/18.2.14). */
-            case kOffIntEnL: {
-                const uint16_t promote = static_cast<uint16_t>(retained_l_ & value);
-                intstat_l_  |= promote;
-                retained_l_  = static_cast<uint16_t>(retained_l_ & ~promote);
-                inten_l_     = value;
-                DriveIcuLocked();
-                return;
-            }
-            case kOffIntEnH: {
-                const uint16_t promote = static_cast<uint16_t>(retained_h_ & value);
-                intstat_h_  |= promote;
-                retained_h_  = static_cast<uint16_t>(retained_h_ & ~promote);
-                inten_h_     = value;
-                DriveIcuLocked();
-                return;
-            }
-
-            case kOffIntTypL:   inttyp_l_   = value; return;
-            case kOffIntTypH:   inttyp_h_   = value; return;
-            case kOffIntAlSelL: intalsel_l_ = value; return;
-            case kOffIntAlSelH: intalsel_h_ = value; return;
-            case kOffIntHtSelL: inthtsel_l_ = value; return;
-            case kOffIntHtSelH: inthtsel_h_ = value; return;
-
-            default: HaltUnsupportedAccess("VR41xx GIU WriteHalf", M.base + off, value);
         }
     }
 
@@ -382,35 +337,21 @@ private:
     void ApplyResetLocked(ResetLineKind kind) {
         iosel_l_    = 0; iosel_h_    = 0;
         piod_out_l_ = 0; piod_out_h_ = 0;
-        intstat_l_  = 0; intstat_h_  = 0;
-        inten_l_    = 0; inten_h_    = 0;
-        inttyp_l_   = 0; inttyp_h_   = 0;
-        intalsel_l_ = 0; intalsel_h_ = 0;
-        inthtsel_l_ = 0; inthtsel_h_ = 0;
-        if constexpr (!M.intstat_sets_while_disabled) {
-            retained_l_ = 0;
-            retained_h_ = 0;
-        }
+        irq_.Reset();
         if (kind == ResetLineKind::Rtc || !M.podat_l_retained_on_reset) {
             podat_l_ = M.podat_l_power_on;
         }
         if (kind == ResetLineKind::Rtc || !M.podat_h_retained_on_reset) {
             podat_h_ = 0;
         }
-        DriveIcuLocked();
+        if (kind == ResetLineKind::Rtc) inputs_.ResetPulls();
+        EvaluateLevelsLocked();
     }
 
-    /* The ICU's GIUINTLREG/GIUINTHREG are read-only INTS(15:0), "Interrupt to GPIO pin.
-       1: Occurred / 0: Normal" (VR4121 UM 15.2.5, VR4102 UM 14.2.5). */
     void DriveIcuLocked() {
         auto& icu = emu_.Get<Vr41xxIcu>();
-        if constexpr (M.inten_gates_icu_input) {
-            icu.SetGiuLow(static_cast<uint16_t>(intstat_l_ & inten_l_));
-            icu.SetGiuHigh(static_cast<uint16_t>(intstat_h_ & inten_h_));
-        } else {
-            icu.SetGiuLow(intstat_l_);
-            icu.SetGiuHigh(intstat_h_);
-        }
+        icu.SetGiuLow(irq_.IcuLow(M.inten_gates_icu_input));
+        icu.SetGiuHigh(irq_.IcuHigh(M.inten_gates_icu_input));
     }
 
     void NotifyOutputDataLow(uint16_t previous) {
@@ -453,13 +394,8 @@ private:
     uint16_t piod_out_l_ = 0, piod_out_h_ = 0;
     uint16_t podat_l_    = M.podat_l_power_on;
     uint16_t podat_h_    = 0;
-    uint16_t intstat_l_  = 0, intstat_h_  = 0;
-    uint16_t inten_l_    = 0, inten_h_    = 0;
-    uint16_t inttyp_l_   = 0, inttyp_h_   = 0;
-    uint16_t intalsel_l_ = 0, intalsel_h_ = 0;
-    uint16_t inthtsel_l_ = 0, inthtsel_h_ = 0;
-    uint16_t retained_l_ = 0, retained_h_ = 0;
-    uint32_t level_      = 0;
+    Vr41xxGiuInterrupts irq_{M.intstat_sets_while_disabled};
+    Vr41xxGiuInputPins  inputs_{M.pull_pins};
 };
 
 }  /* namespace cerf_vr41xx_giu_detail */

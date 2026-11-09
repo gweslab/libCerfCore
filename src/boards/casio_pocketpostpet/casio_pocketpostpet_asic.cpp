@@ -27,7 +27,10 @@ bool CasioPocketpostpetAsic::ShouldRegister() {
 
 void CasioPocketpostpetAsic::OnReady() {
     fb_.assign(kFbSize, 0u);
-    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { PowerOnRegisters(); });
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+        PowerOnRegisters();
+        if (kind == ResetLineKind::Rtc) dms_armed_ = true;
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 
@@ -45,8 +48,7 @@ void CasioPocketpostpetAsic::PowerOnRegisters() {
     reg_1120_ = reg_1000_ = reg_1002_ = reg_1010_ = reg_1134_ = 0;
     reg_7a0_ = reg_7a2_ = reg_7a4_ = reg_40a_ = reg_406_ = 0;
     for (uint16_t& v : suspend_save_) v = 0;
-    reg_1130_  = 0;
-    dms_armed_ = true;
+    reg_1130_ = 0;
     reg_0A00_ = reg_0A02_ = 0;
     size_latch_.Reset();
     reg_0920_ = reg_0922_ = reg_1112_ = 0;

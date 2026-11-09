@@ -221,7 +221,8 @@ uint8_t Serial16550::PendingSourceLocked() const {
 /* PC16550D §8.6.6: "Disabling an interrupt prevents it from being indicated as active in
    the IIR and from activating the INTR output signal." */
 bool Serial16550::ComputeIrqLevelLocked() const {
-    if ((mcr_ & cfg_.irq_gate_mcr) != cfg_.irq_gate_mcr) return false;
+    const bool ungated = cfg_.loopback_ungates_irq && (mcr_ & MCR_LOOP) != 0u;
+    if (!ungated && (mcr_ & cfg_.irq_gate_mcr) != cfg_.irq_gate_mcr) return false;
     if ((ier_ & cfg_.irq_gate_ier) != cfg_.irq_gate_ier) return false;
     return PendingSourceLocked() != kNoSource;
 }

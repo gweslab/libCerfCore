@@ -30,6 +30,7 @@ constexpr Vr41xxGiuModel kModel = {
     /*podat_h_retained_on_reset=*/true,
     0xFFFF7FFFull,
     0u,
+    0x7FFFu,
 };
 
 class Vr4111Giu : public Vr41xxGiuBase<SocId::Vr4111, kModel> {

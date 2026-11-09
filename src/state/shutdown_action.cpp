@@ -2,6 +2,7 @@
 
 #include <cerfcore/boot/guest_cold_boot.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/host/guest_deep_sleep.h>
 #include <cerfcore/host/shutdown_host.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/hibernation.h>
@@ -15,6 +16,8 @@ void ShutdownAction::Perform(ShutdownChoice c) {
     auto& host = emu_.Get<ShutdownHost>();
     switch (c) {
         case ShutdownChoice::Cancel:
+        case ShutdownChoice::Dismissed:
+            emu_.Get<GuestDeepSleep>().RePrompt();
             return;
         case ShutdownChoice::SoftReset:
             emu_.Get<GuestCpuReset>().WarmReset();
@@ -26,8 +29,12 @@ void ShutdownAction::Perform(ShutdownChoice c) {
             emu_.Get<Hibernation>().SaveAsync("", [this](bool saved) {
                 emu_.Get<ShutdownHost>().RunPromptJob([this, saved] {
                     auto& h = emu_.Get<ShutdownHost>();
-                    if (saved) h.BeginTeardown();
-                    else       h.CancelTeardown();
+                    if (saved) {
+                        h.BeginTeardown();
+                        return;
+                    }
+                    h.CancelTeardown();
+                    emu_.Get<GuestDeepSleep>().RePrompt();
                 });
             });
             return;

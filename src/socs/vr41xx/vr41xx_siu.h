@@ -21,10 +21,6 @@
 #include <mutex>
 #include <optional>
 
-namespace cerfengine {
-class MipsInterruptChannel;
-}
-
 namespace cerfcore {
 
 /* VR41xx on-chip SIU: NS16550-compatible UART at base 0x0C000000, byte-addressed (SCR at
@@ -98,13 +94,11 @@ private:
     std::atomic<uint8_t>  irsel_{0u};
     std::atomic<uint16_t> clocks_{0u};
     std::atomic<bool>     hibernating_{false};
-    std::atomic<bool>    suspended_{false};
 
     std::mutex modem_mtx_;
     bool       connector_cts_ = false;
     bool       connector_dsr_ = false;
 
-    cerfengine::MipsInterruptChannel* channel_ = nullptr;
     Vr41xxSerialWiring*               wiring_  = nullptr;
     std::optional<Vr41xxSerialModem>  modem_;
     std::unique_ptr<SerialCradle>     cradle_;

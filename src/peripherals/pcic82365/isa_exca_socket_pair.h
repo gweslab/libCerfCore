@@ -8,6 +8,8 @@
 
 #include <cstdint>
 #include <mutex>
+#include <optional>
+#include <string>
 
 namespace cerfcore {
 
@@ -16,7 +18,7 @@ class StateWriter;
 
 class IsaExcaSocketPair : public Service, public PcmciaSlotHost {
 public:
-    IsaExcaSocketPair(CerfEmulator& emu, ExcaPartRules rules, const char* slot0_name, const char* slot1_name);
+    IsaExcaSocketPair(CerfEmulator& emu, ExcaPartRules rules);
 
     void OnShutdown() override;
 
@@ -45,10 +47,11 @@ public:
 protected:
     static constexpr int kSockets = 2;
 
-    void StartSockets();
+    void StartSockets(std::string slot0_label, std::optional<std::string> slot1_label);
     void ResetController();
 
     int         BankOf(const PcmciaSlot& slot) const { return &slot == &slot1_ ? 1 : 0; }
+    bool        SocketWired(int bank) const { return bank == 0 || slot1_wired_; }
     PcmciaSlot& Slot(int bank) { return bank ? slot1_ : slot0_; }
     Pcic82365&  Exca(int bank) { return bank ? exca1_ : exca0_; }
     uint8_t     IndexLocked() const { return index_; }
@@ -107,6 +110,7 @@ private:
     Pcic82365  exca0_;
     Pcic82365  exca1_;
     ExcaSocketSequencer sequencer_;
+    bool        slot1_wired_ = false;
     uint8_t     index_ = 0u;
     FloatingBus floating_;
 };

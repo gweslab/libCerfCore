@@ -15,7 +15,10 @@
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "vr41xx_icu.h"
+#include "vr41xx_led_second_element.h"
 #include "vr41xx_rtcx_ticks.h"
+
+#include <algorithm>
 
 #include <cstdint>
 #include <cstdio>
@@ -116,6 +119,7 @@ public:
             ArmAutoStopLocked();
         });
         blink_anchor_tick_ = rtcx_.Now();
+        second_ = emu_.TryGet<Vr41xxLedSecondElement>();
         emu_.Get<PeripheralDispatcher>().Register(this);
         emu_.Get<HostWidgetRegistry>().Register(this);
         emu_.Get<GuestDeepSleep>().RegisterSleepEntryListener([this] {
@@ -220,7 +224,7 @@ public:
         UpdateLocked();
     }
 
-    std::string WidgetName() const override { return "Notification LED"; }
+    std::string WidgetName() const override { return second_ ? second_->PackageName() : "Notification LED"; }
     WidgetGroup Group() const override { return WidgetGroup::Indicator; }
     std::string Tooltip() const override {
         uint16_t cnt, hts, lts;
@@ -232,11 +236,12 @@ public:
                           static_cast<unsigned>(lts) * 125u / 2u);
         else
             std::snprintf(buf, sizeof(buf), "Notification LED: off");
-        return buf;
+        if (!second_) return buf;
+        return std::string(buf) + "\n" + second_->ElementName() + (second_->Lit() ? ": on" : ": off");
     }
     WidgetIcon Icon() const override {
         constexpr int kR = 5;
-        return LedIcon{draw_lit_ ? kClrLit : kClrDark, draw_blink_ ? kClrRimBlink : kClrRim, kR};
+        return LedIcon{Fill(), draw_blink_ ? kClrRimBlink : kClrRim, kR};
     }
     bool PollDirty() override {
         uint16_t cnt, hts, lts;
@@ -244,13 +249,25 @@ public:
         const bool blink = (cnt & kCntEnable) != 0u;
         const bool lit   = blink && (HostSteadyMicros() / 1000u * kUnitsPerHostSecond / 1000u) %
                                         (static_cast<uint64_t>(hts) + lts) < hts;
-        if (lit == draw_lit_ && blink == draw_blink_) return false;
-        draw_lit_   = lit;
-        draw_blink_ = blink;
+        const bool second_lit = second_ && second_->Lit();
+        if (lit == draw_lit_ && blink == draw_blink_ && second_lit == draw_second_lit_) return false;
+        draw_lit_        = lit;
+        draw_blink_      = blink;
+        draw_second_lit_ = second_lit;
         return true;
     }
 
 private:
+    static uint8_t AddChannel(uint8_t a, uint8_t b) {
+        return static_cast<uint8_t>(std::min(255, static_cast<int>(a) + b));
+    }
+    WidgetRgb Fill() const {
+        if (!draw_second_lit_) return draw_lit_ ? kClrLit : kClrDark;
+        const WidgetRgb second = second_->LitColor();
+        if (!draw_lit_) return second;
+        return {AddChannel(kClrLit.r, second.r), AddChannel(kClrLit.g, second.g), AddChannel(kClrLit.b, second.b)};
+    }
+
     uint64_t BlinkTicksLocked() {
         return blink_base_ + (rtcx_.Now() - blink_anchor_tick_);
     }
@@ -379,8 +396,11 @@ private:
     Vr41xxRtcxTicks         rtcx_{emu_, kClock};
     uint64_t                blink_anchor_tick_ = 0;
 
-    bool draw_lit_   = false;
-    bool draw_blink_ = false;
+    Vr41xxLedSecondElement* second_ = nullptr;
+
+    bool draw_lit_        = false;
+    bool draw_blink_      = false;
+    bool draw_second_lit_ = false;
 };
 
 }  /* namespace cerf_vr41xx_led_detail */

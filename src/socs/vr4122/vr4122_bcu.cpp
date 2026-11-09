@@ -6,6 +6,7 @@
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
+#include "../vr41xx/vr41xx_bcu_regs.h"
 #include "vr4122_clock_state.h"
 
 #include <cstdint>
@@ -25,13 +26,13 @@ constexpr uint32_t kSize = 0x20u;
 constexpr uint32_t kOffCntReg1  = 0x00u;
 constexpr uint16_t kCntReg1Mask = 0x3554u;
 
-constexpr uint32_t kOffClkSpeed = 0x14u;   /* CLKSPEEDREG (R), VR4131 UM Table 7-1 */
+using vr41xx_bcu::kOffClkSpeed;
+using vr41xx_bcu::kOffRevId;
 
 /* REVIDREG (R): D15:12 RID, D11:8 MJREV, D7:4 RFU read-0, D3:0 MNREV; RTCRST column
-   RID=0100 (VR4131 UM 7.2.6 p.141; NetBSD bcureg.h:405 BCUREVID_REG_W 0x010, :411
+   RID=0100 (VR4131 UM 7.2.6 p.141; NetBSD bcureg.h BCUREVID_REG_W 0x010,
    BCUREVID_RID_4122 0x4). Guest reads it into $zero in the vector templates
    @0x9F03C0AC-B4 / @0x9F03C0C0-C4 (installer sub_9F03C044). */
-constexpr uint32_t kOffRevId = 0x10u;
 constexpr uint16_t kRevId    = 0x4000u;
 
 class Vr4122Bcu : public Peripheral {

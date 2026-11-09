@@ -7,8 +7,6 @@ namespace cerfcore {
 namespace vr4121_bcu {
 
 constexpr uint32_t kOffRamSize  = 0x06u;
-constexpr uint32_t kOffRevId    = 0x10u;
-constexpr uint32_t kOffClkSpeed = 0x14u;
 constexpr uint32_t kOffCnt3     = 0x16u;
 
 constexpr uint16_t kRevIdVr4121     = 0x3000u;

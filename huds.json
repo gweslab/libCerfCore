@@ -245,31 +245,18 @@
         { "button": { "action": "media_player", "icon": "play_circle" } }
       ]
     },
-    "nino_navigation": {
-      "dpad": {
-        "up": ["VK_UP"],
-        "down": ["VK_DOWN"],
-        "left": ["VK_ESCAPE"],
-        "right": ["VK_RETURN"],
-        "center": ["VK_RETURN"],
-        "shape": "rounded"
-      }
+    "nino_rocker_keys": {
+      "column": [
+        { "grow": 3, "rocker": { "up": ["VK_UP"], "down": ["VK_DOWN"], "center": ["VK_RETURN"] } },
+        { "button": { "keys": ["VK_ESCAPE"], "icon": "arrow_back" } }
+      ]
     },
-    "nino_keys": {
-      "row": [
-        {
-          "column": [
-            { "button": { "keys": ["VK_F1"], "icon": "voicemail" } },
-            { "button": { "keys": ["VK_F2"], "icon": "calendar_month" } }
-          ]
-        },
-        { "grow": 1.5, "column": ["nino_navigation"] },
-        {
-          "column": [
-            { "button": { "keys": ["VK_F3"], "icon": "contacts" } },
-            { "button": { "keys": ["VK_F4"], "icon": "mail" } }
-          ]
-        }
+    "nino_app_keys": {
+      "column": [
+        { "button": { "keys": ["VK_F1"], "icon": "voicemail" } },
+        { "button": { "keys": ["VK_F2"], "icon": "calendar_month" } },
+        { "button": { "keys": ["VK_F3"], "icon": "contacts" } },
+        { "button": { "keys": ["VK_F4"], "icon": "mail" } }
       ]
     },
     "ipaq_h3000_top": {
@@ -305,14 +292,14 @@
         "shape": "rounded"
       }
     },
+    "tomcat_side_keys": {
+      "column": [
+        { "button": { "keys": ["VK_F4"], "icon": "mic" } },
+        { "button": { "keys": ["VK_ESCAPE"], "icon": "arrow_back" } }
+      ]
+    },
     "tomcat_keys": {
       "row": [
-        {
-          "column": [
-            { "button": { "keys": ["VK_F4"], "icon": "mic" } },
-            { "button": { "keys": ["VK_ESCAPE"], "icon": "arrow_back" } }
-          ]
-        },
         { "grow": 2, "column": ["tomcat_navigation"] },
         { "button": { "keys": ["VK_F1"], "icon": "calendar_month" } },
         { "button": { "keys": ["VK_F2"], "icon": "apps" } },
@@ -630,6 +617,21 @@
         { "button": { "keys": ["VK_SPACE"], "icon": "play_pause" } }
       ]
     },
+    "aero_side_keys": {
+      "column": [
+        { "button": { "keys": ["VK_F5"], "icon": "mic" } },
+        { "grow": 3, "rocker": { "up": ["VK_UP"], "down": ["VK_DOWN"], "center": ["VK_RETURN"] } },
+        { "button": { "keys": ["VK_ESCAPE"], "icon": "arrow_back" } }
+      ]
+    },
+    "aero_app_keys": {
+      "row": [
+        { "button": { "keys": ["VK_F1"], "icon": "calendar_month" } },
+        { "button": { "keys": ["VK_F2"], "icon": "contacts" } },
+        { "button": { "keys": ["VK_F3"], "icon": "checklist" } },
+        { "button": { "keys": ["VK_F4"], "icon": "edit_note" } }
+      ]
+    },
     "pocketpostpet_navigation": {
       "dpad": {
         "up": ["VK_UP"], "down": ["VK_DOWN"], "left": ["VK_LEFT"], "right": ["VK_RIGHT"], "center": ["VK_RETURN"],
@@ -717,7 +719,14 @@
       "board_family_ids": ["philips_nino"],
       "gap": 0.02,
       "panels": [
-        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.48, "content": "nino_keys" }
+        {
+          "side": "left", "align": "start", "width": 0.2, "height": 0.5, "content": "nino_rocker_keys",
+          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.3 }
+        },
+        {
+          "side": "right", "align": "start", "width": 0.2, "height": 0.6, "content": "nino_app_keys",
+          "portrait": { "side": "top", "align": "center", "width": 1.0, "height": 0.2 }
+        }
       ]
     },
     {
@@ -736,7 +745,27 @@
       "board_family_ids": ["casio_tomcat"],
       "gap": 0.02,
       "panels": [
-        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.4, "content": "tomcat_keys" }
+        {
+          "side": "bottom", "align": "center", "width": 1.0, "height": 0.4, "content": "tomcat_keys",
+          "landscape": { "side": "right", "width": 0.3, "height": 0.75 }
+        },
+        {
+          "side": "left", "align": "start", "width": 0.2, "height": 0.31, "content": "tomcat_side_keys",
+          "portrait": { "side": "top", "align": "center", "width": 1.0, "height": 0.16 }
+        }
+      ]
+    },
+    {
+      "id": "compaq_aero_1500",
+      "name": "Compaq Aero 1500",
+      "board_family_ids": ["compaq_aero_1500"],
+      "gap": 0.02,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.24, "content": "aero_app_keys" },
+        {
+          "side": "left", "align": "start", "width": 0.2, "height": 0.75, "content": "aero_side_keys",
+          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.3 }
+        }
       ]
     },
     {

@@ -1,6 +1,7 @@
 #include "nec_vrc4171a.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "../../boards/compaq_aero_1500/compaq_aero_1500_family_id.h"
 #include "../../boards/ibm_workpad_z50/ibm_workpad_z50_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
@@ -11,6 +12,7 @@ namespace cerfcore {
 namespace {
 
 constexpr uint32_t kPortTopLevelFirst = 0x5DCu;
+constexpr uint32_t kPortGpioPcs = 0x5EEu;
 constexpr uint32_t kPortInterruptStatus = 0x5FAu;
 constexpr uint32_t kPortConfig2 = 0x5FCu;
 constexpr uint32_t kPortConfig1 = 0x5FEu;
@@ -18,12 +20,20 @@ constexpr uint32_t kPortConfig1 = 0x5FEu;
 constexpr uint16_t kConfig1Reset      = 0x1000u;
 constexpr uint16_t kConfig1Reserved   = 0x0407u;
 constexpr uint16_t kConfig1SlotB      = 0xC000u;
+constexpr uint16_t kConfig1SlotBNone  = 0x0000u;
+constexpr uint16_t kConfig1SlotBPcCard = 0x4000u;
+constexpr uint16_t kConfig1SlotBCompactFlash = 0x8000u;
 constexpr uint16_t kConfig1IoUpperDecode = 0x0200u;
+constexpr uint16_t kConfig1EnableVclk = 0x1000u;
 constexpr uint16_t kConfig1ExternalOr = 0x2000u;
 constexpr uint16_t kConfig2Reset      = 0x2000u;
 constexpr uint16_t kConfig2SiliconRevision = 0xF000u;
 constexpr uint16_t kConfig2Writable   = 0x040Eu;
 constexpr uint16_t kConfig2Reserved   = 0x0BF1u;
+
+constexpr uint16_t kGpioPcsUnmodeled = 0xFF00u;
+constexpr uint16_t kGpioDirShift     = 4u;
+constexpr uint16_t kGpioDataMask     = 0x000Fu;
 
 constexpr uint16_t kIntStatusSlotA = 0x0002u;
 constexpr uint16_t kIntStatusSlotB = 0x0004u;
@@ -109,12 +119,12 @@ constexpr ExcaPartRules kExcaRules = [] {
 }
 
 NecVrc4171a::NecVrc4171a(CerfEmulator& emu)
-    : IsaExcaSocketPair(emu, kExcaRules, "PC Card", "CompactFlash"),
+    : IsaExcaSocketPair(emu, kExcaRules),
       config1_(kConfig1Reset),
       config2_(kConfig2Reset) {}
 
 bool NecVrc4171a::FittedOnFamily(std::string_view family) {
-    return family == BoardFamilyId::IbmWorkpadZ50;
+    return family == BoardFamilyId::IbmWorkpadZ50 || family == BoardFamilyId::CompaqAero1500;
 }
 
 bool NecVrc4171a::IsTopLevelPort(uint32_t port) {
@@ -127,12 +137,28 @@ bool NecVrc4171a::ShouldRegister() {
 
 void NecVrc4171a::OnReady() {
     board_ = &emu_.Get<NecVrc4171aBoard>();
-    StartSockets();
+    StartSockets(board_->SlotALabel(), SlotBLabel());
+}
+
+std::optional<std::string> NecVrc4171a::SlotBLabel() {
+    switch (board_->SlotBConfiguration()) {
+        case kConfig1SlotBNone:         return std::nullopt;
+        case kConfig1SlotBPcCard:       return std::string("PC Card");
+        case kConfig1SlotBCompactFlash: return std::string("CompactFlash");
+        default:
+            emu_.Get<Fatal>().Die("[VRC4171A] the board wires slot B as a Miniature Card socket, which is not "
+                                  "modeled");
+    }
 }
 
 bool NecVrc4171a::IoUpperDecode() {
     std::lock_guard<std::mutex> lk(state_mutex_);
     return (config1_ & kConfig1IoUpperDecode) != 0u;
+}
+
+bool NecVrc4171a::DisplayClocksEnabled() {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return (config1_ & kConfig1EnableVclk) != 0u;
 }
 
 uint16_t NecVrc4171a::ReadTopLevel(uint32_t port) {
@@ -141,6 +167,13 @@ uint16_t NecVrc4171a::ReadTopLevel(uint32_t port) {
         case kPortConfig1: return config1_;
         case kPortConfig2: return config2_;
         case kPortInterruptStatus: return InterruptStatusLocked();
+        case kPortGpioPcs: {
+            const uint16_t outputs = static_cast<uint16_t>((gpio_pcs_ >> kGpioDirShift) & kGpioDataMask);
+            const uint16_t input_mask = static_cast<uint16_t>(~outputs & kGpioDataMask);
+            const uint16_t inputs =
+                input_mask != 0u ? static_cast<uint16_t>(board_->GpioInputLevels() & input_mask) : 0u;
+            return static_cast<uint16_t>((gpio_pcs_ & ~kGpioDataMask) | (gpio_pcs_ & outputs) | inputs);
+        }
         default:
             emu_.Get<Fatal>().Die("[VRC4171A] read of top-level register 0x%03X, a GPIO/*PCS register the model "
                                   "does not cover", port);
@@ -165,6 +198,14 @@ void NecVrc4171a::WriteTopLevel(uint32_t port, uint16_t value) {
             if ((value & kConfig2Reserved) != 0u)
                 emu_.Get<Fatal>().Die("[VRC4171A] Configuration II write 0x%04X sets reserved bits", value);
             config2_ = static_cast<uint16_t>((kConfig2Reset & kConfig2SiliconRevision) | (value & kConfig2Writable));
+            return;
+        case kPortGpioPcs:
+            if ((value & kGpioPcsUnmodeled) != 0u)
+                emu_.Get<Fatal>().Die("[VRC4171A] GPIO/*PCS write 0x%04X sets *PCS or reserved bits", value);
+            if (!board_->GpioPinsWired())
+                emu_.Get<Fatal>().Die("[VRC4171A] GPIO/*PCS write 0x%04X on a board whose GPIO pin wiring is "
+                                      "not modeled", value);
+            gpio_pcs_ = value;
             return;
         default:
             emu_.Get<Fatal>().Die("[VRC4171A] write 0x%04X to top-level register 0x%03X, which the model does not "
@@ -218,6 +259,9 @@ bool NecVrc4171a::ChipReadLocked(int bank, uint8_t sub, uint8_t* value) {
             *value = global_control_[bank];
             return true;
         case kRegVoltageSense: {
+            if (!SocketWired(bank))
+                emu_.Get<Fatal>().Die("[VRC4171A] read of INDEX 0x%02X, the voltage sense pins of a socket the "
+                                      "board does not wire", IndexLocked());
             const bool pulled_up = !board_->SensePullupsOnCardVcc(bank) ||
                                    (Exca(bank).InterfaceStatus() & kIfsCardPowerOn) != 0u;
             if (!pulled_up) {
@@ -301,6 +345,7 @@ uint8_t NecVrc4171a::InterfaceStatusLocked(int, uint8_t exca_status) {
 void NecVrc4171a::ResetChipLocked() {
     config1_ = kConfig1Reset;
     config2_ = kConfig2Reset;
+    gpio_pcs_ = 0u;
     for (int b = 0; b < kSockets; ++b) {
         card_detect_control_[b] = 0u;
         global_control_[b] = 0u;
@@ -353,11 +398,13 @@ void NecVrc4171a::UpdateIrqLineLocked() {
 void NecVrc4171a::SaveChipGlobal(StateWriter& w) const {
     w.Write("config1", config1_);
     w.Write("config2", config2_);
+    w.Write("gpio_pcs", gpio_pcs_);
 }
 
 void NecVrc4171a::RestoreChipGlobal(StateReader& r) {
     r.Read("config1", config1_);
     r.Read("config2", config2_);
+    r.Read("gpio_pcs", gpio_pcs_);
 }
 
 void NecVrc4171a::SaveChipBank(StateWriter& w, int bank) const {
