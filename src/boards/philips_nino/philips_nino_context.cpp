@@ -2,6 +2,7 @@
 
 #include "philips_nino_family_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include "../../socs/pr31x00/pr31x00_reserved_space.h"
 
 namespace cerfcore {
 
@@ -13,10 +14,7 @@ public:
 
     std::string_view GetBoardFamilyId() const override { return BoardFamilyId::PhilipsNino; }
 
-    /* CE 2.01 R3000 kernel masks mapped PFNs to 31 bits, so the default
-       0xF0000000 window is unreachable; 0x20000000 is bit-31-clear and in the
-       TX3912 undecoded span (system CS ends 0x1FFFFFFF, kuseg aliases 0x40000000+). */
-    uint32_t GuestAdditionsWindowBase() const override { return 0x20000000u; }
+    uint32_t GuestAdditionsWindowBase() const override { return kPr31x00ReservedSpaceBase; }
 };
 
 }  /* namespace */
