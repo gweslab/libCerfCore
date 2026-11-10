@@ -46,7 +46,7 @@ constexpr Vr41xxPmuModel kModel = {
     0x0002u,
     /* UM 16.2.1 p364: PMUINTREG "Other resets" row 0 in D15-D0. */
     0x0000u,
-    0x0004u,   /* UM 16.2.1 p365: D2 DMSRST "Deadman's switch interrupt detection" */
+    0x000Cu,
 };
 
 constexpr cerf_vr41xx_pmu_detail::Vr41xxPmu2Model kModel2 = {
