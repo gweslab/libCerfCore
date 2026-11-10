@@ -9,6 +9,7 @@
 #include <cerfcore/boot/rom_parser_service.h>
 #include "../execution/engine_bridge.h"
 #include <cerfengine/mips/mips_cpu_state.h>
+#include <cerfengine/sh/sh_cpu_state.h>
 
 namespace cerfcore {
 
@@ -121,6 +122,11 @@ void TraceManager::DispatchPcMips(uint32_t pc, const cerfengine::MipsCpuState* s
     DispatchContext(pc, ctx);
 }
 
+void TraceManager::DispatchPcSh(uint32_t pc, const cerfengine::ShCpuState* st) {
+    TraceContext ctx{nullptr, 0u, pc, emu_, nullptr, st};
+    DispatchContext(pc, ctx);
+}
+
 #if CERF_DEV_MODE
 
 void TraceManager::OnRunLoopIter(TraceHandler handler) {
@@ -140,6 +146,12 @@ void TraceManager::DispatchRunLoopIter(const uint32_t* regs, uint32_t cpsr) {
 void TraceManager::DispatchRunLoopIterMips(const cerfengine::MipsCpuState* st) {
     if (iter_handlers_.empty()) return;
     TraceContext ctx{nullptr, 0u, st->pc, emu_, st};
+    DispatchIterContext(ctx);
+}
+
+void TraceManager::DispatchRunLoopIterSh(const cerfengine::ShCpuState* st) {
+    if (iter_handlers_.empty()) return;
+    TraceContext ctx{nullptr, 0u, st->pc, emu_, nullptr, st};
     DispatchIterContext(ctx);
 }
 

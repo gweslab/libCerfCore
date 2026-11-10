@@ -1,4 +1,4 @@
-#include "../mips_kseg_dram_rom_page_table_builder.h"
+#include "../unmapped_window_dram_rom_page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/boards/board_context.h>
@@ -26,10 +26,10 @@ constexpr uint32_t kDramSize = 0x00400000u;
    nk.exe sub_9F4117B4 reads PA 0x00C00000 back to size the part. */
 constexpr uint32_t kDramDecodeSpan = 0x02000000u;
 
-class PhilipsNinoPageTableBuilder : public MipsKsegDramRomPageTableBuilder {
+class PhilipsNinoPageTableBuilder : public UnmappedWindowDramRomPageTableBuilder {
 public:
     explicit PhilipsNinoPageTableBuilder(CerfEmulator& emu)
-        : MipsKsegDramRomPageTableBuilder(emu, {
+        : UnmappedWindowDramRomPageTableBuilder(emu, {
               { kDramVaBase, kDramPaBase, kDramSize }, kDramDecodeSpan, kDramDecodeSpan,
           }) {}
 

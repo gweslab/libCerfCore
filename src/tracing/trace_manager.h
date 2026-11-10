@@ -8,22 +8,19 @@
 #include <unordered_map>
 #include <vector>
 
-namespace cerfengine { struct MipsCpuState; }
+namespace cerfengine { struct MipsCpuState; struct ShCpuState; }
 
 namespace cerfcore {
 
 class CerfEmulator;
 
-/* TraceContext - read-only snapshot the JIT hands to a trace handler. Only the
-   active ISA's view is non-null: ARM populates `regs`(`regs[15]`==pc)+`cpsr`
-   (mips==null); MIPS populates `mips` (regs==null). A handler dereferencing the
-   other ISA's view reads null. `pc`/`ReadVa*` are ISA-neutral. */
 struct TraceContext {
     const uint32_t* regs;
     uint32_t        cpsr;
     uint32_t        pc;
     CerfEmulator&   emu;
     const cerfengine::MipsCpuState* mips = nullptr;
+    const cerfengine::ShCpuState*   sh   = nullptr;
 
     std::optional<uint8_t>  ReadVa8 (uint32_t va) const;
     std::optional<uint16_t> ReadVa16(uint32_t va) const;
@@ -56,6 +53,7 @@ public:
     /* Dispatch sites called from the JIT translator (one per live ISA). */
     void DispatchPc(uint32_t pc, const uint32_t* regs, uint32_t cpsr);
     void DispatchPcMips(uint32_t pc, const cerfengine::MipsCpuState* st);
+    void DispatchPcSh(uint32_t pc, const cerfengine::ShCpuState* st);
 
     uint32_t BundleCrc32() const { return bundle_crc32_; }
 
@@ -63,6 +61,7 @@ public:
     void OnRunLoopIter(TraceHandler handler);
     void DispatchRunLoopIter(const uint32_t* regs, uint32_t cpsr);
     void DispatchRunLoopIterMips(const cerfengine::MipsCpuState* st);
+    void DispatchRunLoopIterSh(const cerfengine::ShCpuState* st);
 #endif
 
 private:
@@ -70,8 +69,6 @@ private:
        bytes in load order. Empty when no ROMs loaded. */
     uint32_t ComputeBundleCrc32() const;
 
-    /* Shared PC-trace fan-out for both ISAs: lookup pc, run predicate+handler
-       over the prebuilt context. */
     void DispatchContext(uint32_t pc, const TraceContext& ctx);
 
     /* Halts if a hook is already bound at runtime_va - a VA may be hooked

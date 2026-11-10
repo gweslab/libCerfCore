@@ -1,4 +1,4 @@
-#include "../vr41xx/vr41xx_reg_window_impl.h"
+#include "../reg_window_impl.h"
 
 #include <cstdint>
 #include "vr4122_id.h"
@@ -7,10 +7,10 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowBase;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegWindowBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 constexpr ReadKind  kRd = ReadKind::kStored;
 constexpr WriteKind kWr = WriteKind::kStored;
@@ -18,7 +18,7 @@ constexpr WriteKind kWr = WriteKind::kStored;
 /* RAM + I/O-space window 0x0F0001E0-0x1EF (VR4131 UM Table 8-1, p162). Write masks +
    reset values per register: RAMBAL/H 8.2.7 p169, RAMAL/H 8.2.8 p170, IOBAL/H 8.2.9
    p171 (IOBAH D11 "Write 1. 1 is returned"), IOAL/H 8.2.10 p172. */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0F0001E0u,
     /*size=*/0x10u,
     /*num_regs=*/8u,
@@ -35,9 +35,9 @@ constexpr Vr41xxRegWindowModel kModel = {
     },
 };
 
-class Vr4122DmaauRamIo : public Vr41xxRegWindowBase<SocId::Vr4122, kModel> {
+class Vr4122DmaauRamIo : public RegWindowBase<SocId::Vr4122, kModel> {
 public:
-    using Vr41xxRegWindowBase::Vr41xxRegWindowBase;
+    using RegWindowBase::RegWindowBase;
 };
 
 }

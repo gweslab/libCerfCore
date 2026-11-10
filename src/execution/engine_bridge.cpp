@@ -100,6 +100,10 @@ void EngineBridge::OnMipsPcTrace(uint32_t pc, const cerfengine::MipsCpuState* st
     trace_->DispatchPcMips(pc, state);
 }
 
+void EngineBridge::OnShPcTrace(uint32_t pc, const cerfengine::ShCpuState* state) {
+    trace_->DispatchPcSh(pc, state);
+}
+
 void EngineBridge::Panic(const char* message) {
     emu_.Get<Fatal>().Die("%s", message);
 }

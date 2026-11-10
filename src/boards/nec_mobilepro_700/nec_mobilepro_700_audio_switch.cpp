@@ -8,7 +8,7 @@ namespace cerfcore {
 
 namespace {
 
-constexpr Vr41xxAudioPin kSpeakerPins[] = {{12, Vr41xxPinDrive::kHigh}};
+constexpr Vr41xxAudioPin kSpeakerPins[] = {{12, PinDrive::kHigh}};
 
 class NecMobilepro700AudioSwitch : public Vr41xxGpioAudioSwitch {
 public:

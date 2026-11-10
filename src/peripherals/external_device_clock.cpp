@@ -35,34 +35,52 @@ ExternalDeviceClock::Timer& ExternalDeviceClock::AddTimer(std::function<void()> 
 }
 
 void ExternalDeviceClock::Arm(Timer& timer, int64_t delay_ns) {
-    timer.due_   = ticks_.Now() + static_cast<uint64_t>(delay_ns);
-    timer.armed_ = true;
+    SetDeadline(timer, delay_ns);
     ArmEvent(timer);
 }
 
 void ExternalDeviceClock::Disarm(Timer& timer) {
-    timer.armed_ = false;
+    ClearDeadline(timer);
     clock_->Disarm(timer.event_);
 }
 
-void ExternalDeviceClock::SaveTimer(Timer& timer, StateWriter& w, const char* prefix) {
+void ExternalDeviceClock::SetDeadline(Deadline& deadline, int64_t delay_ns) {
+    deadline.due_   = ticks_.Now() + static_cast<uint64_t>(delay_ns);
+    deadline.armed_ = true;
+}
+
+void ExternalDeviceClock::ClearDeadline(Deadline& deadline) { deadline.armed_ = false; }
+
+bool ExternalDeviceClock::Pending(const Deadline& deadline) {
+    return deadline.armed_ && ticks_.Now() < deadline.due_;
+}
+
+void ExternalDeviceClock::SaveDeadline(const Deadline& deadline, StateWriter& w, const char* prefix) {
     const std::string p(prefix);
     const uint64_t    now  = ticks_.Now();
-    const uint64_t    left = timer.armed_ && timer.due_ > now ? timer.due_ - now : 0u;
-    w.Write<uint8_t>((p + "armed").c_str(), timer.armed_ ? 1u : 0u);
+    const uint64_t    left = deadline.armed_ && deadline.due_ > now ? deadline.due_ - now : 0u;
+    w.Write<uint8_t>((p + "armed").c_str(), deadline.armed_ ? 1u : 0u);
     w.Write<uint64_t>((p + "remaining_ns").c_str(), left);
 }
 
-void ExternalDeviceClock::RestoreTimer(Timer& timer, StateReader& r, const char* prefix) {
+void ExternalDeviceClock::RestoreDeadline(Deadline& deadline, StateReader& r, const char* prefix) {
     const std::string p(prefix);
     uint8_t  armed = 0u;
     uint64_t left  = 0u;
     r.Read((p + "armed").c_str(), armed);
     r.Read((p + "remaining_ns").c_str(), left);
     ticks_.Rebase();
+    deadline.armed_ = armed != 0u;
+    deadline.due_   = ticks_.Now() + left;
+}
+
+void ExternalDeviceClock::SaveTimer(Timer& timer, StateWriter& w, const char* prefix) {
+    SaveDeadline(timer, w, prefix);
+}
+
+void ExternalDeviceClock::RestoreTimer(Timer& timer, StateReader& r, const char* prefix) {
+    RestoreDeadline(timer, r, prefix);
     clock_->Disarm(timer.event_);
-    timer.armed_ = armed != 0u;
-    timer.due_   = ticks_.Now() + left;
 }
 
 void ExternalDeviceClock::ResumeTimer(Timer& timer) {

@@ -1,4 +1,4 @@
-#include "../vr41xx/vr41xx_reg_window_impl.h"
+#include "../reg_window_impl.h"
 
 #include <cstdint>
 #include "vr4122_id.h"
@@ -7,10 +7,10 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowBase;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegWindowBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 constexpr ReadKind  kRd = ReadKind::kStored;
 constexpr WriteKind kWr = WriteKind::kStored;
@@ -19,7 +19,7 @@ constexpr WriteKind kWr = WriteKind::kStored;
    values per register: CSIIBAL/H 8.2.1 p163, CSIIAL/H 8.2.2 p164, CSIOBAL/H 8.2.3
    p165, CSIOAL/H 8.2.4 p166, FIRBAL/H 8.2.5 p167, FIRAL/H 8.2.6 p168. Boot writes
    FIRBAL/H at nk.exe 0x9F0338EC (sw 0xA0003800 -> 0x0F000030). */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0F000020u,
     /*size=*/0x20u,
     /*num_regs=*/12u,
@@ -40,9 +40,9 @@ constexpr Vr41xxRegWindowModel kModel = {
     },
 };
 
-class Vr4122Dmaau : public Vr41xxRegWindowBase<SocId::Vr4122, kModel> {
+class Vr4122Dmaau : public RegWindowBase<SocId::Vr4122, kModel> {
 public:
-    using Vr41xxRegWindowBase::Vr41xxRegWindowBase;
+    using RegWindowBase::RegWindowBase;
 };
 
 }

@@ -11,6 +11,7 @@ namespace {
 constexpr std::pair<std::string_view, CpuArch> kCpuArchNames[] = {
     {"ARM", CpuArch::kArm},
     {"MIPS", CpuArch::kMips},
+    {"SH", CpuArch::kSh},
 };
 
 }

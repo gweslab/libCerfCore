@@ -74,7 +74,7 @@ void CompaqAero1500Battery::OnReady() {
 
 bool CompaqAero1500Battery::Charging() {
     return !battery_.IsOnBattery() &&
-           giu_->OutputDrive(kChargerEnableGpio) == Vr41xxPinDrive::kHigh;
+           giu_->OutputDrive(kChargerEnableGpio) == PinDrive::kHigh;
 }
 
 uint16_t CompaqAero1500Battery::TargetVoltageWord() {

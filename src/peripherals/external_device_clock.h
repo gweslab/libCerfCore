@@ -16,7 +16,15 @@ class StateWriter;
 
 class ExternalDeviceClock : public Service {
 public:
-    class Timer {
+    class Deadline {
+    private:
+        friend class ExternalDeviceClock;
+
+        uint64_t due_   = 0;
+        bool     armed_ = false;
+    };
+
+    class Timer : private Deadline {
     public:
         explicit Timer(std::function<void()> on_due) : on_due_(std::move(on_due)) {}
 
@@ -25,8 +33,6 @@ public:
 
         std::function<void()>   on_due_;
         GuestCycleClock::Event* event_ = nullptr;
-        uint64_t                due_   = 0;
-        bool                    armed_ = false;
     };
 
     using Service::Service;
@@ -37,6 +43,12 @@ public:
     Timer&  AddTimer(std::function<void()> on_due);
     void    Arm(Timer& timer, int64_t delay_ns);
     void    Disarm(Timer& timer);
+
+    void SetDeadline(Deadline& deadline, int64_t delay_ns);
+    void ClearDeadline(Deadline& deadline);
+    bool Pending(const Deadline& deadline);
+    void SaveDeadline(const Deadline& deadline, StateWriter& w, const char* prefix);
+    void RestoreDeadline(Deadline& deadline, StateReader& r, const char* prefix);
 
     void SaveTimer(Timer& timer, StateWriter& w, const char* prefix);
     void RestoreTimer(Timer& timer, StateReader& r, const char* prefix);

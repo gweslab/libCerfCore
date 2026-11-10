@@ -40,7 +40,7 @@ public:
                                                uint16_t pos_y) override {
         switch (adcmd) {
             case kAdcmdAdin0:
-                return giu_->OutputDrive(kAdin0CurrentSelectGpio) == Vr41xxPinDrive::kHigh
+                return giu_->OutputDrive(kAdin0CurrentSelectGpio) == PinDrive::kHigh
                            ? battery_->ChargeCurrentWord()
                            : battery_->CellVoltageWord();
             case kAdcmdAdin1:

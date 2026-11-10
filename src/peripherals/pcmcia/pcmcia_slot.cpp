@@ -57,6 +57,7 @@ void PcmciaSlot::SetPowered(bool on) {
         std::lock_guard<std::mutex> lk(bus_mutex_);
         if (powered_ == on) return;
         powered_ = on;
+        LOG(Pcmcia, "[Slot %s] Vcc %s\n", label_.c_str(), on ? "on" : "off");
         PublishPinsLocked();
         if (card_) {
             if (on) card_->PowerOn();

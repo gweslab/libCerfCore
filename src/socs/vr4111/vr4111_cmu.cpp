@@ -1,5 +1,5 @@
 #include "../vr41xx/vr41xx_cmu.h"
-#include "../vr41xx/vr41xx_reg_window_impl.h"
+#include "../reg_window_impl.h"
 
 #include <cstdint>
 #include "vr4111_id.h"
@@ -8,16 +8,16 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowBase;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegWindowBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 /* VR4111 UM Table 6-10 p170: CMU decodes 0x0B000060-0x0B00007F. Table 14-1 p323: the unit has
    one register, CMUCLKMSK at 0x0B000060. UM 14.2.1 p324: D10 MSKFFIR, D9 MSKSHSP, D8 MSKSSIU,
    D5 MSKDSIU, D4 MSKFIR, D3 MSKKIU, D2 MSKAIU, D1 MSKSIU, D0 MSKPIU R/W; D15:11 and D7:6
    reserved, write 0 and read 0; RTCRST and Other resets rows both 0. */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0B000060u,
     /*size=*/0x20u,
     /*num_regs=*/1u,
@@ -27,9 +27,9 @@ constexpr Vr41xxRegWindowModel kModel = {
     },
 };
 
-class Vr4111Cmu : public Vr41xxRegWindowBase<SocId::Vr4111, kModel, Vr41xxCmu> {
+class Vr4111Cmu : public RegWindowBase<SocId::Vr4111, kModel, Vr41xxCmu> {
 public:
-    using Vr41xxRegWindowBase::Vr41xxRegWindowBase;
+    using RegWindowBase::RegWindowBase;
 
 protected:
     uint16_t ClockMask() const override { return StoredReg(0); }

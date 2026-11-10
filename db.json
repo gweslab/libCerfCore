@@ -214,6 +214,16 @@
       "id": "mips4",
       "name": "MIPS IV",
       "arch": "MIPS"
+    },
+    {
+      "id": "sh3",
+      "name": "SH-3",
+      "arch": "SH"
+    },
+    {
+      "id": "sh3_dsp",
+      "name": "SH3-DSP",
+      "arch": "SH"
     }
   ],
   "socs": [
@@ -306,6 +316,16 @@
       "id": "pr31700",
       "name": "Philips PR31700",
       "family_id": "mips1"
+    },
+    {
+      "id": "sh7709",
+      "name": "Hitachi SH7709",
+      "family_id": "sh3"
+    },
+    {
+      "id": "sh7729",
+      "name": "Hitachi SH7729",
+      "family_id": "sh3_dsp"
     }
   ],
   "cpu_config_params": [
@@ -720,6 +740,12 @@
       "name": "COP1 / COP2 opcodes raise Coprocessor Unusable",
       "arch": "MIPS",
       "type": "boolean"
+    },
+    {
+      "id": "sh_dsp",
+      "name": "SH-DSP unit",
+      "arch": "SH",
+      "type": "boolean"
     }
   ],
   "cpu_configs": [
@@ -1089,6 +1115,18 @@
         "status_reset": "0x00400004",
         "status_writable": "0xF557FFFF",
         "status_zero_only": "0x00000000"
+      }
+    },
+    {
+      "soc_id": "sh7709",
+      "values": {
+        "sh_dsp": false
+      }
+    },
+    {
+      "soc_id": "sh7729",
+      "values": {
+        "sh_dsp": true
       }
     }
   ],
@@ -1522,6 +1560,25 @@
         "height": 480
       },
       "ga_color_depth": 24,
+      "rom_placing_mode": "flat_container"
+    },
+    {
+      "id": "hp_600",
+      "name": "HP 600 series",
+      "soc_id": "sh7729",
+      "device_year": 1998,
+      "board_config": {
+        "ram": {
+          "default": "16mb",
+          "values": ["16mb", "32mb"]
+        }
+      },
+      "device_features": [],
+      "notes": [],
+      "lcd_panel_size": {
+        "width": 640,
+        "height": 240
+      },
       "rom_placing_mode": "flat_container"
     },
     {
@@ -2768,6 +2825,235 @@
       "board_family_id": "hp_jornada_820",
       "support_level": "unknown_partial",
       "internal__spec_divergences": "no modem connector"
+    },
+    {
+      "id": "jornada_680",
+      "name": "HP Jornada 680",
+      "short_name": "Jornada 680",
+      "board_family_id": "hp_600",
+      "support_level": "no_support"
+    },
+    {
+      "id": "jornada_680e",
+      "name": "HP Jornada 680e",
+      "short_name": "Jornada 680e",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "no modem"
+    },
+    {
+      "id": "jornada_690",
+      "name": "HP Jornada 690",
+      "short_name": "Jornada 690",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM",
+      "device_year": 1999,
+      "board_config": {
+        "ram": {
+          "default": "32mb"
+        }
+      }
+    },
+    {
+      "id": "jornada_690e",
+      "name": "HP Jornada 690e",
+      "short_name": "Jornada 690e",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM, no modem",
+      "device_year": 1999,
+      "board_config": {
+        "ram": {
+          "default": "32mb"
+        }
+      }
+    },
+    {
+      "id": "jornada_688",
+      "name": "HP Jornada 688",
+      "short_name": "Jornada 688",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "Chinese ROM",
+      "device_year": 1999
+    },
+    {
+      "id": "jornada_680_japan",
+      "name": "HP Jornada 680 (Japan)",
+      "short_name": "Jornada 680",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "Japanese keyboard"
+    },
+    {
+      "id": "jornada_680_europe",
+      "name": "HP Jornada 680 (Europe)",
+      "short_name": "Jornada 680",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "European keyboard"
+    },
+    {
+      "id": "jornada_680_germany",
+      "name": "HP Jornada 680 (Germany)",
+      "short_name": "Jornada 680",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "German keyboard"
+    },
+    {
+      "id": "jornada_680_france",
+      "name": "HP Jornada 680 (France)",
+      "short_name": "Jornada 680",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "French keyboard"
+    },
+    {
+      "id": "jornada_680_scandinavia",
+      "name": "HP Jornada 680 (Scandinavia)",
+      "short_name": "Jornada 680",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "Scandinavian keyboard"
+    },
+    {
+      "id": "jornada_680_spain",
+      "name": "HP Jornada 680 (Spain)",
+      "short_name": "Jornada 680",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "Spanish keyboard"
+    },
+    {
+      "id": "jornada_690_japan",
+      "name": "HP Jornada 690 (Japan)",
+      "short_name": "Jornada 690",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM, Japanese keyboard",
+      "device_year": 1999,
+      "board_config": {
+        "ram": {
+          "default": "32mb"
+        }
+      }
+    },
+    {
+      "id": "jornada_690_europe",
+      "name": "HP Jornada 690 (Europe)",
+      "short_name": "Jornada 690",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM, European keyboard",
+      "device_year": 1999,
+      "board_config": {
+        "ram": {
+          "default": "32mb"
+        }
+      }
+    },
+    {
+      "id": "jornada_690_germany",
+      "name": "HP Jornada 690 (Germany)",
+      "short_name": "Jornada 690",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM, German keyboard",
+      "device_year": 1999,
+      "board_config": {
+        "ram": {
+          "default": "32mb"
+        }
+      }
+    },
+    {
+      "id": "jornada_690_france",
+      "name": "HP Jornada 690 (France)",
+      "short_name": "Jornada 690",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM, French keyboard",
+      "device_year": 1999,
+      "board_config": {
+        "ram": {
+          "default": "32mb"
+        }
+      }
+    },
+    {
+      "id": "jornada_690_scandinavia",
+      "name": "HP Jornada 690 (Scandinavia)",
+      "short_name": "Jornada 690",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM, Scandinavian keyboard",
+      "device_year": 1999,
+      "board_config": {
+        "ram": {
+          "default": "32mb"
+        }
+      }
+    },
+    {
+      "id": "jornada_690_spain",
+      "name": "HP Jornada 690 (Spain)",
+      "short_name": "Jornada 690",
+      "board_family_id": "hp_600",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM, Spanish keyboard",
+      "device_year": 1999,
+      "board_config": {
+        "ram": {
+          "default": "32mb"
+        }
+      }
+    },
+    {
+      "id": "hp_620lx",
+      "name": "HP 620LX",
+      "short_name": "620LX",
+      "board_family_id": "hp_600",
+      "soc_id": "sh7709",
+      "support_level": "no_support",
+      "internal__spec_divergences": "10 MB ROM, no modem, other speaker and LCD contrast pins",
+      "board_config": {
+        "ram": {
+          "default": "16mb",
+          "values": ["4mb", "8mb", "12mb", "16mb", "32mb"]
+        }
+      }
+    },
+    {
+      "id": "hp_620lx_japan",
+      "name": "HP 620LX (Japan)",
+      "short_name": "620LX",
+      "board_family_id": "hp_600",
+      "soc_id": "sh7709",
+      "support_level": "no_support",
+      "internal__spec_divergences": "10 MB ROM, no modem, other speaker and LCD contrast pins, Japanese market",
+      "board_config": {
+        "ram": {
+          "default": "16mb",
+          "values": ["4mb", "8mb", "12mb", "16mb", "32mb"]
+        }
+      }
+    },
+    {
+      "id": "hp_660lx",
+      "name": "HP 660LX",
+      "short_name": "660LX",
+      "board_family_id": "hp_600",
+      "soc_id": "sh7709",
+      "support_level": "no_support",
+      "internal__spec_divergences": "32 MB RAM, 10 MB ROM, no modem, other speaker and LCD contrast pins",
+      "board_config": {
+        "ram": {
+          "default": "32mb",
+          "values": ["4mb", "8mb", "12mb", "16mb", "32mb"]
+        }
+      }
     },
     {
       "id": "jornada_720",

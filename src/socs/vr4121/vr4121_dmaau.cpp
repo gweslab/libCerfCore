@@ -7,9 +7,9 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 constexpr ReadKind  kRd = ReadKind::kStored;
 constexpr WriteKind kWr = WriteKind::kStored;
@@ -18,7 +18,7 @@ constexpr WriteKind kWr = WriteKind::kStored;
    registers at 0x0B000020-0x0B000037. AIU base-low D0 read-only (UM 12.2.1/12.2.3); AIU
    address-low and both FIR low halves all-16 R/W (UM 12.2.2/12.2.5/12.2.6); high halves
    writable D[10:0]. Low reset 0xF800, high 0x01FF; RTCRST == After-reset (UM 12.2.1-12.2.6). */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0B000020u,
     /*size=*/0x20u,
     /*num_regs=*/12u,

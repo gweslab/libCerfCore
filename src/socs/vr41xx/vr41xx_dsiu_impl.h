@@ -150,14 +150,14 @@ public:
         auto& giu = emu_.Get<Vr41xxGiu>();
         giu_ = &giu;
         giu.RegisterAlternateFunction(kGpioDdout, kGpioDdout, [this](int) {
-            return PinDrive(kPortCdDout, Vr41xxPinDrive::kHigh);
+            return PortPinDrive(kPortCdDout, PinDrive::kHigh);
         });
         giu.RegisterAlternateFunction(kGpioDdin, kGpioDdin, [this](int) {
-            return PinDrive(kPortCdDin, Vr41xxPinDrive::kUndriven);
+            return PortPinDrive(kPortCdDin, PinDrive::kUndriven);
         });
         giu.RegisterAlternateFunction(kGpioDrts, kGpioDrts, [this](int) { return DrtsDrive(); });
         giu.RegisterAlternateFunction(kGpioDcts, kGpioDcts, [this](int) {
-            return PinDrive(kPortCdCts, Vr41xxPinDrive::kUndriven);
+            return PortPinDrive(kPortCdCts, PinDrive::kUndriven);
         });
     }
 
@@ -321,21 +321,21 @@ public:
     }
 
 private:
-    std::optional<Vr41xxPinDrive> PinDrive(uint16_t general_purpose_bit, Vr41xxPinDrive drive) {
+    std::optional<PinDrive> PortPinDrive(uint16_t general_purpose_bit, PinDrive drive) {
         std::lock_guard<std::mutex> lk(mtx_);
         if (portreg_ & general_purpose_bit) return std::nullopt;
         return drive;
     }
 
-    std::optional<Vr41xxPinDrive> DrtsDrive() {
+    std::optional<PinDrive> DrtsDrive() {
         std::lock_guard<std::mutex> lk(mtx_);
         return DrtsDriveLocked();
     }
 
-    std::optional<Vr41xxPinDrive> DrtsDriveLocked() const {
+    std::optional<PinDrive> DrtsDriveLocked() const {
         if (portreg_ & kPortCdRts) return std::nullopt;
-        if (hibernating_ || suspended_) return Vr41xxPinDrive::kHigh;
-        return (asim00_ & kAsim00Rxe0) ? Vr41xxPinDrive::kLow : Vr41xxPinDrive::kHigh;
+        if (hibernating_ || suspended_) return PinDrive::kHigh;
+        return (asim00_ & kAsim00Rxe0) ? PinDrive::kLow : PinDrive::kHigh;
     }
 
     template <class Apply>

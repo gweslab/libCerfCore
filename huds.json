@@ -237,6 +237,73 @@
         }
       ]
     },
+    "hp_620lx_rec": { "button": { "keys": ["VK_F10"], "label": "REC" } },
+    "hp_620lx_voice": { "button": { "keys": ["VK_F1"], "icon": "voicemail" } },
+    "hp_620lx_powerpoint": { "button": { "keys": ["VK_F2"], "icon": "image" } },
+    "hp_620lx_word": { "button": { "keys": ["VK_F3"], "label": "W" } },
+    "hp_620lx_excel": { "button": { "keys": ["VK_F4"], "label": "X" } },
+    "hp_620lx_calendar": { "button": { "keys": ["VK_F5"], "icon": "calendar_month" } },
+    "hp_620lx_tasks": { "button": { "keys": ["VK_F6"], "icon": "checklist" } },
+    "hp_620lx_contacts": { "button": { "keys": ["VK_F7"], "icon": "contacts" } },
+    "hp_620lx_fiscal": { "button": { "keys": ["VK_F8"], "icon": "calculate" } },
+    "hp_620lx_keyboard": {
+      "column": [
+        {
+          "row": [
+            "jornada_power", "hp_620lx_rec", "hp_620lx_voice", "hp_620lx_powerpoint", "hp_620lx_word",
+            "hp_620lx_excel", "hp_620lx_calendar", "hp_620lx_tasks", "hp_620lx_contacts", "hp_620lx_fiscal"
+          ]
+        },
+        {
+          "row": [
+            "jornada_escape",
+            { "button": { "keys": ["VK_1"] } }, { "button": { "keys": ["VK_2"] } }, { "button": { "keys": ["VK_3"] } },
+            { "button": { "keys": ["VK_4"] } }, { "button": { "keys": ["VK_5"] } }, { "button": { "keys": ["VK_6"] } },
+            { "button": { "keys": ["VK_7"] } }, { "button": { "keys": ["VK_8"] } }, { "button": { "keys": ["VK_9"] } },
+            { "button": { "keys": ["VK_0"] } }, { "button": { "keys": ["VK_OEM_MINUS"] } },
+            { "button": { "keys": ["VK_OEM_PLUS"] } }, "jornada_backspace"
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_OEM_3"] } },
+            { "button": { "keys": ["VK_Q"] } }, { "button": { "keys": ["VK_W"] } }, { "button": { "keys": ["VK_E"] } },
+            { "button": { "keys": ["VK_R"] } }, { "button": { "keys": ["VK_T"] } }, { "button": { "keys": ["VK_Y"] } },
+            { "button": { "keys": ["VK_U"] } }, { "button": { "keys": ["VK_I"] } }, { "button": { "keys": ["VK_O"] } },
+            { "button": { "keys": ["VK_P"] } }, { "button": { "keys": ["VK_OEM_4"] } },
+            { "button": { "keys": ["VK_OEM_6"] } }, { "button": { "keys": ["VK_OEM_5"] } }
+          ]
+        },
+        {
+          "row": [
+            { "grow": 1.2, "button": { "keys": ["VK_TAB"] } },
+            { "button": { "keys": ["VK_A"] } }, { "button": { "keys": ["VK_S"] } }, { "button": { "keys": ["VK_D"] } },
+            { "button": { "keys": ["VK_F"] } }, { "button": { "keys": ["VK_G"] } }, { "button": { "keys": ["VK_H"] } },
+            { "button": { "keys": ["VK_J"] } }, { "button": { "keys": ["VK_K"] } }, { "button": { "keys": ["VK_L"] } },
+            { "button": { "keys": ["VK_OEM_1"] } }, { "button": { "keys": ["VK_OEM_7"] } },
+            { "grow": 1.8, "row": ["jornada_enter"] }
+          ]
+        },
+        {
+          "row": [
+            { "grow": 2, "button": { "keys": ["VK_SHIFT"] } },
+            { "button": { "keys": ["VK_Z"] } }, { "button": { "keys": ["VK_X"] } }, { "button": { "keys": ["VK_C"] } },
+            { "button": { "keys": ["VK_V"] } }, { "button": { "keys": ["VK_B"] } }, { "button": { "keys": ["VK_N"] } },
+            { "button": { "keys": ["VK_M"] } }, { "button": { "keys": ["VK_OEM_COMMA"] } },
+            { "button": { "keys": ["VK_OEM_PERIOD"] } }, { "button": { "keys": ["VK_OEM_2"] } },
+            "jornada_up", { "button": { "keys": ["VK_SHIFT"] } }
+          ]
+        },
+        {
+          "row": [
+            { "button": { "keys": ["VK_CONTROL"] } }, { "button": { "keys": ["VK_LWIN"] } },
+            { "button": { "keys": ["VK_NUMLOCK"] } }, { "button": { "keys": ["VK_MENU"] } },
+            { "grow": 5, "button": { "keys": ["VK_SPACE"] } }, { "button": { "keys": ["VK_RMENU"], "label": "Alt Gr" } },
+            { "button": { "keys": ["VK_DELETE"] } }, "jornada_left", "jornada_down", "jornada_right"
+          ]
+        }
+      ]
+    },
     "jornada_bezel": {
       "column": [
         { "button": { "action": "settings", "icon": "settings" } },
@@ -711,6 +778,15 @@
       "gap": 0.01,
       "panels": [
         { "side": "bottom", "align": "center", "width": 1.0, "height": 0.42, "content": "jornada_820_keyboard" }
+      ]
+    },
+    {
+      "id": "hp_620lx",
+      "name": "HP 620LX",
+      "board_ids": ["hp_620lx", "hp_620lx_japan", "hp_660lx"],
+      "gap": 0.01,
+      "panels": [
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.42, "content": "hp_620lx_keyboard" }
       ]
     },
     {

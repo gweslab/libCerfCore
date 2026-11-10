@@ -3,6 +3,7 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
+#include <cerfcore/core/cpu_arch_name.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../cpu/arm_processor_config.h"
@@ -21,12 +22,15 @@ constexpr const char* kStubDll = "cerf_guest_stub.dll";
 }  /* namespace */
 
 std::string GuestAdditionsBinaries::ArchDir() {
-    if (emu_.Get<BoardContext>().GetCpuArch() == CpuArch::kMips) {
+    const CpuArch arch = emu_.Get<BoardContext>().GetCpuArch();
+    if (arch == CpuArch::kMips) {
         const ParsedRom& rom = emu_.Get<RomParserService>().Primary();
         const uint16_t cpu = rom.xips.empty() ? 0 : rom.xips[0].toc.romhdr.usCPUType;
         return cpu == PeImage::kMachineMipsFpu ? "mips4" : "mips1";
     }
-    return emu_.Get<ArmProcessorConfig>().HasThumb() ? "arm_thumb" : "arm";
+    if (arch == CpuArch::kArm) return emu_.Get<ArmProcessorConfig>().HasThumb() ? "arm_thumb" : "arm";
+    emu_.Get<Fatal>().Die("GuestAdditions: no guest-additions build for the %s architecture",
+                          CpuArchName(arch));
 }
 
 std::string GuestAdditionsBinaries::BodyPath() {

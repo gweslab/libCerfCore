@@ -9,7 +9,7 @@ namespace cerfcore {
 
 bool Vr41xxGpioAudioSwitch::SpeakerOn() { return PinsOn(SpeakerPins()); }
 
-bool Vr41xxGpioAudioSwitch::PinAt(int gpio, Vr41xxPinDrive level) {
+bool Vr41xxGpioAudioSwitch::PinAt(int gpio, PinDrive level) {
     return emu_.Get<Vr41xxGiu>().OutputDrive(gpio) == level;
 }
 

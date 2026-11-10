@@ -2,17 +2,17 @@
 
 #include "vr41xx_aiu_dma.h"
 #include "vr41xx_dmaau.h"
-#include "vr41xx_reg_window_impl.h"
+#include "../reg_window_impl.h"
 
 #include <cstdint>
 #include <string_view>
 
 namespace cerfcore {
 
-template <const std::string_view& Soc, const cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel& M>
+template <const std::string_view& Soc, const cerf_reg_window_detail::RegWindowModel& M>
 class Vr41xxDmaauImpl
-    : public cerf_vr41xx_reg_window_detail::Vr41xxRegWindowBase<Soc, M, Vr41xxDmaau> {
-    using Window = cerf_vr41xx_reg_window_detail::Vr41xxRegWindowBase<Soc, M, Vr41xxDmaau>;
+    : public cerf_reg_window_detail::RegWindowBase<Soc, M, Vr41xxDmaau> {
+    using Window = cerf_reg_window_detail::RegWindowBase<Soc, M, Vr41xxDmaau>;
 
 public:
     using Window::Window;

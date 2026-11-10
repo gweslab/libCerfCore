@@ -90,7 +90,7 @@ private:
         trackpoint_.RearmTransmit();
     }
 
-    bool LineHigh(int gpio) { return giu_->OutputDrive(gpio) != Vr41xxPinDrive::kLow; }
+    bool LineHigh(int gpio) { return giu_->OutputDrive(gpio) != PinDrive::kLow; }
 
     Vr41xxGiu*              giu_   = nullptr;
     Vr41xxDsiu*             dsiu_  = nullptr;

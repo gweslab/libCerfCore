@@ -1,4 +1,4 @@
-#include "../mips_kseg_dram_rom_page_table_builder.h"
+#include "../unmapped_window_dram_rom_page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/boards/board_context.h>
@@ -15,10 +15,10 @@ constexpr uint32_t kDramVaBase = 0x80000000u;
 constexpr uint32_t kDramPaBase = 0x00000000u;
 constexpr uint32_t kDramSize   = 0x02000000u;
 
-class NecCronos3ePageTableBuilder : public MipsKsegDramRomPageTableBuilder {
+class NecCronos3ePageTableBuilder : public UnmappedWindowDramRomPageTableBuilder {
 public:
     explicit NecCronos3ePageTableBuilder(CerfEmulator& emu)
-        : MipsKsegDramRomPageTableBuilder(emu, {
+        : UnmappedWindowDramRomPageTableBuilder(emu, {
               { kDramVaBase, kDramPaBase, kDramSize }, 0u, kDramSize,
           }) {}
 

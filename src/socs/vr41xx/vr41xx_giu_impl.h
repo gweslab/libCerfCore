@@ -129,7 +129,7 @@ public:
         pin_device_states_.push_back({std::move(save), std::move(restore)});
     }
 
-    Vr41xxPinDrive OutputDrive(int gpio) override {
+    PinDrive OutputDrive(int gpio) override {
         for (const auto& a : alternates_) {
             if (gpio < a.first || gpio > a.last) continue;
             if (const auto drive = a.fn(gpio)) return *drive;
@@ -137,16 +137,16 @@ public:
         std::lock_guard<std::mutex> lk(mtx_);
         const uint64_t pin = uint64_t{1} << gpio;
         if ((hibernating_ || suspended_) && (M.power_down_high & pin) != 0u)
-            return Vr41xxPinDrive::kHigh;
-        if (hibernating_ && (M.hibernate_undriven & pin) != 0u) return Vr41xxPinDrive::kUndriven;
+            return PinDrive::kHigh;
+        if (hibernating_ && (M.hibernate_undriven & pin) != 0u) return PinDrive::kUndriven;
         if (gpio >= 48) {
             const int n = gpio - 48;
-            if (((podat_h_ >> (8 + n)) & 1u) == 0u) return Vr41xxPinDrive::kUndriven;
+            if (((podat_h_ >> (8 + n)) & 1u) == 0u) return PinDrive::kUndriven;
             return Level((podat_h_ >> n) & 1u);
         }
         if (gpio >= 32) return Level((podat_l_ >> (gpio - 32)) & 1u);
         const uint32_t sel = (static_cast<uint32_t>(iosel_h_) << 16) | iosel_l_;
-        if (((sel >> gpio) & 1u) == 0u) return Vr41xxPinDrive::kUndriven;
+        if (((sel >> gpio) & 1u) == 0u) return PinDrive::kUndriven;
         const uint32_t out = (static_cast<uint32_t>(piod_out_h_) << 16) | piod_out_l_;
         return Level((out >> gpio) & 1u);
     }
@@ -358,8 +358,8 @@ private:
         for (auto& fn : podat_l_listeners_) fn(previous);
     }
 
-    static Vr41xxPinDrive Level(uint32_t bit) {
-        return bit != 0u ? Vr41xxPinDrive::kHigh : Vr41xxPinDrive::kLow;
+    static PinDrive Level(uint32_t bit) {
+        return bit != 0u ? PinDrive::kHigh : PinDrive::kLow;
     }
 
     static bool SetsOutputDrive(uint32_t off) {

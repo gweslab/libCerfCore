@@ -1,0 +1,21 @@
+#include "../sh77xx/sh77xx_power_down_impl.h"
+#include "../sh77xx/sh77xx_standby_control.h"
+#include "sh7729_id.h"
+
+namespace cerfcore {
+
+namespace {
+
+constexpr cerf_reg_window_detail::RegWindowModel kSh7729Stbcr = sh77xx_power_down::Stbcr(
+    cerf_reg_window_detail::OtherReset::kRetain);
+
+class Sh7729Stbcr : public sh77xx_power_down::StandbyControlRegister<SocId::Sh7729, kSh7729Stbcr> {
+public:
+    using StandbyControlRegister::StandbyControlRegister;
+};
+
+}
+
+REGISTER_SERVICE_AS(Sh7729Stbcr, Sh77xxStbcr);
+
+}

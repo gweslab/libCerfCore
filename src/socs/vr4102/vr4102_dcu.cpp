@@ -7,14 +7,14 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 constexpr ReadKind  kRd = ReadKind::kStored;
 constexpr WriteKind kWr = WriteKind::kStored;
 
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0B000040u,
     /*size=*/0x20u,
     /*num_regs=*/6u,

@@ -46,7 +46,7 @@ public:
     bool HasFrame() override {
         lcd_->Scan(scan_);
         const bool visible =
-            scan_.display_on && scan_.vdd_on && giu_->OutputDrive(kPanelPowerGpio) == Vr41xxPinDrive::kHigh;
+            scan_.display_on && scan_.vdd_on && giu_->OutputDrive(kPanelPowerGpio) == PinDrive::kHigh;
         lcd_->PublishPanelEnable(visible);
         if (!visible) return false;
         if (latch_.Latched()) return true;

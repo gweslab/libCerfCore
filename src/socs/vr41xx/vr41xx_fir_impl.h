@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vr41xx_reg_window_impl.h"
+#include "../reg_window_impl.h"
 
 #include <cstdint>
 #include <string_view>
@@ -9,11 +9,11 @@ namespace cerfcore {
 
 namespace cerf_vr41xx_fir_detail {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegSpec;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowBase;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegSpec;
+using cerf_reg_window_detail::RegWindowBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 inline constexpr uint32_t kFirSize = 0x36u;
 
@@ -54,16 +54,16 @@ inline constexpr uint16_t kDmaerDmaEn     = 0x0001u;
 inline constexpr uint16_t kDmaerDmaBusy   = 0x0002u;
 inline constexpr uint16_t kMrxfWritable   = 0x1FFFu;
 
-constexpr Vr41xxRegSpec StoredSpec(uint16_t writable, uint16_t dropped, uint16_t reset) {
+constexpr RegSpec StoredSpec(uint16_t writable, uint16_t dropped, uint16_t reset) {
     return {ReadKind::kStored, WriteKind::kStored, writable, reset, static_cast<uint16_t>(~(writable | dropped))};
 }
 
-constexpr Vr41xxRegSpec ZeroReadSpec(WriteKind write, uint16_t writable, uint16_t fatal_on_set) {
+constexpr RegSpec ZeroReadSpec(WriteKind write, uint16_t writable, uint16_t fatal_on_set) {
     return {ReadKind::kZero, write, writable, 0u, fatal_on_set};
 }
 
-constexpr Vr41xxRegWindowModel FirModel(uint32_t base, uint16_t crcsr_after_reset, bool fdpint5_write_clears) {
-    Vr41xxRegWindowModel m{base, kFirSize, kFirSize / 2u, false, {}};
+constexpr RegWindowModel FirModel(uint32_t base, uint16_t crcsr_after_reset, bool fdpint5_write_clears) {
+    RegWindowModel m{base, kFirSize, kFirSize / 2u, false, {}};
     m.reg[kOffFrstr / 2u]  = StoredSpec(kFrstrFrst, 0u, 0u);
     m.reg[kOffDpintr / 2u] = ZeroReadSpec(WriteKind::kDrop, kDpintrPageFlags | kDpintrFdpint5,
                                           fdpint5_write_clears ? kDpintrRfu
@@ -83,9 +83,9 @@ constexpr Vr41xxRegWindowModel FirModel(uint32_t base, uint16_t crcsr_after_rese
     return m;
 }
 
-template <const std::string_view& Soc, const Vr41xxRegWindowModel& M>
-class Vr41xxFirBase : public Vr41xxRegWindowBase<Soc, M> {
-    using Base = Vr41xxRegWindowBase<Soc, M>;
+template <const std::string_view& Soc, const RegWindowModel& M>
+class Vr41xxFirBase : public RegWindowBase<Soc, M> {
+    using Base = RegWindowBase<Soc, M>;
 
 public:
     using Base::Base;

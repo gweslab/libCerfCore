@@ -10,7 +10,7 @@ namespace cerfcore {
 
 struct Vr41xxAudioPin {
     int            gpio;
-    Vr41xxPinDrive on_level;
+    PinDrive on_level;
 };
 
 class Vr41xxAudioSwitch : public Service {
@@ -30,7 +30,7 @@ public:
     void RegisterChangeListener(std::function<void()> fn) override;
 
 protected:
-    bool PinAt(int gpio, Vr41xxPinDrive level);
+    bool PinAt(int gpio, PinDrive level);
     bool PinsOn(std::span<const Vr41xxAudioPin> pins);
 
     virtual std::span<const Vr41xxAudioPin> SpeakerPins() const = 0;

@@ -11,13 +11,13 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxBcuBase;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_vr41xx_bcu_detail::Vr41xxBcuBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 /* VR4102 BCU block 0x0B000000-0x0B00001F (UM Table 5-10 / Table 10-1). */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0B000000u,
     /*size=*/0x20u,
     /*num_regs=*/10u,

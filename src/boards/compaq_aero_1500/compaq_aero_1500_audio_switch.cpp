@@ -8,7 +8,7 @@ namespace cerfcore {
 
 namespace {
 
-constexpr Vr41xxAudioPin kSpeakerPins[] = {{33, Vr41xxPinDrive::kHigh}, {34, Vr41xxPinDrive::kHigh}};
+constexpr Vr41xxAudioPin kSpeakerPins[] = {{33, PinDrive::kHigh}, {34, PinDrive::kHigh}};
 constexpr int            kMicGpio       = 32;
 
 class CompaqAero1500AudioSwitch : public Vr41xxGpioAudioSwitch {
@@ -19,7 +19,7 @@ public:
         return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::CompaqAero1500;
     }
 
-    bool MicOn() override { return PinAt(kMicGpio, Vr41xxPinDrive::kHigh); }
+    bool MicOn() override { return PinAt(kMicGpio, PinDrive::kHigh); }
 
 protected:
     std::span<const Vr41xxAudioPin> SpeakerPins() const override { return kSpeakerPins; }

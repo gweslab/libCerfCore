@@ -1,4 +1,4 @@
-#include "../mips_kseg_page_table_builder.h"
+#include "../unmapped_window_page_table_builder.h"
 
 #include <cerfcore/boot/rom_parser_service.h>
 #include <cerfcore/core/cerf_emulator.h>
@@ -47,9 +47,9 @@ constexpr uint32_t kRegsPaBase = 0x10C00000u;
 constexpr uint32_t kRegsVaBase = 0xB0C00000u;
 constexpr uint32_t kRegsSize   = 0x00200000u;
 
-class PhilipsVelo1PageTableBuilder : public MipsKsegPageTableBuilder {
+class PhilipsVelo1PageTableBuilder : public UnmappedWindowPageTableBuilder {
 public:
-    using MipsKsegPageTableBuilder::MipsKsegPageTableBuilder;
+    using UnmappedWindowPageTableBuilder::UnmappedWindowPageTableBuilder;
 
     bool ShouldRegister() override {
         return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1;
@@ -68,7 +68,7 @@ public:
             if (h.physlast  > rom_va_end)  rom_va_end  = h.physlast;
         }
 
-        rom_ = Kseg0RomSpan(rom_va_base, rom_va_end);
+        rom_ = CachedWindowRomSpan(rom_va_base, rom_va_end);
 
         const ParsedROMHDR* hdr = prim.XipHeaderContaining(prim.entry_va);
         if (!hdr) {

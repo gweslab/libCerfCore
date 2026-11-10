@@ -26,7 +26,7 @@ public:
     std::string PackageName() const override { return "Charger/alarm LED"; }
     std::string ElementName() const override { return "Charge LED"; }
     WidgetRgb   LitColor() const override { return kClrChargeLit; }
-    bool        Lit() const override { return giu_->OutputDrive(kChargeLedGpio) == Vr41xxPinDrive::kHigh; }
+    bool        Lit() const override { return giu_->OutputDrive(kChargeLedGpio) == PinDrive::kHigh; }
 
 private:
     Vr41xxGiu* giu_ = nullptr;

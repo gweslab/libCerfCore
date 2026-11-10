@@ -1,4 +1,4 @@
-#include "../vr41xx/vr41xx_reg_window_impl.h"
+#include "../reg_window_impl.h"
 
 #include <cstdint>
 #include "vr4122_id.h"
@@ -7,10 +7,10 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowBase;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegWindowBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 constexpr ReadKind  kRd = ReadKind::kStored;
 constexpr WriteKind kWr = WriteKind::kStored;
@@ -19,7 +19,7 @@ constexpr WriteKind kWr = WriteKind::kStored;
    p174-183 (RTCRST == After-reset; DMAIDLEREG resets to 1). "Setting the DRQIOR
    bit to 1 starts DMA transfer" (9.3.5 p177); TCINT "is transmitted as BCUINT to
    the ICU" (9.3.13 p183) - both stay FATAL while the transfer engine is unmodeled. */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0F000040u,
     /*size=*/0x20u,
     /*num_regs=*/13u,
@@ -44,9 +44,9 @@ constexpr Vr41xxRegWindowModel kModel = {
     },
 };
 
-class Vr4122Dcu : public Vr41xxRegWindowBase<SocId::Vr4122, kModel> {
+class Vr4122Dcu : public RegWindowBase<SocId::Vr4122, kModel> {
 public:
-    using Vr41xxRegWindowBase::Vr41xxRegWindowBase;
+    using RegWindowBase::RegWindowBase;
 };
 
 }

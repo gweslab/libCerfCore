@@ -11,7 +11,7 @@ namespace cerfcore {
 
 namespace {
 
-constexpr Vr41xxAudioPin kSpeakerPins[] = {{49, Vr41xxPinDrive::kHigh}};
+constexpr Vr41xxAudioPin kSpeakerPins[] = {{49, PinDrive::kHigh}};
 
 class IbmWorkpadZ50AudioSwitch : public Vr41xxGpioAudioSwitch {
 public:

@@ -120,15 +120,15 @@ Vr41xxKiu::KscanDrive Vr41xxKiu::KscanDriveMasksLocked() const {
     return d;
 }
 
-std::optional<Vr41xxPinDrive> Vr41xxKiu::KscanDriveLocked(int gpio) {
+std::optional<PinDrive> Vr41xxKiu::KscanDriveLocked(int gpio) {
     const uint16_t   bit = static_cast<uint16_t>(1u << (gpio - kFirstKscanGpio));
     const KscanDrive d   = KscanDriveMasksLocked();
     if (d.released & bit) return std::nullopt;
     if (d.undefined & bit)
         HaltUnsupportedAccess("KIU KSCAN pin level while the sequencer state is undefined",
                               kBase + kOffScanLine, scanline_);
-    if ((d.driven & bit) == 0u) return Vr41xxPinDrive::kUndriven;
-    return (d.high & bit) ? Vr41xxPinDrive::kHigh : Vr41xxPinDrive::kLow;
+    if ((d.driven & bit) == 0u) return PinDrive::kUndriven;
+    return (d.high & bit) ? PinDrive::kHigh : PinDrive::kLow;
 }
 
 uint64_t Vr41xxKiu::DriveSignatureLocked() const {

@@ -84,19 +84,19 @@ public:
         for (uint32_t y = 0; y < copy_h; ++y) {
             const uint8_t* src_row = src_base + (size_t)y * stride;
             uint32_t* dst_row = dib_bgra32 + (size_t)y * host_w;
-            auto dot = [&](uint32_t d) -> uint32_t {
-                return d < s.dots ? level[lcd_pixel::PackedIndexMsbFirst(src_row, d, s.bits_per_pixel)] : 0u;
+            auto dot_level = [&](uint32_t d) -> uint32_t {
+                return level[lcd_pixel::PackedIndexMsbFirst(src_row, d, s.bits_per_pixel)];
             };
             for (uint32_t x = 0; x < copy_w; ++x) {
-                dst_row[x] = panel_color_ ? lcd_pixel::PackXrgb(dot(3u * x), dot(3u * x + 1u), dot(3u * x + 2u))
-                                          : MonoDot(dot(x));
+                dst_row[x] = panel_color_ ? lcd_pixel::SubPixelPanelPixel(x, s.dots, dot_level)
+                                          : MonoDot(x < s.dots ? dot_level(x) : 0u);
             }
         }
     }
 
 private:
     uint32_t Width(const Pr31x00Lcd::Scanout& s) const {
-        return panel_color_ ? (s.dots + 2u) / 3u : s.dots;
+        return panel_color_ ? lcd_pixel::SubPixelPanelWidth(s.dots) : s.dots;
     }
 
     bool panel_color_ = false;

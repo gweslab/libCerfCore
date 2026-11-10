@@ -1,4 +1,4 @@
-#include "../mips_kseg_page_table_builder.h"
+#include "../unmapped_window_page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/boards/board_context.h>
@@ -27,9 +27,9 @@ constexpr uint32_t kRegsVaBase = 0xB0C00000u;
 constexpr uint32_t kRegsPaBase = 0x10C00000u;
 constexpr uint32_t kRegsSize   = 0x00200000u;
 
-class SharpMobilonHcPageTableBuilder : public MipsKsegPageTableBuilder {
+class SharpMobilonHcPageTableBuilder : public UnmappedWindowPageTableBuilder {
 public:
-    using MipsKsegPageTableBuilder::MipsKsegPageTableBuilder;
+    using UnmappedWindowPageTableBuilder::UnmappedWindowPageTableBuilder;
 
     bool ShouldRegister() override {
         return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::SharpMobilonHc;

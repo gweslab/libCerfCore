@@ -16,15 +16,15 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::OtherReset;
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxBcuBase;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::OtherReset;
+using cerf_reg_window_detail::ReadKind;
+using cerf_vr41xx_bcu_detail::Vr41xxBcuBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 /* VR4121 BCU (Bus Control Unit), Internal I/O Space 2 (UM Table 1-1). The DMAAU
    block follows at 0x0B000020 (UM Table 1-2), so the BCU decodes 0x0B000000-1F. */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0B000000u,
     /*size=*/0x20u,
     16u,

@@ -40,6 +40,14 @@ inline uint32_t PackedIndexMsbFirst(const uint8_t* row, uint32_t x, uint32_t bpp
     return (row[bit >> 3] >> MsbFirstShift(bit, bpp)) & ((1u << bpp) - 1u);
 }
 
+inline uint32_t SubPixelPanelWidth(uint32_t dots) { return (dots + 2u) / 3u; }
+
+template <class DotLevel>
+inline uint32_t SubPixelPanelPixel(uint32_t x, uint32_t dots, DotLevel level) {
+    const auto dot = [&](uint32_t d) -> uint32_t { return d < dots ? level(d) : 0u; };
+    return PackXrgb(dot(3u * x), dot(3u * x + 1u), dot(3u * x + 2u));
+}
+
 }
 
 }

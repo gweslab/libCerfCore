@@ -11,15 +11,15 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::OtherReset;
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxBcuBase;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::OtherReset;
+using cerf_reg_window_detail::ReadKind;
+using cerf_vr41xx_bcu_detail::Vr41xxBcuBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 /* BCU 0x0B000000-0x0B00001F, DMAA follows at 0x0B000020 (VR4111 UM Table 6-10 p170);
    register offsets from UM Table 11-1 p263. */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0B000000u,
     /*size=*/0x20u,
     /*num_regs=*/12u,
@@ -49,7 +49,7 @@ constexpr Vr41xxRegWindowModel kModel = {
     },
 };
 
-using cerf_vr41xx_reg_window_detail::WritableAndWrite0Partition;
+using cerf_vr41xx_bcu_detail::WritableAndWrite0Partition;
 
 static_assert(WritableAndWrite0Partition(kModel, 0x00u) &&
                   WritableAndWrite0Partition(kModel, 0x02u) &&

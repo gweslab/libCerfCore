@@ -1,4 +1,4 @@
-#include "../mips_kseg_page_table_builder.h"
+#include "../unmapped_window_page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfengine/mips/mips_mmu.h>
@@ -16,9 +16,9 @@ constexpr uint32_t kDramPaBase = 0x00000000u;
 constexpr uint32_t kDramSize   = 0x08000000u;
 constexpr uint32_t kDramVaBase = cerfengine::MipsSeg::kKusegEnd | kDramPaBase;
 
-class NecSg2Vr5500PageTableBuilder : public MipsKsegPageTableBuilder {
+class NecSg2Vr5500PageTableBuilder : public UnmappedWindowPageTableBuilder {
 public:
-    using MipsKsegPageTableBuilder::MipsKsegPageTableBuilder;
+    using UnmappedWindowPageTableBuilder::UnmappedWindowPageTableBuilder;
 
     bool ShouldRegister() override {
         auto* bd = emu_.TryGet<BoardContext>();

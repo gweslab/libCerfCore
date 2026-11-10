@@ -1,10 +1,11 @@
-#include "../mips_kseg_page_table_builder.h"
+#include "../unmapped_window_page_table_builder.h"
 
 #include <cerfcore/boards/board_context.h>
 #include "../../core/board_config.h"
 #include "../dram_card_param.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/cpu/memory_kind.h>
+#include <cerfengine/unmapped_windows.h>
 #include "ibm_workpad_z50_dram_layout.h"
 #include "ibm_workpad_z50_family_id.h"
 #include "ibm_workpad_z50_member_straps.h"
@@ -17,12 +18,11 @@ namespace cerfcore {
 namespace {
 
 constexpr DramRegion kDram              = { 0x80000000u, 0x00000000u, kIbmWorkpadZ50DramBankBytes };
-constexpr uint32_t   kKseg0Base         = 0x80000000u;
 constexpr uint32_t   kChecksumWordBytes = 4u;
 
-class IbmWorkpadZ50PageTableBuilder : public MipsKsegPageTableBuilder {
+class IbmWorkpadZ50PageTableBuilder : public UnmappedWindowPageTableBuilder {
 public:
-    using MipsKsegPageTableBuilder::MipsKsegPageTableBuilder;
+    using UnmappedWindowPageTableBuilder::UnmappedWindowPageTableBuilder;
 
     bool ShouldRegister() override {
         return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::IbmWorkpadZ50;
@@ -30,13 +30,15 @@ public:
 
     void OnReady() override {
         const auto& straps = emu_.Get<IbmWorkpadZ50MemberStraps>();
-        card_ = Kseg0RomSpan(kKseg0Base + straps.RomCardPa(),
-                             kKseg0Base + kIbmWorkpadZ50RomSpaceEndPa);
+        card_ = CachedWindowRomSpan(cerfengine::UnmappedWindows::kCachedBase + straps.RomCardPa(),
+                                    cerfengine::UnmappedWindows::kCachedBase +
+                                        kIbmWorkpadZ50RomSpaceEndPa);
         dram_ = { kDram };
         const uint32_t card_bytes = emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes);
         for (uint32_t off = 0; off < card_bytes; off += kIbmWorkpadZ50DramBankBytes) {
             const uint32_t pa = kIbmWorkpadZ50ExpansionDramPa + off;
-            dram_.push_back({ kKseg0Base + pa, pa, kIbmWorkpadZ50DramBankBytes });
+            dram_.push_back({ cerfengine::UnmappedWindows::kCachedBase + pa, pa,
+                              kIbmWorkpadZ50DramBankBytes });
         }
     }
 

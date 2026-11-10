@@ -7,9 +7,9 @@ namespace cerfcore {
 
 namespace {
 
-using cerf_vr41xx_reg_window_detail::ReadKind;
-using cerf_vr41xx_reg_window_detail::Vr41xxRegWindowModel;
-using cerf_vr41xx_reg_window_detail::WriteKind;
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
 
 constexpr ReadKind  kRd = ReadKind::kStored;
 constexpr WriteKind kWr = WriteKind::kStored;
@@ -20,7 +20,7 @@ constexpr WriteKind kWr = WriteKind::kStored;
 /* Accessors: casio_cassiopeia_e55 nk.exe sub_9E816964 @0x9E8169BC DMASENREG=1, @0x9E8169B0
    DMAMSKREG=0; sub_9E81665C @0x9E81686C reads DMAMSKREG and @0x9E816870 branches on it;
    wavedev.dll sub_14B1804 read-modify-writes it via sub_14B39B8(pVRIO+70, 0xFFF7, 0). */
-constexpr Vr41xxRegWindowModel kModel = {
+constexpr RegWindowModel kModel = {
     /*base=*/0x0B000040u,
     /*size=*/0x20u,
     /*num_regs=*/6u,

@@ -1,4 +1,4 @@
-#include "../mips_kseg_dram_rom_page_table_builder.h"
+#include "../unmapped_window_dram_rom_page_table_builder.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/boards/board_context.h>
@@ -19,10 +19,10 @@ constexpr uint32_t kRomVaBase = 0x9F000000u;
 constexpr uint32_t kRomPaBase = 0x1F000000u;
 constexpr uint32_t kRomSize   = 0x01000000u;
 
-class CompaqAero1500PageTableBuilder : public MipsKsegDramRomPageTableBuilder {
+class CompaqAero1500PageTableBuilder : public UnmappedWindowDramRomPageTableBuilder {
 public:
     explicit CompaqAero1500PageTableBuilder(CerfEmulator& emu)
-        : MipsKsegDramRomPageTableBuilder(emu, {
+        : UnmappedWindowDramRomPageTableBuilder(emu, {
               { kDramVaBase, kDramPaBase, kDramSize }, 0u, kDramSpanSize,
           }, { kRomVaBase, kRomPaBase, kRomSize }) {}
 

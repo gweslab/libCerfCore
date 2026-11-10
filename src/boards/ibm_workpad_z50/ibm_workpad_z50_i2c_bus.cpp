@@ -47,8 +47,8 @@ public:
 
 private:
     void OnPins() {
-        const bool scl = giu_->OutputDrive(kSclGpio) != Vr41xxPinDrive::kLow;
-        const bool sda = giu_->OutputDrive(kSdaGpio) != Vr41xxPinDrive::kLow && sda_released_;
+        const bool scl = giu_->OutputDrive(kSclGpio) != PinDrive::kLow;
+        const bool sda = giu_->OutputDrive(kSdaGpio) != PinDrive::kLow && sda_released_;
         target_->OnLines(scl, sda);
     }
 

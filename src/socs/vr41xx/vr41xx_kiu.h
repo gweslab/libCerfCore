@@ -125,7 +125,7 @@ private:
         uint16_t high      = 0;
     };
     KscanDrive KscanDriveMasksLocked() const;
-    std::optional<Vr41xxPinDrive> KscanDriveLocked(int gpio);
+    std::optional<PinDrive> KscanDriveLocked(int gpio);
     uint64_t DriveSignatureLocked() const;
     void NoteDriveLocked();
     void FlushDriveChange();

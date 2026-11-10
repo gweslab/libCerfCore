@@ -1,18 +1,18 @@
-#include "mips_kseg_dram_rom_page_table_builder.h"
+#include "unmapped_window_dram_rom_page_table_builder.h"
 
 namespace cerfcore {
 
-void MipsKsegDramRomPageTableBuilder::OnReady() {
+void UnmappedWindowDramRomPageTableBuilder::OnReady() {
     if (rom_from_entry_xip_) {
         rom_ = PlaceEntryXipRom(dram_.region.va_base, dram_.region.size);
     }
 }
 
-std::vector<DramRegion> MipsKsegDramRomPageTableBuilder::CachedDramRegions() const {
+std::vector<DramRegion> UnmappedWindowDramRomPageTableBuilder::CachedDramRegions() const {
     return { dram_.region };
 }
 
-std::vector<BackedRegion> MipsKsegDramRomPageTableBuilder::BackedMemoryRegions() const {
+std::vector<BackedRegion> UnmappedWindowDramRomPageTableBuilder::BackedMemoryRegions() const {
     return {
         { dram_.region.va_base, dram_.region.pa_base, dram_.region.size, MemoryKind::kRam,
           dram_.decode_span },
@@ -20,7 +20,7 @@ std::vector<BackedRegion> MipsKsegDramRomPageTableBuilder::BackedMemoryRegions()
     };
 }
 
-std::vector<DramRegion> MipsKsegDramRomPageTableBuilder::MappedVaSpans() const {
+std::vector<DramRegion> UnmappedWindowDramRomPageTableBuilder::MappedVaSpans() const {
     return {
         { dram_.region.va_base, dram_.region.pa_base, dram_.mapped_span },
         rom_,

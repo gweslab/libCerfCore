@@ -75,7 +75,7 @@ bool IbmWorkpadZ50Battery::OnAc() const { return !battery_.IsOnBattery(); }
 int IbmWorkpadZ50Battery::FillPercent() const { return battery_.FillPercent(); }
 
 bool IbmWorkpadZ50Battery::ChargerDisabled() const {
-    return giu_->OutputDrive(kChargerDisableGpio) == Vr41xxPinDrive::kHigh;
+    return giu_->OutputDrive(kChargerDisableGpio) == PinDrive::kHigh;
 }
 
 bool IbmWorkpadZ50Battery::Charging() const {

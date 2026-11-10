@@ -9,7 +9,7 @@ namespace cerfcore {
 struct ParsedRom;
 struct ParsedROMHDR;
 
-class MipsKsegPageTableBuilder : public PageTableBuilder {
+class UnmappedWindowPageTableBuilder : public PageTableBuilder {
 public:
     using PageTableBuilder::PageTableBuilder;
 
@@ -20,7 +20,7 @@ public:
 protected:
     const ParsedRom& PrimaryRom() const;
 
-    DramRegion Kseg0RomSpan(uint32_t va_first, uint32_t va_end) const;
+    DramRegion CachedWindowRomSpan(uint32_t va_first, uint32_t va_end) const;
 
     void RequireRamEndWithin(const ParsedROMHDR& hdr, uint32_t dram_va,
                              uint32_t dram_size) const;

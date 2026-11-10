@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include "../../peripherals/pin_drive.h"
 
 #include <cstdint>
 #include <functional>
@@ -10,8 +11,6 @@ namespace cerfcore {
 
 class StateWriter;
 class StateReader;
-
-enum class Vr41xxPinDrive : uint8_t { kLow, kHigh, kUndriven };
 
 /* NEC VR41xx GIU (General Purpose I/O Unit): the GPIO direction/data registers plus
    the Level-2 GPIO interrupt block, whose output the ICU takes as GIUINTLREG/
@@ -31,9 +30,9 @@ public:
     virtual uint16_t OutputDataLow() = 0;
     virtual void     RegisterOutputDataLowListener(std::function<void(uint16_t previous)> fn) = 0;
 
-    using AlternateFunction = std::function<std::optional<Vr41xxPinDrive>(int gpio)>;
+    using AlternateFunction = std::function<std::optional<PinDrive>(int gpio)>;
     virtual void RegisterAlternateFunction(int first_gpio, int last_gpio, AlternateFunction fn) = 0;
-    virtual Vr41xxPinDrive OutputDrive(int gpio) = 0;
+    virtual PinDrive OutputDrive(int gpio) = 0;
     virtual void RegisterOutputDriveListener(std::function<void()> fn) = 0;
     virtual void NotifyOutputDriveChanged() = 0;
 

@@ -74,7 +74,7 @@ public:
         emu_.Get<Fatal>().Die("Vr4122Giu::OutputDataLow: the VR4122 GIU has no GIUPODATL at 0x1C");
     }
 
-    Vr41xxPinDrive OutputDrive(int gpio) override {
+    PinDrive OutputDrive(int gpio) override {
         emu_.Get<Fatal>().Die("Vr4122Giu::OutputDrive: GPIO%d is not modeled", gpio);
     }
 

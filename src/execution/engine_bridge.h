@@ -42,6 +42,7 @@ public:
     bool HasPcTraceIn(uint32_t first_pc, uint32_t last_pc) override;
     void OnArmPcTrace(uint32_t pc, const uint32_t* gprs, uint32_t cpsr) override;
     void OnMipsPcTrace(uint32_t pc, const cerfengine::MipsCpuState* state) override;
+    void OnShPcTrace(uint32_t pc, const cerfengine::ShCpuState* state) override;
 
     [[noreturn]] void Panic(const char* message) override;
     void Log(cerfengine::LogChannel channel, const char* text) override;

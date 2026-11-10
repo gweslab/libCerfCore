@@ -2,7 +2,7 @@
 
 #include "vr41xx_bcu_boot_write.h"
 #include "vr41xx_bcu_regs.h"
-#include "vr41xx_reg_window_impl.h"
+#include "../reg_window_impl.h"
 
 #include <cerfcore/core/fatal.h>
 #include "../../peripherals/peripheral_dispatcher.h"
@@ -12,23 +12,29 @@
 
 namespace cerfcore {
 
-namespace cerf_vr41xx_reg_window_detail {
+namespace cerf_vr41xx_bcu_detail {
 
-constexpr bool WritableAndWrite0Disjoint(const Vr41xxRegWindowModel& m) {
+using cerf_reg_window_detail::ReadKind;
+using cerf_reg_window_detail::RegSpec;
+using cerf_reg_window_detail::RegWindowBase;
+using cerf_reg_window_detail::RegWindowModel;
+using cerf_reg_window_detail::WriteKind;
+
+constexpr bool WritableAndWrite0Disjoint(const RegWindowModel& m) {
     for (uint32_t i = 0; i < m.num_regs; ++i) {
         if ((m.reg[i].wmask & m.reg[i].fatal_on_set) != 0u) return false;
     }
     return true;
 }
 
-constexpr bool WritableAndWrite0Partition(const Vr41xxRegWindowModel& m, uint32_t off) {
-    const Vr41xxRegSpec& r = m.reg[off / 2u];
+constexpr bool WritableAndWrite0Partition(const RegWindowModel& m, uint32_t off) {
+    const RegSpec& r = m.reg[off / 2u];
     return (r.wmask & r.fatal_on_set) == 0u && (r.wmask | r.fatal_on_set) == 0xFFFFu;
 }
 
-template <const std::string_view& Soc, const Vr41xxRegWindowModel& M>
-class Vr41xxBcuBase : public Vr41xxRegWindowBase<Soc, M> {
-    using Base = Vr41xxRegWindowBase<Soc, M>;
+template <const std::string_view& Soc, const RegWindowModel& M>
+class Vr41xxBcuBase : public RegWindowBase<Soc, M> {
+    using Base = RegWindowBase<Soc, M>;
 
     static constexpr uint32_t kCnt1Slot = vr41xx_bcu::kOffCnt1 / 2u;
     static constexpr uint32_t kCnt2Slot = vr41xx_bcu::kOffCnt2 / 2u;
