@@ -8,6 +8,7 @@
 #include <cerfcore/host/configuration_problem.h>
 #include <cerfcore/platform/host_file.h>
 #include "../compactflash/compactflash_card.h"
+#include "../realtek_rtl8019/rtl8019.h"
 #include "pcmcia_card_catalog.h"
 #include "pcmcia_slot.h"
 
@@ -40,7 +41,7 @@ void PcmciaAutoInsert::InsertDefaultNetworkCard(PcmciaSlot& slot) {
         return;
     }
 
-    slot.InsertCard(emu_.Get<PcmciaCardCatalog>().Create("ne2000"));
+    slot.InsertCard(emu_.Get<PcmciaCardCatalog>().Create(Rtl8019::kSaveId));
 }
 
 void PcmciaAutoInsert::InsertLaunchCompactFlash(PcmciaSlot& slot) {

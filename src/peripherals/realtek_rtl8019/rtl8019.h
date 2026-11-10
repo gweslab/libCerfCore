@@ -16,13 +16,23 @@ namespace cerfcore {
 
 class Rtl8019 : public PcmciaCard {
 public:
-    static constexpr const char* kDisplayName = "NE2000 Ethernet (RTL8019)";
+    enum class Supply { k5V, k3V3 };
 
-    explicit Rtl8019(CerfEmulator& emu);
+    static constexpr const char* kDisplayName    = "NE2000 Ethernet (RTL8019)";
+    static constexpr const char* kDisplayName3V3 = "NE2000 Ethernet (3.3 V)";
+    static constexpr const char* kSaveId         = "ne2000";
+    static constexpr const char* kSaveId3V3      = "ne2000_3v3";
+
+    Rtl8019(CerfEmulator& emu, Supply supply);
     ~Rtl8019() override;
 
-    std::string DisplayName() const override { return kDisplayName; }
-    PcmciaVoltageSense VoltageSense() const override { return { false, false, false }; }
+    std::string DisplayName() const override {
+        return supply_ == Supply::k3V3 ? kDisplayName3V3 : kDisplayName;
+    }
+    PcmciaVoltageSense VoltageSense() const override {
+        return supply_ == Supply::k3V3 ? PcmciaVoltageSense{ true, false, false }
+                                       : PcmciaVoltageSense{ false, false, false };
+    }
     bool HoldsReadyBusyInReset() const override { return false; }
     std::string TooltipDetail() const override;
     const char* IconResource() const override { return "pcmcia_enabled_ethernet"; }
@@ -50,7 +60,9 @@ public:
 
     std::vector<WidgetControl> CardControls() override;
 
-    const char* SaveId() const override { return "ne2000"; }
+    const char* SaveId() const override {
+        return supply_ == Supply::k3V3 ? kSaveId3V3 : kSaveId;
+    }
     void SaveState(StateWriter& w) override;
     void RestoreState(StateReader& r) override;
     void PostRestore() override;
@@ -73,6 +85,8 @@ private:
 
     bool IoIgnoredLocked() const;
     bool MapCardIoLocked(uint32_t card_io, uint32_t* reg) const;
+
+    const Supply supply_;
 
     std::string rx_id_;
     std::array<uint8_t, kMacLen> guest_mac_{};

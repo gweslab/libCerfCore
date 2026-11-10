@@ -67,8 +67,8 @@ constexpr uint32_t kRemoteDmaPortLast  = 0x17;
 
 }
 
-Rtl8019::Rtl8019(CerfEmulator& emu)
-    : PcmciaCard(emu), nic_(*this, card_rom_, card_ram_),
+Rtl8019::Rtl8019(CerfEmulator& emu, Supply supply)
+    : PcmciaCard(emu), supply_(supply), nic_(*this, card_rom_, card_ram_),
       receiver_(nic_, card_ram_) {
     guest_mac_ = emu_.Get<NetworkBackend>().GuestMacAddress();
     WriteMacProm();

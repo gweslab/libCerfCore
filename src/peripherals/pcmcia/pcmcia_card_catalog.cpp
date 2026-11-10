@@ -16,7 +16,6 @@ namespace cerfcore {
 
 namespace {
 
-const char kIdNe2000[]    = "ne2000";
 const char kIdHpVga[]     = "hpvga";
 const char kIdSerial[]    = "serial";
 const char kIdSerialFwd[] = "serial_fwd";
@@ -25,8 +24,12 @@ const char kIdSerialFwd[] = "serial_fwd";
 
 void PcmciaCardCatalog::OnReady() {
     Entry ne2000;
-    ne2000.id           = kIdNe2000;
+    ne2000.id           = Rtl8019::kSaveId;
     ne2000.display_name = Rtl8019::kDisplayName;
+
+    Entry ne2000_3v3;
+    ne2000_3v3.id           = Rtl8019::kSaveId3V3;
+    ne2000_3v3.display_name = Rtl8019::kDisplayName3V3;
 
     Entry cf;
     cf.id           = "cf";
@@ -61,6 +64,7 @@ void PcmciaCardCatalog::OnReady() {
     };
 
     entries_.push_back(std::move(ne2000));
+    entries_.push_back(std::move(ne2000_3v3));
     entries_.push_back(std::move(cf));
     entries_.push_back(std::move(hpvga));
     entries_.push_back(std::move(serial));
@@ -69,7 +73,8 @@ void PcmciaCardCatalog::OnReady() {
 
 std::unique_ptr<PcmciaCard> PcmciaCardCatalog::TryCreate(const std::string& id,
                                                          const std::string& binding) {
-    if (id == kIdNe2000)    return std::make_unique<Rtl8019>(emu_);
+    if (id == Rtl8019::kSaveId)    return std::make_unique<Rtl8019>(emu_, Rtl8019::Supply::k5V);
+    if (id == Rtl8019::kSaveId3V3) return std::make_unique<Rtl8019>(emu_, Rtl8019::Supply::k3V3);
     if (id == "cf")         return std::make_unique<CompactFlashCard>(emu_, binding);
     if (id == kIdHpVga)     return std::make_unique<HpPalmtopVgaCard>(emu_);
     if (id == kIdSerial)    return std::make_unique<SerialPcCard>(emu_);

@@ -43,6 +43,8 @@ constexpr uint32_t kPcsrS0Vs1 = 1u << 4;
 constexpr uint32_t kPcsrS0Vs2 = 1u << 5;
 constexpr uint32_t kPcsrS1Vs1 = 1u << 6;
 constexpr uint32_t kPcsrS1Vs2 = 1u << 7;
+constexpr uint32_t kPcsrS0Wp  = 1u << 8;
+constexpr uint32_t kPcsrS1Wp  = 1u << 9;
 constexpr uint32_t kPcsrS0Bvd1 = 1u << 10;
 constexpr uint32_t kPcsrS0Bvd2 = 1u << 11;
 constexpr uint32_t kPcsrS1Bvd1 = 1u << 12;
@@ -158,6 +160,8 @@ protected:
             }
             DriveCardDetect(*slots_[0]);
             DriveCardDetect(*slots_[1]);
+            DriveReady(0);
+            DriveReady(1);
         }
         UpdateResetSignals();
     }
@@ -176,7 +180,9 @@ private:
 
     /* Table 12-3 (page 12-7) S0_READY_nIREQ: "Input from PC Card Socket RDY/nIRQ signal. This
        signal can be accessed through Status Register and used as an interrupt source." */
-    bool ReadyPinLocked(int n) const { return slots_[n]->IsPowered() && !ready_ireq_low_[n]; }
+    bool ReadyPinLocked(int n) const { return !(slots_[n]->IsPowered() && ready_ireq_low_[n]); }
+
+    bool CardDrivesPins(int n) const { return slots_[n]->HasCard() && slots_[n]->IsPowered(); }
 
     void PublishReadyLocked(int n) {
         emu_.Get<Sa1111Intc>().SetSourceLevel(n == 0 ? kIntS0Ready : kIntS1Ready,
@@ -201,8 +207,13 @@ private:
             ready0 = ReadyPinLocked(0);
             ready1 = ReadyPinLocked(1);
         }
-        uint32_t v = kPcsrS0Vs1 | kPcsrS0Vs2 | kPcsrS1Vs1 | kPcsrS1Vs2 |
-                     kPcsrS0Bvd1 | kPcsrS0Bvd2 | kPcsrS1Bvd1 | kPcsrS1Bvd2;
+        uint32_t v = kPcsrS0Bvd1 | kPcsrS0Bvd2 | kPcsrS1Bvd1 | kPcsrS1Bvd2;
+        if (!slots_[0]->Vs1Grounded()) v |= kPcsrS0Vs1;
+        if (!slots_[0]->Vs2Grounded()) v |= kPcsrS0Vs2;
+        if (!slots_[1]->Vs1Grounded()) v |= kPcsrS1Vs1;
+        if (!slots_[1]->Vs2Grounded()) v |= kPcsrS1Vs2;
+        if (!CardDrivesPins(0)) v |= kPcsrS0Wp;
+        if (!CardDrivesPins(1)) v |= kPcsrS1Wp;
         if (!slots_[0]->HasCard()) v |= kPcsrS0CdInvalid;
         if (!slots_[1]->HasCard()) v |= kPcsrS1CdInvalid;
         if (ready0) v |= kPcsrS0Ready;

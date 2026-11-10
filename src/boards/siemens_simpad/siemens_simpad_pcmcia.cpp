@@ -49,6 +49,9 @@ public:
        is powered-while-occupied (OnCardDetectChanged) and these bits are inert here. */
     void OnCs3LatchChanged(uint16_t /*latch*/) override {}
 
+    bool CardVs1Grounded() const override { return slot_.Vs1Grounded(); }
+    bool CardVs2Grounded() const override { return slot_.Vs2Grounded(); }
+
     void OnCardDetectChanged(PcmciaSlot& slot) override {
         const bool present = slot.HasCard();
         slot.SetPowered(present);

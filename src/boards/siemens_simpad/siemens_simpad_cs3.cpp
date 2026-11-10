@@ -72,8 +72,7 @@ private:
             (shadow_ & kDectPowerOn) ? "DECT_POWER_ON " : "",
             (shadow_ & kLed2On)      ? "LED2_ON "       : "",
             (shadow_ & kResetSimcard)? "RESET_SIMCARD " : "");
-        if (auto* sink = emu_.TryGet<SiemensSimpadCs3Sink>())
-            sink->OnCs3LatchChanged(shadow_);
+        emu_.Get<SiemensSimpadCs3Sink>().OnCs3LatchChanged(shadow_);
     }
 
     uint16_t shadow_ = 0;
