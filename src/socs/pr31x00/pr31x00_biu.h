@@ -42,6 +42,7 @@ private:
     void WriteConfig3(uint32_t addr, uint32_t value);
     void WriteConfig4(uint32_t addr, uint32_t value);
     void ApplyCsPortSizes();
+    void ApplyUserWindows();
 
     static constexpr uint32_t kRegs = 5;   /* MEM_CONFIG0..MEM_CONFIG4 */
     static constexpr uint32_t kCsWindows = 8;

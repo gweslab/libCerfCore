@@ -4,6 +4,7 @@
 #include "../../core/board_config.h"
 #include "../dram_card_param.h"
 #include "philips_velo_1_family_id.h"
+#include "philips_velo_1_rom_upgrade_card.h"
 
 #include <cstdint>
 #include <optional>
@@ -18,8 +19,6 @@ namespace {
    bit. This board fits the M-Module, so its Iceberg answers CS2. */
 constexpr uint32_t kMModuleAttached = 1u << 0;
 
-/* IO[6] Miniature Card detect for slot 2, active low, empty (philips_velo_1_ce1
-   nk.1.exe sub_9FB1A0C4, sub_9FB0F424 "No Mini Card in Slot N"). */
 constexpr uint32_t kMiniCardSlot2 = 1u << 6;
 
 /* IO[5] slot 1 card detect: philips_velo_1_ce1 nk.exe sub_9F42453C @0x9F42453C
@@ -39,13 +38,13 @@ public:
     using Pr31x00IoPins::Pr31x00IoPins;
 
     bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1;
+        return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1;
     }
 
     void OnReady() override {
         const bool card = emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes) != 0u;
-        io_din_ = kMModuleAttached | kMiniCardSlot2 | (card ? 0u : kMiniCardSlot1);
+        const bool rom_card = emu_.Get<PhilipsVelo1RomUpgradeCard>().Fitted();
+        io_din_ = kMModuleAttached | (rom_card ? 0u : kMiniCardSlot2) | (card ? 0u : kMiniCardSlot1);
     }
 
     uint32_t IoDin() const override { return io_din_; }

@@ -4,11 +4,14 @@
 #include "pr31500_id.h"
 #include "pr31700_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/cpu/emulated_memory.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
+#include "pr31x00_chip_selects.h"
 #include "pr31x00_reset_line.h"
 
 #include <cstdint>
+#include <iterator>
 
 namespace cerfcore {
 
@@ -65,19 +68,6 @@ constexpr uint32_t kCardMemEnd     = 0x6C000000u;
 constexpr uint32_t kMcsBase        = 0x6C000000u;
 constexpr uint32_t kMcsEnd         = 0x7C000000u;
 
-struct CsWindow {
-    uint32_t base;
-    uint32_t end;
-    uint32_t cs;
-};
-
-constexpr CsWindow kCsWindowMap[] = {
-    {0x11000000u, 0x20000000u, 0u}, {0x50000000u, 0x58000000u, 0u},
-    {0x10000000u, 0x10400000u, 1u}, {0x58000000u, 0x5C000000u, 1u},
-    {0x10400000u, 0x10800000u, 2u}, {0x5C000000u, 0x60000000u, 2u},
-    {0x10800000u, 0x10C00000u, 3u}, {0x60000000u, 0x64000000u, 3u},
-};
-
 }  /* namespace */
 
 bool Pr31x00Biu::ShouldRegister() {
@@ -86,25 +76,36 @@ bool Pr31x00Biu::ShouldRegister() {
 }
 
 void Pr31x00Biu::OnReady() {
+    static_assert(std::size(kPr31x00ChipSelectWindows) == kCsWindows);
     auto& dispatcher = emu_.Get<PeripheralDispatcher>();
     dispatcher.Register(this);
     dispatcher.InstallHalfwordPort(kCardIoAttrBase, kCardIoAttrEnd, true);
     dispatcher.InstallHalfwordPort(kCardMemBase, kCardMemEnd, true);
     dispatcher.InstallHalfwordPort(kMcsBase, kMcsEnd, true);
     for (uint32_t i = 0; i < kCsWindows; ++i) {
-        const CsWindow& w = kCsWindowMap[i];
+        const Pr31x00ChipSelectWindow& w = kPr31x00ChipSelectWindows[i];
         cs_ports_[i] = dispatcher.InstallHalfwordPort(w.base, w.end, (reg_[0] & (1u << w.cs)) == 0u);
     }
+    ApplyUserWindows();
     emu_.Get<Pr31x00ResetLine>().RegisterResetListener([this] {
         reg_ = kResetRegs;
         ApplyCsPortSizes();
+        ApplyUserWindows();
     });
 }
 
 void Pr31x00Biu::ApplyCsPortSizes() {
     auto& dispatcher = emu_.Get<PeripheralDispatcher>();
     for (uint32_t i = 0; i < kCsWindows; ++i) {
-        dispatcher.SetHalfwordPort(cs_ports_[i], (reg_[0] & (1u << kCsWindowMap[i].cs)) == 0u);
+        dispatcher.SetHalfwordPort(cs_ports_[i],
+                                   (reg_[0] & (1u << kPr31x00ChipSelectWindows[i].cs)) == 0u);
+    }
+}
+
+void Pr31x00Biu::ApplyUserWindows() {
+    auto& memory = emu_.Get<EmulatedMemory>();
+    for (const Pr31x00ChipSelectWindow& w : kPr31x00ChipSelectWindows) {
+        if (w.enable) memory.SetBusAccess(w.base, (reg_[0] & w.enable) != 0u);
     }
 }
 
@@ -150,6 +151,7 @@ void Pr31x00Biu::WriteConfig0(uint32_t addr, uint32_t value) {
     }
     reg_[0] = value;
     ApplyCsPortSizes();
+    ApplyUserWindows();
 }
 
 void Pr31x00Biu::WriteConfig3(uint32_t addr, uint32_t value) {
@@ -181,6 +183,7 @@ void Pr31x00Biu::SaveState(StateWriter& w) {
 void Pr31x00Biu::RestoreState(StateReader& r) {
     for (uint32_t i = 0; i < kRegs; ++i) r.Read("reg", reg_[i]);
     ApplyCsPortSizes();
+    ApplyUserWindows();
 }
 
 REGISTER_SERVICE(Pr31x00Biu);

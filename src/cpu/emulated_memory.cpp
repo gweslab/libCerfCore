@@ -313,7 +313,20 @@ EmulatedMemory::Region* EmulatedMemory::BulkRegionFor(uint32_t vaddr,
 }
 
 void EmulatedMemory::CopyIn(uint32_t vaddr, const void* host_src, size_t size) {
-    Region* r = BulkRegionFor(vaddr, size, "CopyIn");
+    CopyIntoRegion(BulkRegionFor(vaddr, size, "CopyIn"), vaddr, host_src, size);
+}
+
+void EmulatedMemory::LoadContents(uint32_t paddr, const void* host_src, size_t size) {
+    Region* r = FindBackingRegion(paddr);
+    if (!r || static_cast<uint64_t>(paddr) + size > static_cast<uint64_t>(r->base) + r->size) {
+        emu_.Get<Fatal>().Die("EmulatedMemory::LoadContents 0x%08X size 0x%zX is not inside "
+                              "one region", paddr, size);
+    }
+    CopyIntoRegion(r, paddr, host_src, size);
+}
+
+void EmulatedMemory::CopyIntoRegion(Region* r, uint32_t vaddr, const void* host_src,
+                                    size_t size) {
     uint8_t* host = EnsureBacked(r);
     const uint8_t* src = static_cast<const uint8_t*>(host_src);
     const uint64_t block = DecodeBlock(*r);

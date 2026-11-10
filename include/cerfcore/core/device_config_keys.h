@@ -20,6 +20,7 @@ inline constexpr char kPrimary[]               = "primary";
 inline constexpr char kEeprom[]                = "eeprom";
 inline constexpr char kCeDictionary[]          = "ce_dictionary";
 inline constexpr char kLumia800UserAreaErase[] = "lumia800_user_area_erase";
+inline constexpr char kVelo1RomUpgradeCard[]   = "velo1_rom_upgrade_card";
 inline constexpr char kRecovery[]              = "recovery";
 inline constexpr char kExtensions[]            = "extensions";
 inline constexpr char kStorage[]               = "storage";

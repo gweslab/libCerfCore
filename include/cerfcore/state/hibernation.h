@@ -33,6 +33,7 @@ public:
 
     void RegisterPreSaveListener(std::function<void()> fn);
     void RegisterPostRestoreListener(std::function<void()> fn);
+    void RegisterRomImage(uint64_t bytes);
 
     void OnShutdown() override;
 
@@ -70,6 +71,7 @@ private:
 
     std::vector<std::function<void()>> pre_save_listeners_;
     std::vector<std::function<void()>> post_restore_listeners_;
+    uint64_t                           registered_rom_bytes_ = 0;
 };
 
 }

@@ -53,6 +53,10 @@ void Hibernation::RegisterPostRestoreListener(std::function<void()> fn) {
     post_restore_listeners_.push_back(std::move(fn));
 }
 
+void Hibernation::RegisterRomImage(uint64_t bytes) {
+    registered_rom_bytes_ += bytes;
+}
+
 bool Hibernation::ClaimWorker() {
     if (busy_.exchange(true, std::memory_order_acq_rel)) {
         emu_.Get<NotificationStack>().PostError("A save or a load is already running");
@@ -121,7 +125,7 @@ StateImageHeader Hibernation::LiveHeader() const {
     StateImageHeader h{};
     h.rom_entry_va      = (rom && rom->Ok()) ? rom->Primary().entry_va : 0;
     h.periph_layout_sig = PeripheralLayoutSig();
-    uint64_t total = 0;
+    uint64_t total = registered_rom_bytes_;
     if (rom) for (const auto& p : rom->Loaded()) total += p.raw.size();
     h.rom_total_bytes = total;
     h.guest_additions = emu_.Get<DeviceConfig>().guest_additions ? 1u : 0u;

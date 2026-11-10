@@ -183,6 +183,9 @@ void ConfigLoader::LoadRom(const json& root, DeviceConfig& config, const std::st
     if (r.contains(config_key::kLumia800UserAreaErase))
         config.rom_lumia800_user_area_erase =
             Reader().ReadOptString(r, config_key::kLumia800UserAreaErase, path, config_key::kRom);
+    if (r.contains(config_key::kVelo1RomUpgradeCard))
+        config.rom_velo1_rom_upgrade_card =
+            Reader().ReadOptString(r, config_key::kVelo1RomUpgradeCard, path, config_key::kRom);
     if (r.contains(config_key::kRecovery))
         config.rom_recovery = Reader().ReadOptString(r, config_key::kRecovery, path, config_key::kRom);
     if (r.contains(config_key::kExtensions)) {

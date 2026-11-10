@@ -69,6 +69,8 @@ public:
        unmapped destination or boundary-crossing copy. */
     void CopyIn(uint32_t vaddr, const void* host_src, size_t size);
 
+    void LoadContents(uint32_t paddr, const void* host_src, size_t size);
+
     /* Bulk copy out of emulated memory. Same one-region contract as
        CopyIn. */
     void CopyOut(uint32_t vaddr, void* host_dst, size_t size);
@@ -141,6 +143,7 @@ private:
        or fatal (unmapped / boundary-crossing). */
     Region*  BulkRegionFor(uint32_t vaddr, size_t size, const char* op);
     Region*  BulkRegion(uint32_t vaddr, size_t size);
+    void     CopyIntoRegion(Region* r, uint32_t vaddr, const void* host_src, size_t size);
     static bool IsFlash(const Region& r);
     uint32_t RegionCount(bool flash) const;
     void     SaveRegions(StateWriter& w, bool flash);

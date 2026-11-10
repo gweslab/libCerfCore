@@ -7,7 +7,11 @@
 #include <cerfcore/boards/board_context.h>
 #include "../../core/board_config.h"
 #include "../dram_card_param.h"
+#include <cerfengine/mips/mips_mmu.h>
+#include "../../socs/pr31x00/pr31x00_chip_selects.h"
 #include "philips_velo_1_family_id.h"
+#include "philips_velo_1_internal_flash.h"
+#include "philips_velo_1_rom_upgrade_card.h"
 
 #include <cstdint>
 #include <vector>
@@ -48,8 +52,7 @@ public:
     using MipsKsegPageTableBuilder::MipsKsegPageTableBuilder;
 
     bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1;
+        return emu_.Get<BoardContext>().GetBoardFamilyId() == BoardFamilyId::PhilipsVelo1;
     }
 
     void OnReady() override {
@@ -76,6 +79,18 @@ public:
         RequireRamEndWithin(*hdr, kDramVaBase, kDramSize);
 
         card_bytes_ = emu_.Get<BoardConfig>().Enum(BoardConfigParamId::DramCard, kDramCardBytes);
+        const auto& flash = emu_.Get<PhilipsVelo1InternalFlash>();
+        mirror_pa_   = flash.ResetMirrorPa();
+        mirror_size_ = uint32_t(flash.ResetMirrorBytes().size());
+        const auto& rom_card = emu_.Get<PhilipsVelo1RomUpgradeCard>();
+        card_kseg_  = rom_card.KsegWindow();
+        card_kuseg_ = rom_card.KusegWindow();
+        if (rom_card.Fitted() && rom_.pa_base < kPr31x00Cs1KsegEnd &&
+            rom_.pa_base + rom_.size > kPr31x00Cs1KsegBase) {
+            emu_.Get<Fatal>().UserError("rom.velo1_rom_upgrade_card needs the internal flash ROM "
+                                        "as rom.primary; this primary ROM sits at PA 0x%08X, in "
+                                        "the card's window", rom_.pa_base);
+        }
 
         LOG(Boot, "PhilipsVelo1PageTableBuilder: ROM kva=0x%08X pa=0x%08X size=0x%X, "
                   "DRAM pa=0x%08X size=0x%X span=0x%X (ulRAMEnd=0x%08X), "
@@ -99,6 +114,15 @@ public:
                           kBank1DecodeSpan });
         }
         r.push_back({ rom_.va_base, rom_.pa_base, rom_.size, MemoryKind::kRom });
+        if (mirror_size_) {
+            r.push_back({ Kseg0Va(mirror_pa_), mirror_pa_, mirror_size_, MemoryKind::kRom });
+        }
+        if (!card_kseg_.bytes.empty()) {
+            r.push_back({ Kseg0Va(card_kseg_.pa), card_kseg_.pa,
+                          uint32_t(card_kseg_.bytes.size()), MemoryKind::kRom });
+            r.push_back({ 0u, card_kuseg_.pa, uint32_t(card_kuseg_.bytes.size()),
+                          MemoryKind::kRom });
+        }
         return r;
     }
 
@@ -106,13 +130,24 @@ public:
         std::vector<DramRegion> r = { { kDramVaBase, kDramPaBase, kDramDecodeSpan } };
         if (card_bytes_) r.push_back({ kBank1VaBase, kBank1PaBase, kBank1DecodeSpan });
         r.push_back(rom_);
+        if (mirror_size_) r.push_back({ Kseg0Va(mirror_pa_), mirror_pa_, mirror_size_ });
+        if (!card_kseg_.bytes.empty()) {
+            r.push_back({ Kseg0Va(card_kseg_.pa), card_kseg_.pa,
+                          uint32_t(card_kseg_.bytes.size()) });
+        }
         r.push_back({ kRegsVaBase, kRegsPaBase, kRegsSize });
         return r;
     }
 
 private:
-    DramRegion rom_{};
-    uint32_t   card_bytes_ = 0;
+    static constexpr uint32_t Kseg0Va(uint32_t pa) { return cerfengine::MipsSeg::kKusegEnd | pa; }
+
+    DramRegion      rom_{};
+    uint32_t        card_bytes_  = 0;
+    uint32_t        mirror_pa_   = 0;
+    uint32_t        mirror_size_ = 0;
+    Velo1CardWindow card_kseg_{};
+    Velo1CardWindow card_kuseg_{};
 };
 
 }  /* namespace */

@@ -120,6 +120,8 @@ struct DeviceConfig : public Service {
 
     std::string              rom_lumia800_user_area_erase;
 
+    std::string              rom_velo1_rom_upgrade_card;
+
     std::string storage_nand = DefaultStorageFileName(config_key::kStorageNand);
     std::string storage_hdd  = DefaultStorageFileName(config_key::kStorageHdd);
     std::string storage_emmc = DefaultStorageFileName(config_key::kStorageEmmc);
