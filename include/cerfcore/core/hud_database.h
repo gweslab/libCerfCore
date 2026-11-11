@@ -68,11 +68,8 @@ struct DbHud {
     std::vector<DbLcdPanelSize> screens;
     double                      gap = 0.0;
     std::vector<HudPanel>       panels;
-    std::vector<HudPanel>       portrait_panels;
-    std::vector<HudPanel>       landscape_panels;
 
-    const DbLcdPanelSize&        ScreenFor(double width, double height) const;
-    const std::vector<HudPanel>& InsidePanels(double area_w, double area_h) const;
+    const DbLcdPanelSize& ScreenFor(double width, double height) const;
 };
 
 class HudDatabase : public Service {

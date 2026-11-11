@@ -22,7 +22,12 @@ enum class SupportLevel { BootableFull, BootablePartial, UnknownPartial, NoSuppo
 inline constexpr uint32_t kDefaultGaColorDepth = 24u;
 inline constexpr uint32_t kDefaultGaWindowSize = 0x10000000u;
 
-struct DbLcdPanelSize { uint32_t width; uint32_t height; };
+struct DbLcdPanelSize {
+    uint32_t width;
+    uint32_t height;
+
+    bool operator==(const DbLcdPanelSize&) const = default;
+};
 
 struct DbSocFamily {
     std::string id;

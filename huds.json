@@ -752,10 +752,7 @@
       "board_family_ids": ["siemens_simpad"],
       "gap": 0.02,
       "panels": [
-        {
-          "side": "right", "align": "start", "width": 0.187, "height": 0.5, "content": "simpad_keys",
-          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.374 }
-        }
+        { "side": "right", "align": "start", "width": 0.187, "height": 0.5, "content": "simpad_keys" }
       ]
     },
     {
@@ -764,10 +761,7 @@
       "board_family_ids": ["hp_jornada_700"],
       "gap": 0.01,
       "panels": [
-        {
-          "side": "right", "align": "center", "width": 0.25, "height": 1.0, "content": "jornada_bezel",
-          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.09375 }
-        },
+        { "side": "right", "align": "center", "width": 0.25, "height": 1.0, "content": "jornada_bezel" },
         { "side": "bottom", "align": "center", "width": 1.0, "height": 0.42, "content": "jornada_keyboard" }
       ]
     },
@@ -795,14 +789,8 @@
       "board_family_ids": ["philips_nino"],
       "gap": 0.02,
       "panels": [
-        {
-          "side": "left", "align": "start", "width": 0.2, "height": 0.5, "content": "nino_rocker_keys",
-          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.3 }
-        },
-        {
-          "side": "right", "align": "start", "width": 0.2, "height": 0.6, "content": "nino_app_keys",
-          "portrait": { "side": "top", "align": "center", "width": 1.0, "height": 0.2 }
-        }
+        { "side": "left", "align": "start", "width": 0.2, "height": 0.5, "content": "nino_rocker_keys" },
+        { "side": "right", "align": "start", "width": 0.2, "height": 0.6, "content": "nino_app_keys" }
       ]
     },
     {
@@ -821,14 +809,8 @@
       "board_family_ids": ["casio_tomcat"],
       "gap": 0.02,
       "panels": [
-        {
-          "side": "bottom", "align": "center", "width": 1.0, "height": 0.4, "content": "tomcat_keys",
-          "landscape": { "side": "right", "width": 0.3, "height": 0.75 }
-        },
-        {
-          "side": "left", "align": "start", "width": 0.2, "height": 0.31, "content": "tomcat_side_keys",
-          "portrait": { "side": "top", "align": "center", "width": 1.0, "height": 0.16 }
-        }
+        { "side": "bottom", "align": "center", "width": 1.0, "height": 0.4, "content": "tomcat_keys" },
+        { "side": "left", "align": "start", "width": 0.2, "height": 0.31, "content": "tomcat_side_keys" }
       ]
     },
     {
@@ -838,10 +820,7 @@
       "gap": 0.02,
       "panels": [
         { "side": "bottom", "align": "center", "width": 1.0, "height": 0.24, "content": "aero_app_keys" },
-        {
-          "side": "left", "align": "start", "width": 0.2, "height": 0.75, "content": "aero_side_keys",
-          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.3 }
-        }
+        { "side": "left", "align": "start", "width": 0.2, "height": 0.75, "content": "aero_side_keys" }
       ]
     },
     {
@@ -895,14 +874,8 @@
       "board_family_ids": ["casio_pocketpostpet"],
       "gap": 0.02,
       "panels": [
-        {
-          "side": "left", "align": "center", "width": 0.4, "height": 1.0, "content": "pocketpostpet_keys",
-          "portrait": { "side": "bottom", "align": "center", "width": 1.0, "height": 0.4 }
-        },
-        {
-          "side": "right", "align": "center", "width": 0.25, "height": 1.0, "content": "pocketpostpet_bezel",
-          "portrait": { "side": "top", "align": "center", "width": 1.0, "height": 0.25 }
-        }
+        { "side": "left", "align": "center", "width": 0.4, "height": 1.0, "content": "pocketpostpet_keys" },
+        { "side": "right", "align": "center", "width": 0.25, "height": 1.0, "content": "pocketpostpet_bezel" }
       ]
     }
   ]

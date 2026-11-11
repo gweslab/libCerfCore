@@ -52,8 +52,6 @@ constexpr char kLeft[]           = "left";
 constexpr char kRight[]          = "right";
 constexpr char kCenter[]         = "center";
 constexpr char kShape[]          = "shape";
-constexpr char kPortrait[]       = "portrait";
-constexpr char kLandscape[]      = "landscape";
 
 constexpr std::pair<std::string_view, HudSide> kSides[] = {
     {"top", HudSide::kTop}, {"bottom", HudSide::kBottom}, {"left", HudSide::kLeft}, {"right", HudSide::kRight}};
@@ -116,16 +114,16 @@ class HudReader {
 public:
     explicit HudReader(const json& elements) : elements_(elements) {}
 
-    HudNode Node(const json& value, bool transposed) const {
-        if (value.is_string()) return Node(elements_.at(value.get<std::string>()), transposed);
+    HudNode Node(const json& value) const {
+        if (value.is_string()) return Node(elements_.at(value.get<std::string>()));
         HudNode node;
         node.grow = value.value(kGrow, 1.0);
         if (const auto row = value.find(kRow); row != value.end()) {
-            node.kind     = transposed ? HudNode::Kind::kColumn : HudNode::Kind::kRow;
-            node.children = Children(*row, transposed);
+            node.kind     = HudNode::Kind::kRow;
+            node.children = Children(*row);
         } else if (const auto column = value.find(kColumn); column != value.end()) {
-            node.kind     = transposed ? HudNode::Kind::kRow : HudNode::Kind::kColumn;
-            node.children = Children(*column, transposed);
+            node.kind     = HudNode::Kind::kColumn;
+            node.children = Children(*column);
         } else if (const auto button = value.find(kButton); button != value.end()) {
             node.kind   = HudNode::Kind::kButton;
             node.button = Button(*button);
@@ -146,35 +144,18 @@ public:
 
     HudPanel Panel(const json& object) const {
         HudPanel panel;
-        Shape(object, panel);
-        panel.root = Node(object.at(kContent), false);
-        return panel;
-    }
-
-    HudPanel FormPanel(const json& object, const char* form_key) const {
-        const auto form = object.find(form_key);
-        if (form == object.end()) return Panel(object);
-        HudPanel panel;
-        Shape(object, panel);
-        const bool across = AcrossX(panel.side);
-        Shape(*form, panel);
-        panel.root = Node(object.at(kContent), across != AcrossX(panel.side));
-        return panel;
-    }
-
-private:
-    static bool AcrossX(HudSide side) { return side == HudSide::kTop || side == HudSide::kBottom; }
-
-    static void Shape(const json& object, HudPanel& panel) {
         panel.side   = ValueByName(kSides, object.at(kSide).get<std::string>());
         panel.align  = ValueByName(kAligns, object.value(kAlign, std::string("center")));
         panel.width  = object.at(kWidth).get<double>();
         panel.height = object.at(kHeight).get<double>();
+        panel.root   = Node(object.at(kContent));
+        return panel;
     }
 
-    std::vector<HudNode> Children(const json& list, bool transposed) const {
+private:
+    std::vector<HudNode> Children(const json& list) const {
         std::vector<HudNode> out;
-        for (const json& child : list) out.push_back(Node(child, transposed));
+        for (const json& child : list) out.push_back(Node(child));
         return out;
     }
 
@@ -202,17 +183,9 @@ void HudDatabase::OnReady() {
             hud.screens.push_back(*board.lcd_panel_size);
         }
         hud.gap = h.value(kGap, 0.0);
-        for (const json& panel : h.at(kPanels)) {
-            hud.panels.push_back(reader.Panel(panel));
-            hud.portrait_panels.push_back(reader.FormPanel(panel, kPortrait));
-            hud.landscape_panels.push_back(reader.FormPanel(panel, kLandscape));
-        }
+        for (const json& panel : h.at(kPanels)) hud.panels.push_back(reader.Panel(panel));
         huds_.push_back(std::move(hud));
     }
-}
-
-const std::vector<HudPanel>& DbHud::InsidePanels(double area_w, double area_h) const {
-    return area_h > area_w ? portrait_panels : landscape_panels;
 }
 
 const DbLcdPanelSize& DbHud::ScreenFor(double width, double height) const {
