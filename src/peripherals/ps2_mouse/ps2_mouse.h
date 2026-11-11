@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../held_input_queue.h"
+
 #include <cstdint>
 #include <deque>
 #include <functional>
@@ -57,8 +59,11 @@ private:
     void                 AcknowledgeLocked(std::vector<uint8_t> data);
     bool                 RejectLocked();
     void                 SetDefaultsLocked();
+    void                 ZeroCountsLocked();
     void                 ResetCountersLocked();
     bool                 StreamingLocked() const;
+    bool                 MovedLocked() const;
+    void                 QueueReportLocked();
     bool                 TakeSampleLocked(Ps2MouseSample& sample);
     uint8_t              StatusLocked() const;
     uint8_t              ButtonBitsLocked() const;
@@ -81,8 +86,8 @@ private:
     uint8_t              sample_rate_     = 100;
     uint8_t              resolution_      = 2;
     uint32_t             buttons_         = 0;
-    uint32_t             sticky_buttons_  = 0;
     uint32_t             reported_buttons_ = 0;
+    HeldInputQueue<Ps2MouseSample> queued_;
     int32_t              count_x_         = 0;
     int32_t              count_y_         = 0;
     bool                 overflow_x_      = false;

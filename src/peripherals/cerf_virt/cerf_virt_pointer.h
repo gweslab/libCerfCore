@@ -1,11 +1,10 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include "../held_input_queue.h"
 
 #include <atomic>
-#include <cstddef>
 #include <cstdint>
-#include <deque>
 #include <mutex>
 
 namespace cerfcore {
@@ -36,8 +35,6 @@ private:
         uint32_t buttons;
     };
 
-    static constexpr size_t kHeldLimit = 256;
-
     void Bump();
     void Publish(const PointerState& state);
     void Hold(const PointerState& next);
@@ -47,9 +44,9 @@ private:
     std::atomic<uint32_t>    buttons_{0};
     std::atomic<uint32_t>    wheel_{0};
     std::atomic<uint32_t>    seq_{0};
-    std::mutex               mutex_;
-    std::deque<PointerState> held_;
-    bool                     change_unseen_ = false;
+    std::mutex                     mutex_;
+    HeldInputQueue<PointerState>   held_;
+    bool                           change_unseen_ = false;
 };
 
 }

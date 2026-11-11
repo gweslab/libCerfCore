@@ -206,14 +206,21 @@ void Ps2Mouse::SetDefaultsLocked() {
     reporting_    = false;
 }
 
-void Ps2Mouse::ResetCountersLocked() {
+void Ps2Mouse::ZeroCountsLocked() {
     count_x_    = 0;
     count_y_    = 0;
     overflow_x_ = false;
     overflow_y_ = false;
 }
 
+void Ps2Mouse::ResetCountersLocked() {
+    ZeroCountsLocked();
+    queued_.Clear();
+}
+
 bool Ps2Mouse::StreamingLocked() const { return reporting_ && !remote_ && !wrap_; }
+
+bool Ps2Mouse::MovedLocked() const { return count_x_ != 0 || count_y_ != 0 || overflow_x_ || overflow_y_; }
 
 uint8_t Ps2Mouse::ButtonBitsLocked() const { return ButtonBits(buttons_); }
 
@@ -252,22 +259,30 @@ uint8_t Ps2Mouse::ReadData() {
 
 void Ps2Mouse::QueueMotion(int dx, int dy, uint32_t button_mask) {
     std::lock_guard<std::mutex> lk(mtx_);
-    buttons_        = button_mask;
-    sticky_buttons_ |= button_mask;
+    if (button_mask != buttons_) QueueReportLocked();
+    buttons_ = button_mask;
     Accumulate(count_x_, overflow_x_, std::clamp<int32_t>(dx, -kHostDeltaLimit, kHostDeltaLimit));
     Accumulate(count_y_, overflow_y_, std::clamp<int32_t>(-dy, -kHostDeltaLimit, kHostDeltaLimit));
 }
 
+void Ps2Mouse::QueueReportLocked() {
+    if (!StreamingLocked()) return;
+    const uint32_t last = queued_.Empty() ? reported_buttons_ : queued_.Back().buttons;
+    if (buttons_ == last && !MovedLocked()) return;
+    queued_.Push({count_x_, count_y_, overflow_x_, overflow_y_, buttons_});
+    ZeroCountsLocked();
+}
+
 bool Ps2Mouse::TakeSampleLocked(Ps2MouseSample& sample) {
-    const uint32_t report = sticky_buttons_;
-    sticky_buttons_       = buttons_;
     if (!StreamingLocked()) return false;
-    if (count_x_ == 0 && count_y_ == 0 && !overflow_x_ && !overflow_y_ && report == reported_buttons_) {
-        return false;
+    if (!queued_.Empty()) {
+        sample = queued_.Pop();
+    } else {
+        if (!MovedLocked() && buttons_ == reported_buttons_) return false;
+        sample = {count_x_, count_y_, overflow_x_, overflow_y_, buttons_};
+        ZeroCountsLocked();
     }
-    sample            = {count_x_, count_y_, overflow_x_, overflow_y_, report};
-    reported_buttons_ = report;
-    ResetCountersLocked();
+    reported_buttons_ = sample.buttons;
     return true;
 }
 
@@ -348,7 +363,6 @@ void Ps2Mouse::Reset() {
     pending_command_  = 0;
     invalid_count_    = 0;
     buttons_          = 0;
-    sticky_buttons_   = 0;
     reported_buttons_ = 0;
     ResetCountersLocked();
 }
@@ -404,8 +418,8 @@ void Ps2Mouse::RestoreState(StateReader& r) {
     r.Read("ps2_overflow_x", overflow_x);
     r.Read("ps2_overflow_y", overflow_y);
     buttons_          = 0;
-    sticky_buttons_   = 0;
     reported_buttons_ = 0;
+    queued_.Clear();
     reporting_    = reporting != 0u;
     remote_       = remote != 0u;
     wrap_         = wrap != 0u;

@@ -36,20 +36,16 @@ uint32_t CerfVirtPointer::ReadWord(uint32_t addr) {
             std::lock_guard<std::mutex> lock(mutex_);
             const uint32_t              b = buttons_.load();
             change_unseen_              = false;
-            if (!held_.empty()) {
-                const PointerState next = held_.front();
-                held_.pop_front();
-                Publish(next);
-            }
+            if (!held_.Empty()) Publish(held_.Pop());
             return b;
         }
         case CerfVirt::kPtrWheelAccum:  return wheel_.load();
         case CerfVirt::kPtrSeq:         return seq_.load();
         case CerfVirt::kPtrAttach: {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (!held_.empty()) {
-                Publish(held_.back());
-                held_.clear();
+            if (!held_.Empty()) {
+                Publish(held_.Back());
+                held_.Clear();
             }
             change_unseen_ = false;
             return seq_.load();
@@ -76,7 +72,7 @@ void CerfVirtPointer::RestoreState(StateReader& r) {
     r.Read("wheel", v); wheel_.store(v);
     r.Read("seq", v); seq_.store(v);
     std::lock_guard<std::mutex> lock(mutex_);
-    held_.clear();
+    held_.Clear();
     change_unseen_ = false;
     if (buttons_.load() != 0u) Publish({x_.load(), y_.load(), 0u});
 }
@@ -97,16 +93,15 @@ void CerfVirtPointer::SetPointer(uint32_t nx, uint32_t ny, uint32_t buttons) {
 }
 
 void CerfVirtPointer::Hold(const PointerState& next) {
-    if (held_.empty() && !change_unseen_) {
+    if (held_.Empty() && !change_unseen_) {
         Publish(next);
         return;
     }
-    if (!held_.empty() && held_.back().buttons == next.buttons) {
-        held_.back() = next;
+    if (!held_.Empty() && held_.Back().buttons == next.buttons) {
+        held_.Back() = next;
         return;
     }
-    if (held_.size() == kHeldLimit) held_.pop_front();
-    held_.push_back(next);
+    held_.Push(next);
 }
 
 void CerfVirtPointer::AddWheel(int delta) {
@@ -116,7 +111,7 @@ void CerfVirtPointer::AddWheel(int delta) {
 
 void CerfVirtPointer::ClearButtons() {
     std::lock_guard<std::mutex> lock(mutex_);
-    const PointerState last = held_.empty() ? PointerState{x_.load(), y_.load(), buttons_.load()} : held_.back();
+    const PointerState last = held_.Empty() ? PointerState{x_.load(), y_.load(), buttons_.load()} : held_.Back();
     Hold({last.x, last.y, 0u});
 }
 
