@@ -21,6 +21,7 @@ constexpr uint8_t kPortGInputs         = 0xFFu;
 constexpr uint8_t kPortHOnKey          = 0x01u;
 constexpr uint8_t kPortHCompanionIrq   = 0x10u;
 constexpr uint8_t kPortHWired          = kPortHOnKey | kPortHCompanionIrq;
+constexpr uint8_t kPortScSerialCts     = 0x80u;
 
 constexpr uint8_t kPortGLidOpen         = 0x01u;
 constexpr uint8_t kPortGMainBatteryOut  = 0x04u;
@@ -46,13 +47,14 @@ public:
 
     uint8_t WiredInputs(uint32_t port) const override {
         switch (port) {
-            case kSh77xxPortC: return kPortCKeySenseAndLid;
-            case kSh77xxPortD: return kPortDRowsAndPins;
-            case kSh77xxPortE: return kPortERowsAndPins;
-            case kSh77xxPortF: return kPortFKeySense;
-            case kSh77xxPortG: return kPortGInputs;
-            case kSh77xxPortH: return kPortHWired;
-            default:           return 0u;
+            case kSh77xxPortC:  return kPortCKeySenseAndLid;
+            case kSh77xxPortD:  return kPortDRowsAndPins;
+            case kSh77xxPortE:  return kPortERowsAndPins;
+            case kSh77xxPortF:  return kPortFKeySense;
+            case kSh77xxPortG:  return kPortGInputs;
+            case kSh77xxPortH:  return kPortHWired;
+            case kSh77xxPortSc: return kPortScSerialCts;
+            default:            return 0u;
         }
     }
 
