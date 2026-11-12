@@ -25,6 +25,7 @@ private:
     [[noreturn]] void FatalSurface(const char* what, const CerfBltSurface& s);
     [[noreturn]] void FatalPixel(const char* what, const CerfBltSurface& s,
                                  int32_t x, int32_t y);
+    void HaltIfStaged(const char* what, const CerfBltSurface& s, int32_t x, int32_t y);
 
     std::vector<int32_t> sx_lut_;
     std::vector<int32_t> sy_lut_;

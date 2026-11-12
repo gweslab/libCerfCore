@@ -39,6 +39,11 @@ void CerfVirtBlitter::FatalPixel(const char* what, const CerfBltSurface& s,
                 what, x, y, s.buffer, s.is_fb_pa, s.format, s.stride, s.stage_off, s.stage_len);
 }
 
+void CerfVirtBlitter::HaltIfStaged(const char* what, const CerfBltSurface& s,
+                                   int32_t x, int32_t y) {
+    if (s.is_fb_pa == 0u) FatalPixel(what, s, x, y);
+}
+
 namespace {
 
 void FillAxis(std::vector<int32_t>& lut, int32_t dst_len, int32_t src_len) {
@@ -264,12 +269,14 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
             if (has_src && src_pal) {
                 uint32_t idx = 0u;
                 if (src_bits < 8u) {
-                    if (!ReadSubBytePixel(src, src_col_x, src_row_y, src_bits, &idx))
-                        FatalPixel("src", d.src, src_col_x, src_row_y);
+                    if (!ReadSubBytePixel(src, src_col_x, src_row_y, src_bits, &idx)) {
+                        HaltIfStaged("src", d.src, src_col_x, src_row_y);
+                        continue;
+                    }
                 } else {
                     uint32_t run = 0;
                     uint8_t* sp = PixelPtr(src, src_col_x, src_row_y, 1u, &run);
-                    if (!sp) FatalPixel("src", d.src, src_col_x, src_row_y);
+                    if (!sp) { HaltIfStaged("src", d.src, src_col_x, src_row_y); continue; }
                     idx = *sp;
                 }
                 original_src = idx;
@@ -277,7 +284,7 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
             } else if (has_src) {
                 uint32_t run = 0;
                 uint8_t* sp = PixelPtr(src, src_col_x, src_row_y, s_bpp, &run);
-                if (!sp) FatalPixel("src", d.src, src_col_x, src_row_y);
+                if (!sp) { HaltIfStaged("src", d.src, src_col_x, src_row_y); continue; }
                 value = (run >= s_bpp)
                     ? BltPixelOps::ReadPixel(sp, s_bpp)
                     : ReadStraddlePixel(src, src_col_x, src_row_y, s_bpp);
@@ -296,7 +303,10 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
                 if (has_mask) {
                     const int32_t mx = d.mask_rect.left + col;
                     uint32_t mbit = 0u;
-                    if (!ReadSubBytePixel(mask, mx, mask_y, 1u, &mbit)) FatalPixel("mask", d.mask, mx, mask_y);
+                    if (!ReadSubBytePixel(mask, mx, mask_y, 1u, &mbit)) {
+                        HaltIfStaged("mask", d.mask, mx, mask_y);
+                        continue;
+                    }
                     rop3 = mbit ? fg_rop3 : bg_rop3;
                 }
 
@@ -307,12 +317,14 @@ bool CerfVirtBlitter::Execute(const CerfBltDescriptor& d) {
                     const int32_t by = d.brush_height
                         ? (int32_t)((uint32_t)(t_indent + dst_y) % d.brush_height) : 0;
                     if (b_subbyte) {
-                        if (!ReadSubBytePixel(brush, bx, by, b_bits, &brush_val))
-                            FatalPixel("brush", d.brush, bx, by);
+                        if (!ReadSubBytePixel(brush, bx, by, b_bits, &brush_val)) {
+                            HaltIfStaged("brush", d.brush, bx, by);
+                            continue;
+                        }
                     } else {
                         uint32_t brun = 0;
                         uint8_t* bp = PixelPtr(brush, bx, by, b_bpp, &brun);
-                        if (!bp) FatalPixel("brush", d.brush, bx, by);
+                        if (!bp) { HaltIfStaged("brush", d.brush, bx, by); continue; }
                         brush_val = (brun >= b_bpp)
                             ? BltPixelOps::ReadPixel(bp, b_bpp)
                             : ReadStraddlePixel(brush, bx, by, b_bpp);
@@ -417,7 +429,7 @@ bool CerfVirtBlitter::BlendAAText(const CerfBltDescriptor& d, Surface& dst,
 
             uint32_t mrun = 0;
             uint8_t* mp = PixelPtr(mask, clear_type ? mask_x : (mask_x >> 1), mask_y, 1u, &mrun);
-            if (!mp) FatalPixel("AA-text mask", d.mask, mask_x, mask_y);
+            if (!mp) { HaltIfStaged("AA-text mask", d.mask, mask_x, mask_y); continue; }
             const uint32_t cov = clear_type     ? (uint32_t)*mp
                                  : (mask_x & 1) ? (uint32_t)(*mp & 0x0Fu)
                                                 : (uint32_t)(*mp >> 4);

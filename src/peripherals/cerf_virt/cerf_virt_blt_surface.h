@@ -144,9 +144,9 @@ inline uint8_t* BltSurfaceAccess::SubBytePixelPtr(const Surface& s, int32_t x, i
                                                   uint32_t bits, uint32_t* shift) {
     const CerfBltSurface& d = *s.desc;
     if (!d.is_rotate) {
-        const uint32_t bit_x = (uint32_t)x * bits;
+        const int32_t bit_x = (int32_t)((uint32_t)x * bits);
         uint32_t run = 0;
-        *shift = lcd_pixel::MsbFirstShift(bit_x, bits);
+        *shift = lcd_pixel::MsbFirstShift((uint32_t)bit_x, bits);
         return PixelPtr(s, (int32_t)(bit_x >> 3), y, 1u, &run);
     }
     const CerfRotatedLayout l = CerfRotatedLayoutFor(d.rotate, (int32_t)d.screen_w, (int32_t)d.screen_h,
