@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdlib>
+#include <limits>
 #include <utility>
 
 namespace cerfcore {
@@ -45,16 +46,14 @@ constexpr uint8_t kStatusScaling = 0x10u;
 constexpr uint8_t kStatusLeft    = 0x04u;
 constexpr uint8_t kStatusRight   = 0x01u;
 
-constexpr uint8_t kPacketYOverflow = 0x80u;
-constexpr uint8_t kPacketXOverflow = 0x40u;
-constexpr uint8_t kPacketYSign     = 0x20u;
-constexpr uint8_t kPacketXSign     = 0x10u;
-constexpr uint8_t kPacketAlways1   = 0x08u;
-constexpr uint8_t kPacketRight     = 0x02u;
-constexpr uint8_t kPacketLeft      = 0x01u;
+constexpr uint8_t kPacketYSign   = 0x20u;
+constexpr uint8_t kPacketXSign   = 0x10u;
+constexpr uint8_t kPacketAlways1 = 0x08u;
+constexpr uint8_t kPacketRight   = 0x02u;
+constexpr uint8_t kPacketLeft    = 0x01u;
 
-constexpr int32_t kHostDeltaLimit = 127;
-constexpr int32_t kCounterLimit   = 255;
+constexpr int32_t kPacketLimit       = 127;
+constexpr int32_t kScaledPacketLimit = 63;
 
 int32_t Scale2To1(int32_t v) {
     constexpr std::array<int32_t, 6> kSmall = {0, 1, 1, 3, 6, 9};
@@ -63,13 +62,10 @@ int32_t Scale2To1(int32_t v) {
     return v < 0 ? -reported : reported;
 }
 
-std::vector<uint8_t> MotionPacket(uint8_t buttons, int32_t x, int32_t y, bool overflow_x,
-                                  bool overflow_y) {
+std::vector<uint8_t> MotionPacket(uint8_t buttons, int32_t x, int32_t y) {
     uint8_t b0 = static_cast<uint8_t>(kPacketAlways1 | buttons);
     if (x < 0) b0 |= kPacketXSign;
     if (y < 0) b0 |= kPacketYSign;
-    if (overflow_x) b0 |= kPacketXOverflow;
-    if (overflow_y) b0 |= kPacketYOverflow;
     return {b0, static_cast<uint8_t>(x), static_cast<uint8_t>(y)};
 }
 
@@ -80,14 +76,24 @@ uint8_t ButtonBits(uint32_t mask) {
     return bits;
 }
 
-void Accumulate(int32_t& count, bool& overflow, int32_t delta) {
-    if (overflow) return;
-    const int32_t next = count + delta;
-    if (next > kCounterLimit || next < -kCounterLimit) {
-        overflow = true;
-        return;
-    }
-    count = next;
+void AddMotion(int32_t& count, int64_t delta) {
+    count = static_cast<int32_t>(std::clamp<int64_t>(int64_t{count} + delta, std::numeric_limits<int32_t>::min(),
+                                                     std::numeric_limits<int32_t>::max()));
+}
+
+Ps2MouseSample CutPart(int32_t& x, int32_t& y, uint32_t buttons, int32_t limit) {
+    const Ps2MouseSample part{std::clamp(x, -limit, limit), std::clamp(y, -limit, limit), buttons};
+    x -= part.x;
+    y -= part.y;
+    return part;
+}
+
+std::vector<Ps2MouseSample> SplitReport(Ps2MouseSample report, int32_t limit) {
+    std::vector<Ps2MouseSample> parts;
+    do {
+        parts.push_back(CutPart(report.x, report.y, report.buttons, limit));
+    } while (report.x != 0 || report.y != 0);
+    return parts;
 }
 
 }
@@ -150,7 +156,7 @@ void Ps2Mouse::CommandLocked(uint8_t b) {
             }
             AcknowledgeLocked({});
             break;
-        case kCmdReadData:  AcknowledgeLocked(AccumulatedPacketLocked()); break;
+        case kCmdReadData:  AcknowledgeLocked(ReadDataPacketLocked()); break;
         case kCmdStream:    remote_ = false; AcknowledgeLocked({}); break;
         case kCmdStatus:    AcknowledgeLocked({StatusLocked(), resolution_, sample_rate_}); break;
         case kCmdScaling21: scaling_2to1_ = true;  AcknowledgeLocked({}); break;
@@ -207,10 +213,8 @@ void Ps2Mouse::SetDefaultsLocked() {
 }
 
 void Ps2Mouse::ZeroCountsLocked() {
-    count_x_    = 0;
-    count_y_    = 0;
-    overflow_x_ = false;
-    overflow_y_ = false;
+    count_x_ = 0;
+    count_y_ = 0;
 }
 
 void Ps2Mouse::ResetCountersLocked() {
@@ -220,9 +224,7 @@ void Ps2Mouse::ResetCountersLocked() {
 
 bool Ps2Mouse::StreamingLocked() const { return reporting_ && !remote_ && !wrap_; }
 
-bool Ps2Mouse::MovedLocked() const { return count_x_ != 0 || count_y_ != 0 || overflow_x_ || overflow_y_; }
-
-uint8_t Ps2Mouse::ButtonBitsLocked() const { return ButtonBits(buttons_); }
+bool Ps2Mouse::MovedLocked() const { return count_x_ != 0 || count_y_ != 0; }
 
 uint8_t Ps2Mouse::StatusLocked() const {
     uint8_t s = 0;
@@ -234,8 +236,11 @@ uint8_t Ps2Mouse::StatusLocked() const {
     return s;
 }
 
-std::vector<uint8_t> Ps2Mouse::AccumulatedPacketLocked() const {
-    return MotionPacket(ButtonBitsLocked(), count_x_, count_y_, overflow_x_, overflow_y_);
+std::vector<uint8_t> Ps2Mouse::ReadDataPacketLocked() const {
+    int32_t              x    = count_x_;
+    int32_t              y    = count_y_;
+    const Ps2MouseSample part = CutPart(x, y, buttons_, kPacketLimit);
+    return MotionPacket(ButtonBits(part.buttons), part.x, part.y);
 }
 
 bool Ps2Mouse::HasData() const {
@@ -261,15 +266,15 @@ void Ps2Mouse::QueueMotion(int dx, int dy, uint32_t button_mask) {
     std::lock_guard<std::mutex> lk(mtx_);
     if (button_mask != buttons_) QueueReportLocked();
     buttons_ = button_mask;
-    Accumulate(count_x_, overflow_x_, std::clamp<int32_t>(dx, -kHostDeltaLimit, kHostDeltaLimit));
-    Accumulate(count_y_, overflow_y_, std::clamp<int32_t>(-dy, -kHostDeltaLimit, kHostDeltaLimit));
+    AddMotion(count_x_, dx);
+    AddMotion(count_y_, -int64_t{dy});
 }
 
 void Ps2Mouse::QueueReportLocked() {
     if (!StreamingLocked()) return;
     const uint32_t last = queued_.Empty() ? reported_buttons_ : queued_.Back().buttons;
     if (buttons_ == last && !MovedLocked()) return;
-    queued_.Push({count_x_, count_y_, overflow_x_, overflow_y_, buttons_});
+    queued_.Push({count_x_, count_y_, buttons_});
     ZeroCountsLocked();
 }
 
@@ -279,42 +284,37 @@ bool Ps2Mouse::TakeSampleLocked(Ps2MouseSample& sample) {
         sample = queued_.Pop();
     } else {
         if (!MovedLocked() && buttons_ == reported_buttons_) return false;
-        sample = {count_x_, count_y_, overflow_x_, overflow_y_, buttons_};
+        sample = {count_x_, count_y_, buttons_};
         ZeroCountsLocked();
     }
     reported_buttons_ = sample.buttons;
     return true;
 }
 
-bool Ps2Mouse::TakeSample(Ps2MouseSample& sample) {
+std::vector<Ps2MouseSample> Ps2Mouse::TakeSample() {
     std::lock_guard<std::mutex> lk(mtx_);
-    return TakeSampleLocked(sample);
+    Ps2MouseSample report;
+    if (!TakeSampleLocked(report)) return {};
+    return SplitReport(report, kPacketLimit);
 }
 
 void Ps2Mouse::Sample() {
     bool raise = false;
     {
         std::lock_guard<std::mutex> lk(mtx_);
-        Ps2MouseSample s;
-        if (!TakeSampleLocked(s)) return;
-        if (scaling_2to1_ && traits_.applies_scaling) {
-            s.x = Scale2To1(s.x);
-            s.y = Scale2To1(s.y);
+        Ps2MouseSample report;
+        if (!TakeSampleLocked(report)) return;
+        const bool scaled    = scaling_2to1_ && traits_.applies_scaling;
+        const bool was_empty = out_.empty();
+        for (Ps2MouseSample part : SplitReport(report, scaled ? kScaledPacketLimit : kPacketLimit)) {
+            if (scaled) {
+                part.x = Scale2To1(part.x);
+                part.y = Scale2To1(part.y);
+            }
+            last_packet_ = MotionPacket(ButtonBits(part.buttons), part.x, part.y);
+            out_.insert(out_.end(), last_packet_.begin(), last_packet_.end());
         }
-        if (std::abs(s.x) > kCounterLimit) {
-            s.x          = std::clamp<int32_t>(s.x, -kCounterLimit, kCounterLimit);
-            s.overflow_x = true;
-        }
-        if (std::abs(s.y) > kCounterLimit) {
-            s.y          = std::clamp<int32_t>(s.y, -kCounterLimit, kCounterLimit);
-            s.overflow_y = true;
-        }
-        const bool           was_empty = out_.empty();
-        std::vector<uint8_t> packet =
-            MotionPacket(ButtonBits(s.buttons), s.x, s.y, s.overflow_x, s.overflow_y);
-        out_.insert(out_.end(), packet.begin(), packet.end());
-        last_packet_ = std::move(packet);
-        raise        = was_empty;
+        raise = was_empty;
     }
     if (raise) RaiseData();
 }
@@ -382,10 +382,8 @@ void Ps2Mouse::SaveState(StateWriter& w) const {
     w.Write<uint8_t>("ps2_scaling_2to1", scaling_2to1_ ? 1u : 0u);
     w.Write("ps2_sample_rate", sample_rate_);
     w.Write("ps2_resolution", resolution_);
-    w.Write("ps2_count_x", count_x_);
-    w.Write("ps2_count_y", count_y_);
-    w.Write<uint8_t>("ps2_overflow_x", overflow_x_ ? 1u : 0u);
-    w.Write<uint8_t>("ps2_overflow_y", overflow_y_ ? 1u : 0u);
+    w.Write("ps2_motion_x", count_x_);
+    w.Write("ps2_motion_y", count_y_);
 }
 
 void Ps2Mouse::RestoreState(StateReader& r) {
@@ -396,8 +394,6 @@ void Ps2Mouse::RestoreState(StateReader& r) {
     uint8_t  remote           = 0;
     uint8_t  wrap             = 0;
     uint8_t  scaling          = 0;
-    uint8_t  overflow_x       = 0;
-    uint8_t  overflow_y       = 0;
     r.Read("ps2_out_size", out_size);
     std::vector<uint8_t> out(out_size);
     r.ReadBytes("ps2_out", out.data(), out.size());
@@ -413,10 +409,8 @@ void Ps2Mouse::RestoreState(StateReader& r) {
     r.Read("ps2_scaling_2to1", scaling);
     r.Read("ps2_sample_rate", sample_rate_);
     r.Read("ps2_resolution", resolution_);
-    r.Read("ps2_count_x", count_x_);
-    r.Read("ps2_count_y", count_y_);
-    r.Read("ps2_overflow_x", overflow_x);
-    r.Read("ps2_overflow_y", overflow_y);
+    r.Read("ps2_motion_x", count_x_);
+    r.Read("ps2_motion_y", count_y_);
     buttons_          = 0;
     reported_buttons_ = 0;
     queued_.Clear();
@@ -424,8 +418,6 @@ void Ps2Mouse::RestoreState(StateReader& r) {
     remote_       = remote != 0u;
     wrap_         = wrap != 0u;
     scaling_2to1_ = scaling != 0u;
-    overflow_x_   = overflow_x != 0u;
-    overflow_y_   = overflow_y != 0u;
 }
 
 void Ps2Mouse::RaiseData() {

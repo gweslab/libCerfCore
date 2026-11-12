@@ -19,11 +19,9 @@ struct Ps2MouseTraits {
 };
 
 struct Ps2MouseSample {
-    int32_t  x          = 0;
-    int32_t  y          = 0;
-    bool     overflow_x = false;
-    bool     overflow_y = false;
-    uint32_t buttons    = 0;
+    int32_t  x       = 0;
+    int32_t  y       = 0;
+    uint32_t buttons = 0;
 };
 
 class Ps2Mouse {
@@ -35,13 +33,13 @@ public:
 
     Ps2Mouse(std::function<void()> on_data, HaltFn halt, Ps2MouseTraits traits = {});
 
-    void    WriteCommand(uint8_t byte);
-    bool    HasData() const;
-    uint8_t ReadData();
-    void    QueueMotion(int dx, int dy, uint32_t button_mask);
-    void    Sample();
-    bool    TakeSample(Ps2MouseSample& sample);
-    uint8_t SampleRate() const;
+    void                        WriteCommand(uint8_t byte);
+    bool                        HasData() const;
+    uint8_t                     ReadData();
+    void                        QueueMotion(int dx, int dy, uint32_t button_mask);
+    void                        Sample();
+    std::vector<Ps2MouseSample> TakeSample();
+    uint8_t                     SampleRate() const;
 
     bool AwaitsCommand() const;
     void Acknowledge(std::vector<uint8_t> data = {});
@@ -66,8 +64,7 @@ private:
     void                 QueueReportLocked();
     bool                 TakeSampleLocked(Ps2MouseSample& sample);
     uint8_t              StatusLocked() const;
-    uint8_t              ButtonBitsLocked() const;
-    std::vector<uint8_t> AccumulatedPacketLocked() const;
+    std::vector<uint8_t> ReadDataPacketLocked() const;
     void                 RaiseData();
 
     mutable std::mutex    mtx_;
@@ -90,8 +87,6 @@ private:
     HeldInputQueue<Ps2MouseSample> queued_;
     int32_t              count_x_         = 0;
     int32_t              count_y_         = 0;
-    bool                 overflow_x_      = false;
-    bool                 overflow_y_      = false;
 };
 
 }

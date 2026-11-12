@@ -26,8 +26,6 @@ constexpr uint8_t kE2RamWrite    = 0x81u;
 constexpr uint32_t kSerialBaud = 1200u;
 
 constexpr uint32_t kSerialReportHz = 40u;
-constexpr int32_t  kReportMin      = -128;
-constexpr int32_t  kReportMax      = 127;
 constexpr uint32_t kXmitGapWrap    = 256u;
 constexpr uint8_t  kSerialSync     = 0x40u;
 constexpr uint8_t  kSerialLeft     = 0x20u;
@@ -282,8 +280,7 @@ bool IbmTrackpoint::LineBusy() const {
 
 void IbmTrackpoint::TakeReport() {
     if (mode_ == Mode::kSerial) {
-        Ps2MouseSample s;
-        if (ps2_.TakeSample(s)) QueueSerialReport(s);
+        for (const Ps2MouseSample& s : ps2_.TakeSample()) QueueSerialReport(s);
     } else {
         ps2_.Sample();
         QueueResponse(false);
@@ -292,8 +289,8 @@ void IbmTrackpoint::TakeReport() {
 }
 
 void IbmTrackpoint::QueueSerialReport(const Ps2MouseSample& s) {
-    const uint8_t x = static_cast<uint8_t>(std::clamp<int32_t>(s.x, kReportMin, kReportMax));
-    const uint8_t y = static_cast<uint8_t>(std::clamp<int32_t>(-s.y, kReportMin, kReportMax));
+    const uint8_t x = static_cast<uint8_t>(s.x);
+    const uint8_t y = static_cast<uint8_t>(-s.y);
     uint8_t       head = kSerialSync;
     if (s.buttons & Ps2Mouse::kButtonLeft) head = static_cast<uint8_t>(head | kSerialLeft);
     if (s.buttons & Ps2Mouse::kButtonRight) head = static_cast<uint8_t>(head | kSerialRight);
