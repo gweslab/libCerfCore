@@ -96,11 +96,11 @@ void FreescaleSsiCore::Reset() {
 }
 
 void FreescaleSsiCore::RegisterControlListener(std::function<void()> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void FreescaleSsiCore::Notify() {
-    for (auto& fn : listeners_) fn();
+    listeners_.Call();
 }
 
 bool FreescaleSsiCore::Enabled() const { return (scr_ & ssi::kScrSsien) != 0u; }

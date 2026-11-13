@@ -7,10 +7,10 @@
 #include "sh77xx_intc.h"
 #include "sh77xx_rtc_calendar.h"
 #include "sh77xx_standby_control.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -63,7 +63,7 @@ private:
     uint64_t PeriodTicks() const;
     void     NotifyRtcclk();
 
-    std::vector<std::function<void()>> rtcclk_listeners_;
+    CallbackList<> rtcclk_listeners_;
     StoppableOscillatorTicks osc_{emu_, true};
     GuestCycleClock*         clock_ = nullptr;
     GuestCycleClock::Event*  event_ = nullptr;

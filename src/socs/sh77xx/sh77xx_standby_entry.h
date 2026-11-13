@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cerfcore/core/service.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -19,7 +19,7 @@ public:
 private:
     void Enter();
 
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<> listeners_;
 };
 
 }

@@ -47,16 +47,16 @@ uint32_t Sa11xxPpc::Ppar() const {
 }
 
 void Sa11xxPpc::RegisterMccr1Listener(std::function<void()> fn) {
-    mccr1_listeners_.push_back(std::move(fn));
+    mccr1_listeners_.Add(std::move(fn));
 }
 
 void Sa11xxPpc::RegisterPparListener(std::function<void()> fn) {
-    ppar_listeners_.push_back(std::move(fn));
+    ppar_listeners_.Add(std::move(fn));
 }
 
 void Sa11xxPpc::NotifyIfPpar(uint32_t index) {
     if (index != kPparIndex) return;
-    for (auto& fn : ppar_listeners_) fn();
+    ppar_listeners_.Call();
 }
 
 /* SA-1110 Dev Man § 11.13.4 (printed 11-170), PPSR bits 11..0 (printed 11-171). */
@@ -67,7 +67,7 @@ uint32_t Sa11xxPpc::LcdPinsDrivenLow() const {
 }
 
 void Sa11xxPpc::RegisterOutputListener(std::function<void()> fn) {
-    output_listeners_.push_back(std::move(fn));
+    output_listeners_.Add(std::move(fn));
 }
 
 void Sa11xxPpc::NotifyIfOutputs(uint32_t index) {
@@ -75,14 +75,14 @@ void Sa11xxPpc::NotifyIfOutputs(uint32_t index) {
 }
 
 void Sa11xxPpc::NotifyOutputs() {
-    for (auto& fn : output_listeners_) fn();
+    output_listeners_.Call();
 }
 
 void Sa11xxPpc::WriteMccr1(uint32_t value) {
     const uint32_t old = mccr1_;
     mccr1_ = value;
     if (value == old) return;
-    for (auto& fn : mccr1_listeners_) fn();
+    mccr1_listeners_.Call();
 }
 
 void Sa11xxPpc::DriveInputPin(uint32_t pin, bool level) {

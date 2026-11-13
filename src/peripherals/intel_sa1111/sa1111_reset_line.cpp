@@ -26,12 +26,12 @@ void Sa1111ResetLine::OnReady() {
 }
 
 void Sa1111ResetLine::RegisterListener(std::function<void(bool held)> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void Sa1111ResetLine::Assert() {
     held_.store(true, std::memory_order_release);
-    for (auto& fn : listeners_) fn(true);
+    listeners_.Call(true);
 }
 
 /* SA-1111 Developer's Manual §2.3: "When nRESET is asserted, all on-chip activity halts;
@@ -50,7 +50,7 @@ void Sa1111ResetLine::OnSkcrWrite(bool rclk_enabled) {
 
 void Sa1111ResetLine::Release() {
     held_.store(false, std::memory_order_release);
-    for (auto& fn : listeners_) fn(false);
+    listeners_.Call(false);
 }
 
 void Sa1111ResetLine::SaveState(StateWriter& w) {

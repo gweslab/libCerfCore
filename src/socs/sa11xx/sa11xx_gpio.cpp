@@ -69,11 +69,11 @@ void Sa11xxGpio::RegisterOutputObserver(OutputObserver fn) {
         levels = output_state_ & mask;
     }
     fn(levels, mask, true);
-    output_observers_.push_back(std::move(fn));
+    output_observers_.Add(std::move(fn));
 }
 
 void Sa11xxGpio::NotifyOutputs(uint32_t levels, uint32_t out_mask, bool resync) {
-    for (auto& fn : output_observers_) fn(levels, out_mask, resync);
+    output_observers_.Call(levels, out_mask, resync);
 }
 
 Sa11xxGpio::PinConfig Sa11xxGpio::Pin(uint32_t pin) const {
@@ -83,7 +83,7 @@ Sa11xxGpio::PinConfig Sa11xxGpio::Pin(uint32_t pin) const {
 }
 
 void Sa11xxGpio::RegisterPinConfigListener(std::function<void()> fn) {
-    pin_config_listeners_.push_back(std::move(fn));
+    pin_config_listeners_.Add(std::move(fn));
 }
 
 uint32_t Sa11xxGpio::InputEdges() const {
@@ -163,7 +163,7 @@ void Sa11xxGpio::WriteReg(uint32_t off, uint32_t value) {
     lk.unlock();
     if (mask != mask_before || levels != levels_before) NotifyOutputs(levels, mask, false);
     if (!pins_changed) return;
-    for (auto& fn : pin_config_listeners_) fn();
+    pin_config_listeners_.Call();
 }
 
 uint32_t Sa11xxGpio::ReadWord(uint32_t addr) {

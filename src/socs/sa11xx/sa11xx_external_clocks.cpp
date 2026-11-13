@@ -55,11 +55,11 @@ bool Sa11xxExternalClocks::Rate(uint32_t pin, GuestCycleClock::Rate& hz) const {
 }
 
 void Sa11xxExternalClocks::RegisterChangeListener(std::function<void()> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void Sa11xxExternalClocks::NotifyChange() {
-    for (auto& fn : listeners_) fn();
+    listeners_.Call();
 }
 
 }

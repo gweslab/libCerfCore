@@ -74,21 +74,21 @@ void Pxa255ClockManager::OnReady() {
     });
     emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
         ApplyRate();
-        for (auto& fn : osc_listeners_) fn();
+        osc_listeners_.Call();
     });
     ApplyRate();
 }
 
 void Pxa255ClockManager::RegisterOscillatorListener(std::function<void()> fn) {
-    osc_listeners_.push_back(std::move(fn));
+    osc_listeners_.Add(std::move(fn));
 }
 
 void Pxa255ClockManager::RegisterMemoryClockListener(std::function<void()> fn) {
-    memory_clock_listeners_.push_back(std::move(fn));
+    memory_clock_listeners_.Add(std::move(fn));
 }
 
 void Pxa255ClockManager::RegisterClockEnableListener(std::function<void(uint32_t)> fn) {
-    cken_listeners_.push_back(std::move(fn));
+    cken_listeners_.Add(std::move(fn));
 }
 
 void Pxa255ClockManager::SetOscillatorStable() {
@@ -96,7 +96,7 @@ void Pxa255ClockManager::SetOscillatorStable() {
     oon_ = true;
     ook_ = true;
     if (!was_ok) {
-        for (auto& fn : osc_listeners_) fn();
+        osc_listeners_.Call();
     }
 }
 
@@ -153,7 +153,7 @@ void Pxa255ClockManager::ApplyRate() {
         CoreHz(loaded_cccr_, (cclkcfg_ & kClkcfgTurbo) != 0u));
     if (MemoryClockHz() == published_memory_hz_) return;
     published_memory_hz_ = MemoryClockHz();
-    for (auto& fn : memory_clock_listeners_) fn();
+    memory_clock_listeners_.Call();
 }
 
 uint32_t CERFENGINE_FASTCALL Pxa255ClockManager::ReadClkcfgHelper(void* self) {
@@ -181,7 +181,7 @@ void Pxa255ClockManager::WriteWord(uint32_t addr, uint32_t value) {
             cken_ = value & kCkenMask;
             if (cken_ == old) return;
             LOG(SocClkpwr, "Pxa255ClockManager: CKEN <= 0x%05X\n", cken_);
-            for (auto& fn : cken_listeners_) fn(old);
+            cken_listeners_.Call(old);
             return;
         }
         /* Table 3-22: "Write zeros to reserved bits"; OON "write-once only bit",

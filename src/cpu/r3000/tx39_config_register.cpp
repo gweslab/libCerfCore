@@ -51,7 +51,7 @@ uint32_t Tx39ConfigRegister::ReducedFrequency() const {
 }
 
 void Tx39ConfigRegister::RegisterReducedFrequencyListener(std::function<void()> fn) {
-    rf_listeners_.push_back(std::move(fn));
+    rf_listeners_.Add(std::move(fn));
 }
 
 /* Lock: "Setting this bit to 1 prevents further writes to the Config register"; a store that
@@ -74,7 +74,7 @@ void CERFENGINE_FASTCALL Tx39ConfigRegister::WriteConfig(void* context, uint32_t
     const uint32_t old_rf   = reg->ReducedFrequency();
     s.cp0_config = (s.cp0_config & ~writable) | (value & writable & ~(kDoze | kHalt));
     if (reg->ReducedFrequency() != old_rf) {
-        for (auto& fn : reg->rf_listeners_) fn();
+        reg->rf_listeners_.Call();
     }
     if ((value & (kDoze | kHalt)) == 0u) return;
     /* TMPR39xx-um §5.1 (p.231): Halt mode will "stall the pipeline in holding current status";

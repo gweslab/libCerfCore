@@ -64,11 +64,11 @@ bool Omap3530CmMcBspGateBlock::McBspIclkEnabled(uint32_t port) const {
 }
 
 void Omap3530CmMcBspGateBlock::RegisterClockListener(std::function<void()> fn) {
-    clock_listeners_.push_back(std::move(fn));
+    clock_listeners_.Add(std::move(fn));
 }
 
 void Omap3530CmMcBspGateBlock::NotifyClock() {
-    for (auto& fn : clock_listeners_) fn();
+    clock_listeners_.Call();
 }
 
 }

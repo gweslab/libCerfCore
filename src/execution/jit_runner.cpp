@@ -32,7 +32,7 @@ JitRunner::~JitRunner() {
 
 void JitRunner::Start() {
     if (started_) return;
-    for (auto& h : pre_start_hooks_) h();
+    pre_start_hooks_.Call();
     started_     = true;
     Fatal& fatal = emu_.Get<Fatal>();
     thread_      = emu_.Get<InstanceThreads>().Start([this, &fatal] { RunGuest(fatal); },
@@ -40,7 +40,7 @@ void JitRunner::Start() {
 }
 
 void JitRunner::RegisterPreStartHook(std::function<void()> fn) {
-    pre_start_hooks_.push_back(std::move(fn));
+    pre_start_hooks_.Add(std::move(fn));
 }
 
 void JitRunner::Join() {

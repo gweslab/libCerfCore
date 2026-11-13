@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -56,9 +56,9 @@ private:
     void NotifyIfOutputs(uint32_t index);
     void NotifyOutputs();
 
-    std::vector<std::function<void()>> mccr1_listeners_;
-    std::vector<std::function<void()>> ppar_listeners_;
-    std::vector<std::function<void()>> output_listeners_;
+    CallbackList<> mccr1_listeners_;
+    CallbackList<> ppar_listeners_;
+    CallbackList<> output_listeners_;
     Sa11xxLcd* lcd_ = nullptr;
     static constexpr uint32_t kLcdPinMask       = 0x00000FFFu;
     static constexpr uint32_t kPpdrIndex        = 0u;

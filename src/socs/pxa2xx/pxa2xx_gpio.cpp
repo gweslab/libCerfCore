@@ -97,7 +97,7 @@ uint32_t Pxa2xxGpio::AlternatePins(uint32_t gafr) {
 }
 
 void Pxa2xxGpio::NotifyOutputs(const OutputPins& pins, bool resync) {
-    for (auto& fn : output_observers_) fn(pins, resync);
+    output_observers_.Call(pins, resync);
 }
 
 Pxa2xxGpio::OutputPins Pxa2xxGpio::CurrentOutputs() const {
@@ -109,7 +109,7 @@ Pxa2xxGpio::OutputPins Pxa2xxGpio::CurrentOutputs() const {
 
 void Pxa2xxGpio::RegisterOutputObserver(OutputObserver fn) {
     fn(CurrentOutputs(), true);
-    output_observers_.push_back(std::move(fn));
+    output_observers_.Add(std::move(fn));
 }
 
 void Pxa2xxGpio::PostRestore() {
@@ -118,7 +118,7 @@ void Pxa2xxGpio::PostRestore() {
 
 template <typename Fn>
 void Pxa2xxGpio::ChangeOutputs(Fn&& mutate_locked) {
-    if (output_observers_.empty()) {
+    if (output_observers_.Empty()) {
         std::lock_guard<std::mutex> g(mtx_);
         mutate_locked();
         return;
@@ -232,7 +232,7 @@ Pxa2xxGpio::PinConfig Pxa2xxGpio::Pin(uint32_t gpio) const {
 }
 
 void Pxa2xxGpio::RegisterPinConfigListener(std::function<void()> fn) {
-    pin_config_listeners_.push_back(std::move(fn));
+    pin_config_listeners_.Add(std::move(fn));
 }
 
 void Pxa2xxGpio::WriteWord(uint32_t addr, uint32_t value) {
@@ -244,7 +244,7 @@ void Pxa2xxGpio::WriteWord(uint32_t addr, uint32_t value) {
     bool config_changed = false;
     ChangeOutputs([&] { config_changed = ApplyWriteLocked(reg, i, off, value); });
     if (!config_changed) return;
-    for (auto& fn : pin_config_listeners_) fn();
+    pin_config_listeners_.Call();
 }
 
 bool Pxa2xxGpio::ApplyWriteLocked(Reg reg, uint32_t i, uint32_t off, uint32_t value) {

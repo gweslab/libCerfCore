@@ -20,11 +20,11 @@ uint32_t MipsCoreClock::ConfigEc() const {
 }
 
 void MipsCoreClock::RegisterCountRateListener(std::function<void()> fn) {
-    count_rate_listeners_.push_back(std::move(fn));
+    count_rate_listeners_.Add(std::move(fn));
 }
 
 void MipsCoreClock::CountRateRestored() {
-    for (auto& fn : count_rate_listeners_) fn();
+    count_rate_listeners_.Call();
 }
 
 }

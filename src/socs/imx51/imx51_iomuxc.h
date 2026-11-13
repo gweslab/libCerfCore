@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -43,7 +43,7 @@ private:
     uint32_t                           gpio1_4_mux_  = 0u;
     bool                               wdog1_wdog_b_ = false;
     std::array<uint32_t, kBoardPads>   pad_mux_{};
-    std::vector<std::function<void()>> pad_listeners_;
+    CallbackList<>                     pad_listeners_;
 };
 
 }

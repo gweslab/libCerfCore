@@ -59,7 +59,7 @@ void Omap3530CmDss::ApplyResetsLocked() {
 }
 
 void Omap3530CmDss::RegisterDss1Listener(std::function<void()> fn) {
-    dss1_listeners_.push_back(std::move(fn));
+    dss1_listeners_.Add(std::move(fn));
 }
 
 bool Omap3530CmDss::Dss1FclkEnabled() const {
@@ -103,7 +103,7 @@ void Omap3530CmDss::WriteWord(uint32_t addr, uint32_t value) {
         }
     }
     if (dss1_changed) {
-        for (auto& fn : dss1_listeners_) fn();
+        dss1_listeners_.Call();
     }
 }
 

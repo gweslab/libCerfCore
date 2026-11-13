@@ -5,11 +5,11 @@
 #include "../../execution/guest_cycle_clock.h"
 #include "../../socs/omap3530/omap3530_mcbsp_link.h"
 #include "../../socs/rated_tick_count.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <deque>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -86,7 +86,7 @@ private:
     Tps65950AudioDownlink*             downlink_ = nullptr;
     Omap3530McBspPeerListener*         listener_ = nullptr;
     uint64_t                           hfclkin_hz_ = 0;
-    std::vector<std::function<void()>> pad_listeners_;
+    CallbackList<>                     pad_listeners_;
 
     Config         cfg_;
     RatedTickCount bits_{emu_};

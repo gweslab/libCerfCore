@@ -39,11 +39,11 @@ void S3C2410EintSource::ReassertHeldLevelEints(uint32_t cleared_srcpnd) {
 }
 
 void S3C2410EintSource::RegisterUnmaskListener(std::function<void(uint32_t)> fn) {
-    unmask_listeners_.push_back(std::move(fn));
+    unmask_listeners_.Add(std::move(fn));
 }
 
 void S3C2410EintSource::NotifyUnmasked(uint32_t unmasked_intmsk) {
-    for (auto& fn : unmask_listeners_) fn(unmasked_intmsk);
+    unmask_listeners_.Call(unmasked_intmsk);
 }
 
 }

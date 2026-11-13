@@ -2,11 +2,11 @@
 
 #include <cerfcore/core/service.h>
 #include "../../execution/guest_cycle_clock.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -41,7 +41,7 @@ private:
     Sa11xxGpio*           gpio_  = nullptr;
     Sa11xxGpioClockInput* input_ = nullptr;
     std::array<PinClock, kPinCount>    clocks_{};
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<>                     listeners_;
 };
 
 }

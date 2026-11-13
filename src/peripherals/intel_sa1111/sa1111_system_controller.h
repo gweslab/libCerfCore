@@ -3,10 +3,10 @@
 #include "sa1111_sbi.h"
 #include "sa1111_unit.h"
 #include "../../execution/guest_cycle_clock.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -49,7 +49,7 @@ private:
 
     Sa1111Sbi*      sbi_       = nullptr;
     Sa11xxTestUnit* test_unit_ = nullptr;
-    std::vector<std::function<void()>> clock_listeners_;
+    CallbackList<> clock_listeners_;
     uint32_t regs_[9] = {};
 };
 

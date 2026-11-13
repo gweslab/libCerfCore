@@ -14,7 +14,7 @@ namespace cerfcore {
 REGISTER_SERVICE(DeviceConfigRefresh);
 
 void DeviceConfigRefresh::RegisterListener(std::function<void()> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void DeviceConfigRefresh::Refresh() {
@@ -46,7 +46,7 @@ void DeviceConfigRefresh::Refresh() {
         config.share_folder.c_str(),
         config.share_folder_mount_point.c_str());
 
-    for (auto& fn : listeners_) fn();
+    listeners_.Call();
 }
 
 }

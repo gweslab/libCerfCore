@@ -5,11 +5,11 @@
 #include <cerfcore/core/fatal.h>
 #include "imx31_ccm.h"
 #include "imx31_id.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
 #include <utility>
-#include <vector>
 
 namespace cerfcore {
 
@@ -52,7 +52,7 @@ public:
 
     void OnReady() override {
         ccm_ = &emu_.Get<Imx31Ccm>();
-        ccm_->RegisterGateListener([this] { for (auto& fn : listeners_) fn(); });
+        ccm_->RegisterGateListener([this] { listeners_.Call(); });
     }
 
     bool ModuleRunsIn(FreescaleModule module, FreescaleLowPowerMode mode) const override {
@@ -62,7 +62,7 @@ public:
     }
 
     void RegisterGateListener(std::function<void()> fn) override {
-        listeners_.push_back(std::move(fn));
+        listeners_.Add(std::move(fn));
     }
 
 private:
@@ -75,7 +75,7 @@ private:
     }
 
     Imx31Ccm*                          ccm_ = nullptr;
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<>                     listeners_;
 };
 
 }

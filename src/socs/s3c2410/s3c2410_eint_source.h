@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cerfcore/core/service.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -37,7 +37,7 @@ public:
 
 private:
     S3C2410EintSink* sink_ = nullptr;
-    std::vector<std::function<void(uint32_t)>> unmask_listeners_;
+    CallbackList<uint32_t> unmask_listeners_;
 };
 
 }

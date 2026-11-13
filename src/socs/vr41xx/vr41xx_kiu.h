@@ -6,13 +6,13 @@
 #include "vr41xx_kiu_key_matrix.h"
 #include "vr41xx_kiu_sequencer.h"
 #include "vr41xx_rtcx_ticks.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
 #include <mutex>
 #include <optional>
-#include <vector>
 
 namespace cerfengine {
 class HostRequestChannel;
@@ -95,7 +95,7 @@ private:
     bool     undefined_ = false;
     bool     hibernating_ = false;
     uint8_t  kport_ = 0;
-    std::vector<std::function<void(uint8_t)>> kport_listeners_;
+    CallbackList<uint8_t> kport_listeners_;
     /* End of the scan period or of the KIUWKI interval now in progress (VR4111 UM 22.2.4
        p466 / 22.2.5 p467, VR4102 UM 21.2.4 p429 / 21.2.5 p430, VR4121 UM 22.2.4 p518 /
        22.2.5 p519). */

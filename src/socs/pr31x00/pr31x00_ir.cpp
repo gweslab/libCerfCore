@@ -67,7 +67,7 @@ void Pr31x00Ir::OnReady() {
 bool Pr31x00Ir::RxPwr() const { return !powered_down_ && (ctl1_ & kCtl1RxPwr) != 0u; }
 
 void Pr31x00Ir::NotifyRxPwr() {
-    for (auto& cb : rxpwr_observers_) cb(RxPwr());
+    rxpwr_observers_.Call(RxPwr());
 }
 
 void Pr31x00Ir::NotifyRxPwrIfChanged(bool was) {
@@ -104,7 +104,7 @@ void Pr31x00Ir::WriteWord(uint32_t addr, uint32_t value) {
 
 void Pr31x00Ir::RegisterRxPwrObserver(RxPwrObserver cb) {
     cb(RxPwr());
-    rxpwr_observers_.push_back(std::move(cb));
+    rxpwr_observers_.Add(std::move(cb));
 }
 
 void Pr31x00Ir::DriveCarDetInput(bool level) {

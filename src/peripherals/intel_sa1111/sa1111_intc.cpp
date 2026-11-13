@@ -50,11 +50,11 @@ void Sa1111Intc::OnChipReset(bool held) {
 
 void Sa1111Intc::RegisterSampler(std::function<void()> sample) {
     std::lock_guard<std::mutex> lk(mtx_);
-    samplers_.push_back(std::move(sample));
+    samplers_.Add(std::move(sample));
 }
 
 void Sa1111Intc::SampleSources() {
-    for (auto& fn : samplers_) fn();
+    samplers_.Call();
 }
 
 /* §2.3: "When nRESET is asserted, all on-chip activity halts". */

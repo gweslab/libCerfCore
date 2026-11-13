@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cerfcore/core/service.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <array>
 #include <atomic>
@@ -75,7 +76,7 @@ private:
 
     std::mutex         mutex_;
     std::vector<State> states_;
-    std::vector<std::function<void()>> before_change_;
+    CallbackList<> before_change_;
     const char*        fork_event_ = "";
     ResetPin           pin_        = ResetPin::High;
     bool               irq_out_    = false;

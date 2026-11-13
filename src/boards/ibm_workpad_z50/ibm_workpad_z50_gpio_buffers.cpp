@@ -84,11 +84,11 @@ bool IbmWorkpadZ50GpioBuffers::MicEnabled() const {
 }
 
 void IbmWorkpadZ50GpioBuffers::RegisterOutputListener(std::function<void()> fn) {
-    output_listeners_.push_back(std::move(fn));
+    output_listeners_.Add(std::move(fn));
 }
 
 void IbmWorkpadZ50GpioBuffers::NotifyOutputListeners() {
-    for (const auto& fn : output_listeners_) fn();
+    output_listeners_.Call();
 }
 
 void IbmWorkpadZ50GpioBuffers::SaveState(StateWriter& w) {

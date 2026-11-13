@@ -5,11 +5,11 @@
 #include "service.h"
 
 #include <cerfengine/host_exception.h>
+#include "callback_list.h"
 
 #include <atomic>
 #include <exception>
 #include <functional>
-#include <vector>
 
 namespace cerfengine { class GuestEngine; }
 
@@ -30,7 +30,7 @@ public:
     [[noreturn]] static void LocatorFailure(const char* reason);
     [[noreturn]] static void Raise(std::exception_ptr failure);
 
-    void RegisterHaltListener(std::function<void(int code)> fn) { halt_listeners_.push_back(std::move(fn)); }
+    void RegisterHaltListener(std::function<void(int code)> fn) { halt_listeners_.Add(std::move(fn)); }
     bool Halted() const { return halt_code_.load(std::memory_order_acquire) != kNotHalted; }
     int  HaltCode() const { return halt_code_.load(std::memory_order_acquire); }
     std::string CrashLogPath() const;
@@ -59,7 +59,7 @@ private:
     std::atomic<int>                       halt_code_{kNotHalted};
     Log::CautionRing                       cautions_;
     JitRunner*                             jit_ = nullptr;
-    std::vector<std::function<void(int)>>  halt_listeners_;
+    CallbackList<int>                      halt_listeners_;
 };
 
 template <class Fn>

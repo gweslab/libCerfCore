@@ -3,10 +3,10 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../../execution/guest_cycle_clock.h"
 #include <cerfcore/state/state_stream.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -50,7 +50,7 @@ private:
     bool     Looped() const;
     void     ClearCompletion();
 
-    std::vector<std::function<void()>> control_listeners_;
+    CallbackList<>                     control_listeners_;
     Sa11xxMcpAudioStream*   audio_   = nullptr;
     Sa11xxMcpTelecomStream* telecom_ = nullptr;
     Sa11xxMcpFrameClock*    frames_  = nullptr;

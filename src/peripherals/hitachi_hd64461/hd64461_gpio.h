@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <vector>
 
 #include "../../socs/reg_window_impl.h"
 #include "../pin_drive.h"
+#include <cerfcore/core/callback_list.h>
 
 namespace cerfcore {
 
@@ -89,7 +89,7 @@ private:
 
     Hd64461GpioWiring*                 wiring_ = nullptr;
     std::atomic<uint32_t>              pins_[cerf_hd64461_gpio_detail::kPorts]{};
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<>                     listeners_;
 };
 
 }

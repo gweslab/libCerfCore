@@ -130,27 +130,27 @@ void TraceManager::DispatchPcSh(uint32_t pc, const cerfengine::ShCpuState* st) {
 #if CERF_DEV_MODE
 
 void TraceManager::OnRunLoopIter(TraceHandler handler) {
-    iter_handlers_.push_back(std::move(handler));
+    iter_handlers_.Add(std::move(handler));
 }
 
 void TraceManager::DispatchIterContext(const TraceContext& ctx) {
-    for (auto& h : iter_handlers_) h(ctx);
+    iter_handlers_.Call(ctx);
 }
 
 void TraceManager::DispatchRunLoopIter(const uint32_t* regs, uint32_t cpsr) {
-    if (iter_handlers_.empty()) return;
+    if (iter_handlers_.Empty()) return;
     TraceContext ctx{regs, cpsr, regs[15], emu_};
     DispatchIterContext(ctx);
 }
 
 void TraceManager::DispatchRunLoopIterMips(const cerfengine::MipsCpuState* st) {
-    if (iter_handlers_.empty()) return;
+    if (iter_handlers_.Empty()) return;
     TraceContext ctx{nullptr, 0u, st->pc, emu_, st};
     DispatchIterContext(ctx);
 }
 
 void TraceManager::DispatchRunLoopIterSh(const cerfengine::ShCpuState* st) {
-    if (iter_handlers_.empty()) return;
+    if (iter_handlers_.Empty()) return;
     TraceContext ctx{nullptr, 0u, st->pc, emu_, nullptr, st};
     DispatchIterContext(ctx);
 }

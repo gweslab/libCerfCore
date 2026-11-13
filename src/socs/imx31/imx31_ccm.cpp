@@ -169,23 +169,23 @@ void Imx31Ccm::ApplyRates() {
             regs_[kCcmrSlot], regs_[kPdr0Slot], regs_[kMpctlSlot]);
         applied_hz_ = hz;
     }
-    for (auto& fn : listeners_) fn();
+    listeners_.Call();
 }
 
 void Imx31Ccm::RegisterRateListener(std::function<void()> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void Imx31Ccm::RegisterGate1Listener(std::function<void()> fn) {
-    gate1_listeners_.push_back(std::move(fn));
+    gate1_listeners_.Add(std::move(fn));
 }
 
 void Imx31Ccm::RegisterGateListener(std::function<void()> fn) {
-    gate_listeners_.push_back(std::move(fn));
+    gate_listeners_.Add(std::move(fn));
 }
 
 void Imx31Ccm::NotifyGates() {
-    for (auto& fn : gate_listeners_) fn();
+    gate_listeners_.Call();
 }
 
 uint64_t Imx31Ccm::CkilHz() const { return input_->CkilHz(); }
@@ -356,7 +356,7 @@ void Imx31Ccm::WriteWord(uint32_t addr, uint32_t value) {
                         slot == kCgr0Slot;
     if (timing && old != value) ApplyRates();
     if (slot == kCgr1Slot && old != value) {
-        for (auto& fn : gate1_listeners_) fn();
+        gate1_listeners_.Call();
     }
     if (slot >= kCgr0Slot && slot <= kCgr2Slot && old != value) NotifyGates();
 }

@@ -2,10 +2,10 @@
 
 #include <cerfcore/core/service.h>
 #include "../../execution/guest_cycle_clock.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -21,7 +21,7 @@ protected:
     void NotifyChange();
 
 private:
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<> listeners_;
 };
 
 }

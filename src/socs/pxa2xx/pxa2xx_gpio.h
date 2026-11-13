@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -90,8 +90,8 @@ private:
 
     Pxa2xxGpioSerialSlave* serial_slave_ = nullptr;
     Pxa2xxGpioWakeSink*    wake_sink_    = nullptr;
-    std::vector<std::function<void()>> pin_config_listeners_;
-    std::vector<OutputObserver>        output_observers_;
+    CallbackList<> pin_config_listeners_;
+    CallbackList<const OutputPins&, bool> output_observers_;
 
     uint32_t in_[kMaxBanks]   = {};
     uint32_t out_[kMaxBanks]  = {};

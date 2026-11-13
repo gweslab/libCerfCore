@@ -184,7 +184,7 @@ void Vr41xxKiu::EnterUndefinedLocked() {
 
 void Vr41xxKiu::RegisterKportListener(std::function<void(uint8_t kport)> fn) {
     std::lock_guard<std::mutex> lk(mtx_);
-    kport_listeners_.push_back(std::move(fn));
+    kport_listeners_.Add(std::move(fn));
     PublishKportLocked(true);
 }
 
@@ -204,11 +204,11 @@ uint8_t Vr41xxKiu::DrivenKportLocked() {
 }
 
 void Vr41xxKiu::NotifyKportLocked(uint8_t kport) {
-    for (auto& fn : kport_listeners_) fn(kport);
+    kport_listeners_.Call(kport);
 }
 
 void Vr41xxKiu::PublishKportLocked(bool force) {
-    if (kport_listeners_.empty()) return;
+    if (kport_listeners_.Empty()) return;
     const uint8_t kport = DrivenKportLocked();
     if (kport == kport_ && !force) return;
     kport_ = kport;
@@ -216,7 +216,7 @@ void Vr41xxKiu::PublishKportLocked(bool force) {
 }
 
 void Vr41xxKiu::PulseKportLocked(uint16_t lines, uint16_t piod) {
-    if (kport_listeners_.empty()) return;
+    if (kport_listeners_.Empty()) return;
     const uint8_t base  = key_matrix_.Kport(scanline_, gpen_, piod, 0);
     const uint8_t pulse = key_matrix_.Kport(scanline_, gpen_, piod, lines);
     if (base != kport_) {

@@ -2,10 +2,10 @@
 
 #include <cerfengine/calling_convention.h>
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -71,9 +71,9 @@ private:
     uint32_t cken_        = kCkenReset;
     uint32_t oscc_        = 0u;
 
-    std::vector<std::function<void()>> osc_listeners_;
-    std::vector<std::function<void()>> lcd_clock_listeners_;
-    std::vector<std::function<void()>> cken_listeners_;
+    CallbackList<>                     osc_listeners_;
+    CallbackList<>                     lcd_clock_listeners_;
+    CallbackList<>                     cken_listeners_;
     uint64_t                           published_lcd_hz_ = 0u;
     bool                               published_lcd_on_ = false;
 };

@@ -2,10 +2,10 @@
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 #include <cerfcore/core/service.h>
 #include <cerfengine/calling_convention.h>
+#include <cerfcore/core/callback_list.h>
 
 namespace cerfengine { struct MipsCpuState; }
 namespace cerfengine { class Engine; }
@@ -32,7 +32,7 @@ private:
     cerfengine::Engine*                engine_    = nullptr;
     cerfengine::MipsCpuState*                      cpu_state_ = nullptr;
     const MipsProcessorConfig*         config_    = nullptr;
-    std::vector<std::function<void()>> rf_listeners_;
+    CallbackList<>                     rf_listeners_;
 };
 
 }

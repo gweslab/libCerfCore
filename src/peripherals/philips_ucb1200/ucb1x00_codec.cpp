@@ -105,11 +105,11 @@ void Ucb1x00Codec::OnReady() {
 }
 
 void Ucb1x00Codec::RegisterBeforeChange(std::function<void()> fn) {
-    before_change_.push_back(std::move(fn));
+    before_change_.Add(std::move(fn));
 }
 
 void Ucb1x00Codec::NotifyBeforeChange() {
-    for (auto& fn : before_change_) fn();
+    before_change_.Call();
 }
 
 void Ucb1x00Codec::ForkLocked(const char* event) {

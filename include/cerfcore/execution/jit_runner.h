@@ -5,9 +5,9 @@
 #include <functional>
 #include <mutex>
 #include <thread>
-#include <vector>
 
 #include "../core/service.h"
+#include "../core/callback_list.h"
 
 namespace cerfcore {
 
@@ -54,7 +54,7 @@ private:
     std::mutex              pause_mutex_;
     std::condition_variable pause_cv_;
 
-    std::vector<std::function<void()>> pre_start_hooks_;
+    CallbackList<> pre_start_hooks_;
 };
 
 }

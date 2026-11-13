@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -79,8 +79,8 @@ private:
     void     PublishEdgeSourcesLocked();
     void     NotifyOutputs(uint32_t levels, uint32_t out_mask, bool resync);
 
-    std::vector<OutputObserver> output_observers_;
-    std::vector<std::function<void()>> pin_config_listeners_;
+    CallbackList<uint32_t, uint32_t, bool> output_observers_;
+    CallbackList<> pin_config_listeners_;
 };
 
 }

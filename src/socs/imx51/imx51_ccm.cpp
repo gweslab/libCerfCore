@@ -212,15 +212,15 @@ void Imx51Ccm::PostRestore() {
 }
 
 void Imx51Ccm::RegisterRateListener(std::function<void()> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void Imx51Ccm::RegisterGateListener(std::function<void()> fn) {
-    gate_listeners_.push_back(std::move(fn));
+    gate_listeners_.Add(std::move(fn));
 }
 
 void Imx51Ccm::NotifyGates() {
-    for (auto& fn : gate_listeners_) fn();
+    gate_listeners_.Call();
 }
 
 void Imx51Ccm::ApplyRates() {
@@ -247,7 +247,7 @@ void Imx51Ccm::ApplyRates() {
             emu_.Get<Imx51Dpll1>().Restarted() ? "restarted" : "boot ROM state");
         applied_ = rate;
     }
-    for (auto& fn : listeners_) fn();
+    listeners_.Call();
 }
 
 /* Figure 7-39: ARM_CLK_ROOT is pll1_sw_clk through the arm_podf divider, value + 1. */

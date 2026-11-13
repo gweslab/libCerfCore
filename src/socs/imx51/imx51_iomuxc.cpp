@@ -125,11 +125,11 @@ uint32_t Imx51Iomuxc::GpioPadMask(uint32_t gpio_base) const {
 }
 
 void Imx51Iomuxc::RegisterPadListener(std::function<void()> fn) {
-    pad_listeners_.push_back(std::move(fn));
+    pad_listeners_.Add(std::move(fn));
 }
 
 void Imx51Iomuxc::NotifyPads() {
-    for (auto& fn : pad_listeners_) fn();
+    pad_listeners_.Call();
 }
 
 void Imx51Iomuxc::DriveWdog1WdogB(bool asserted) {

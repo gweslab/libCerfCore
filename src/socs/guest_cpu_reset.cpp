@@ -53,11 +53,11 @@ void GuestCpuReset::ResetWithLatchedCause(ResetLineKind kind) {
 }
 
 void GuestCpuReset::RegisterResetListener(std::function<void(ResetLineKind)> fn) {
-    reset_listeners_.push_back(std::move(fn));
+    reset_listeners_.Add(std::move(fn));
 }
 
 void GuestCpuReset::RegisterResetReleaseListener(std::function<void()> fn) {
-    release_listeners_.push_back(std::move(fn));
+    release_listeners_.Add(std::move(fn));
 }
 
 void GuestCpuReset::SetPendingResume(bool is_resume) {
@@ -90,11 +90,11 @@ void GuestCpuReset::OnResetDelivered() {
     delivering_.store(true, std::memory_order_release);
     delivered_reported_warm_ = report_warm_pending_.exchange(false, std::memory_order_acq_rel);
     line_held_ = true;
-    for (auto& fn : reset_listeners_) fn(kind);
+    reset_listeners_.Call(kind);
     if (delivered_reported_warm_ && latch_) latch_->ReportOnlyWarmReset();
     emu_.Get<GuestColdBoot>().ExecuteIfPending();
     line_held_ = false;
-    for (auto& fn : release_listeners_) fn();
+    release_listeners_.Call();
     emu_.Get<GuestPowerNotifier>().NotifyResetReleased();
     delivering_.store(false, std::memory_order_release);
 }

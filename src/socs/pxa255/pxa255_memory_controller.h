@@ -2,10 +2,10 @@
 
 #include <cerfcore/peripherals/peripheral_base.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -41,7 +41,7 @@ private:
 
     uint32_t regs_[(kLastReg / 4u) + 1u] = {};
     uint64_t published_sdclk2_hz_ = 0;
-    std::vector<std::function<void()>> sdclk2_listeners_;
+    CallbackList<> sdclk2_listeners_;
 };
 
 }

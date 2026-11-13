@@ -103,11 +103,11 @@ bool Sa11xxTestUnit::Gp27ClockRate(GuestCycleClock::Rate& rate) const {
 }
 
 void Sa11xxTestUnit::RegisterChangeListener(std::function<void()> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void Sa11xxTestUnit::NotifyChange() {
-    for (auto& fn : listeners_) fn();
+    listeners_.Call();
 }
 
 void Sa11xxTestUnit::Save(StateWriter& w) const {

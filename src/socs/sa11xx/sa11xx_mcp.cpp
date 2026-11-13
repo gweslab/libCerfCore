@@ -110,11 +110,11 @@ void Sa11xxMcp::ControlChanged() {
     RefreshLine(now);
     ServeCommand(now);
     dma_->OnPortChange();
-    for (auto& fn : control_listeners_) fn();
+    control_listeners_.Call();
 }
 
 void Sa11xxMcp::RegisterControlListener(std::function<void()> fn) {
-    control_listeners_.push_back(std::move(fn));
+    control_listeners_.Add(std::move(fn));
 }
 
 /* §11.12.6 (printed 11-145): "Each of these conditions signal an interrupt request to the interrupt

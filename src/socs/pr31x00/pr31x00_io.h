@@ -3,11 +3,11 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 
 #include "pr31x00_pins.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -82,8 +82,8 @@ private:
     void NotifyMfioOut();
     void NotifyIoOut();
 
-    std::vector<PinObserver> mfio_out_observers_;
-    std::vector<PinObserver> io_out_observers_;
+    CallbackList<const Pr31x00Pins&> mfio_out_observers_;
+    CallbackList<const Pr31x00Pins&> io_out_observers_;
 };
 
 }

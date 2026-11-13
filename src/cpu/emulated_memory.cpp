@@ -156,7 +156,7 @@ void EmulatedMemory::SetAddressDecode(uint32_t region_base, const AddressDecode*
     r->decode.store(decode, std::memory_order_release);
     LOG(Mem, "SetAddressDecode region 0x%08X pass 0x%08X gather 0x%08X\n", region_base,
         decode ? decode->pass_mask : 0xFFFFFFFFu, decode ? decode->gather_mask : 0u);
-    for (auto& fn : decode_listeners_) fn();
+    decode_listeners_.Call();
 }
 
 void EmulatedMemory::SetBusAccess(uint32_t region_base, bool enabled) {
@@ -166,13 +166,13 @@ void EmulatedMemory::SetBusAccess(uint32_t region_base, bool enabled) {
         if (r.base != region_base) continue;
         if (r.bus_access.exchange(enabled, std::memory_order_acq_rel) == enabled) return;
         LOG(Mem, "SetBusAccess region 0x%08X %s\n", region_base, enabled ? "on" : "off");
-        for (auto& fn : decode_listeners_) fn();
+        decode_listeners_.Call();
         return;
     }
 }
 
 void EmulatedMemory::RegisterDecodeListener(std::function<void()> fn) {
-    decode_listeners_.push_back(std::move(fn));
+    decode_listeners_.Add(std::move(fn));
 }
 
 CERF_FORCEINLINE uint8_t* EmulatedMemory::PhysicalTranslate(uint32_t pa, bool write,

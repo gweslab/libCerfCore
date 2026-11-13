@@ -185,23 +185,23 @@ void Pr31x00Io::DriveIoInput(uint32_t pin, bool level) {
 
 void Pr31x00Io::NotifyMfioOut() {
     const Pr31x00Pins p = MfioPins();
-    for (auto& cb : mfio_out_observers_) cb(p);
+    mfio_out_observers_.Call(p);
     if (auto* slave = emu_.TryGet<Pr31x00MfioSlave>()) slave->OnMfioOut(p);
 }
 
 void Pr31x00Io::NotifyIoOut() {
     const Pr31x00Pins p = IoPins();
-    for (auto& cb : io_out_observers_) cb(p);
+    io_out_observers_.Call(p);
 }
 
 void Pr31x00Io::RegisterMfioOutObserver(PinObserver cb) {
     cb(MfioPins());
-    mfio_out_observers_.push_back(std::move(cb));
+    mfio_out_observers_.Add(std::move(cb));
 }
 
 void Pr31x00Io::RegisterIoOutObserver(PinObserver cb) {
     cb(IoPins());
-    io_out_observers_.push_back(std::move(cb));
+    io_out_observers_.Add(std::move(cb));
 }
 
 void Pr31x00Io::SaveState(StateWriter& w) {

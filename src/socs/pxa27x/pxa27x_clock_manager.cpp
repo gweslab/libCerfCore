@@ -78,11 +78,11 @@ void Pxa27xClockManager::OnReady() {
 }
 
 void Pxa27xClockManager::RegisterOscillatorListener(std::function<void()> fn) {
-    osc_listeners_.push_back(std::move(fn));
+    osc_listeners_.Add(std::move(fn));
 }
 
 void Pxa27xClockManager::FireOscillatorListeners() {
-    for (auto& fn : osc_listeners_) fn();
+    osc_listeners_.Call();
 }
 
 void Pxa27xClockManager::SetOscillatorStable() {
@@ -155,11 +155,11 @@ uint64_t Pxa27xClockManager::LcdClockHz() const {
 }
 
 void Pxa27xClockManager::RegisterLcdClockListener(std::function<void()> fn) {
-    lcd_clock_listeners_.push_back(std::move(fn));
+    lcd_clock_listeners_.Add(std::move(fn));
 }
 
 void Pxa27xClockManager::RegisterClockEnableListener(std::function<void()> fn) {
-    cken_listeners_.push_back(std::move(fn));
+    cken_listeners_.Add(std::move(fn));
 }
 
 void Pxa27xClockManager::ApplyRate() {
@@ -173,7 +173,7 @@ void Pxa27xClockManager::PublishLcdClock() {
     if (lcd_hz == published_lcd_hz_ && lcd_on == published_lcd_on_) return;
     published_lcd_hz_ = lcd_hz;
     published_lcd_on_ = lcd_on;
-    for (auto& fn : lcd_clock_listeners_) fn();
+    lcd_clock_listeners_.Call();
 }
 
 uint32_t CERFENGINE_FASTCALL Pxa27xClockManager::ReadClkcfgHelper(void* self) {
@@ -218,7 +218,7 @@ void Pxa27xClockManager::WriteWord(uint32_t addr, uint32_t value) {
             PublishLcdClock();
             if (cken_ == old) return;
             LOG(SocClkpwr, "Pxa27xClockManager: CKEN <= 0x%08X\n", cken_);
-            for (auto& fn : cken_listeners_) fn();
+            cken_listeners_.Call();
             return;
         }
         /* Section 3.8.2.3 (page 3-99): "OON can be set only by software and

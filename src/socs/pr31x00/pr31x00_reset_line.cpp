@@ -21,20 +21,20 @@ void Pr31x00ResetLine::OnReady() {
     reset_ = &emu_.Get<GuestCpuReset>();
     reset_->RegisterResetListener([this](ResetLineKind kind) {
         if (kind != ResetLineKind::Rtc) return;
-        for (auto& fn : reset_listeners_) fn();
+        reset_listeners_.Call();
     });
     reset_->RegisterResetReleaseListener([this] {
         if (reset_->DeliveringKind() != ResetLineKind::Rtc) return;
-        for (auto& fn : release_listeners_) fn();
+        release_listeners_.Call();
     });
 }
 
 void Pr31x00ResetLine::RegisterResetListener(std::function<void()> fn) {
-    reset_listeners_.push_back(std::move(fn));
+    reset_listeners_.Add(std::move(fn));
 }
 
 void Pr31x00ResetLine::RegisterReleaseListener(std::function<void()> fn) {
-    release_listeners_.push_back(std::move(fn));
+    release_listeners_.Add(std::move(fn));
 }
 
 bool Pr31x00ResetLine::Resetting() const {

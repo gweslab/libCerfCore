@@ -3,11 +3,11 @@
 #include "../../execution/guest_cycle_clock.h"
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../freescale_timer_clocks.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -77,8 +77,8 @@ private:
     Imx51CcmDvfs*                      dvfs_     = nullptr;
     Rate                               applied_{0u, 1u};
     bool                               core_stopped_ = false;
-    std::vector<std::function<void()>> listeners_;
-    std::vector<std::function<void()>> gate_listeners_;
+    CallbackList<>                     listeners_;
+    CallbackList<>                     gate_listeners_;
     std::array<uint32_t, kSize / 4>    regs_{};
 };
 

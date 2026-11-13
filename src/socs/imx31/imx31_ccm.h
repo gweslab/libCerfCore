@@ -8,11 +8,11 @@
 #include "../freescale_timer_clocks.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "imx31_plls.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -83,9 +83,9 @@ private:
 
     const Imx31ClockInput*             input_ = nullptr;
     Imx31Plls*                         plls_  = nullptr;
-    std::vector<std::function<void()>> listeners_;
-    std::vector<std::function<void()>> gate1_listeners_;
-    std::vector<std::function<void()>> gate_listeners_;
+    CallbackList<>                     listeners_;
+    CallbackList<>                     gate1_listeners_;
+    CallbackList<>                     gate_listeners_;
     std::atomic<uint32_t>              latched_rest_{0u};
     uint64_t                           applied_hz_ = 0u;
     uint32_t regs_[kSlotCount] = {};

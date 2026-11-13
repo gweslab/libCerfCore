@@ -89,11 +89,11 @@ void Sa1111SystemController::UnitWriteWord(uint32_t addr, uint32_t value) {
 }
 
 void Sa1111SystemController::RegisterClockListener(std::function<void()> fn) {
-    clock_listeners_.push_back(std::move(fn));
+    clock_listeners_.Add(std::move(fn));
 }
 
 void Sa1111SystemController::NotifyClockListeners() {
-    for (auto& fn : clock_listeners_) fn();
+    clock_listeners_.Call();
 }
 
 /* §2.4.3 Sleep Mode: Shutdown_1 "causes the Power Control Register to be cleared, which

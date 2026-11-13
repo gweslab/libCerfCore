@@ -2,10 +2,10 @@
 
 #include "omap3530_cm_clock_control.h"
 #include "omap3530_prcm_stub_block.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -36,7 +36,7 @@ private:
     void ApplyResetsLocked();
 
     Omap3530CmClockControl*            clock_control_ = nullptr;
-    std::vector<std::function<void()>> dss1_listeners_;
+    CallbackList<>                     dss1_listeners_;
 };
 
 }

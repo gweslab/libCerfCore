@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -56,7 +56,7 @@ private:
     bool              rxpwr_at_reset_  = false;
     std::atomic<bool> cardet_{false};
 
-    std::vector<RxPwrObserver> rxpwr_observers_;
+    CallbackList<bool> rxpwr_observers_;
 };
 
 }

@@ -46,11 +46,11 @@ void Hibernation::JoinWorker() {
 }
 
 void Hibernation::RegisterPreSaveListener(std::function<void()> fn) {
-    pre_save_listeners_.push_back(std::move(fn));
+    pre_save_listeners_.Add(std::move(fn));
 }
 
 void Hibernation::RegisterPostRestoreListener(std::function<void()> fn) {
-    post_restore_listeners_.push_back(std::move(fn));
+    post_restore_listeners_.Add(std::move(fn));
 }
 
 void Hibernation::RegisterRomImage(uint64_t bytes) {
@@ -133,7 +133,7 @@ StateImageHeader Hibernation::LiveHeader() const {
 }
 
 bool Hibernation::WriteImage(const std::string& path, std::string& error) {
-    for (auto& fn : pre_save_listeners_) fn();
+    pre_save_listeners_.Call();
     StateWriter w(emu_, path);
     if (!w.Ok()) {
         error = w.Error();
@@ -264,7 +264,7 @@ void Hibernation::RestorePeripherals(StateReader& r) {
         r.LeaveFrame();
     }
     for (Peripheral* p : periphs) p->PostRestore();
-    for (auto& fn : post_restore_listeners_) fn();
+    post_restore_listeners_.Call();
 }
 
 void Hibernation::RestorePresentation(StateReader& r) {

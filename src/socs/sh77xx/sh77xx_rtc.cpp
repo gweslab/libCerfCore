@@ -200,11 +200,11 @@ int64_t Sh77xxRtc::RtcclkSleptNsAtTick(uint64_t tick) {
 }
 
 void Sh77xxRtc::RegisterRtcclkListener(std::function<void()> listener) {
-    rtcclk_listeners_.push_back(std::move(listener));
+    rtcclk_listeners_.Add(std::move(listener));
 }
 
 void Sh77xxRtc::NotifyRtcclk() {
-    for (const std::function<void()>& listener : rtcclk_listeners_) listener();
+    rtcclk_listeners_.Call();
 }
 
 void Sh77xxRtc::OnReset(ResetLineKind kind) {

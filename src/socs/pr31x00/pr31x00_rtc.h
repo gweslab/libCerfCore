@@ -4,12 +4,12 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../cycle_anchored_counter.h"
 #include "../oscillator_ticks.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
 #include <mutex>
 #include <optional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -87,7 +87,7 @@ private:
     uint64_t                seen_tick_   = 0;
     uint32_t                rises_pending_ = 0;
     GuestCycleClock::Event* rtc_event_   = nullptr;
-    std::vector<std::function<void()>> count_listeners_;
+    CallbackList<> count_listeners_;
 
     NarrowCycleAnchoredCounter per_ctr_;
     GuestCycleClock*           cycle_clock_  = nullptr;

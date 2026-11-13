@@ -2,13 +2,13 @@
 
 #include "../core/service.h"
 #include "state_image_format.h"
+#include "../core/callback_list.h"
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <thread>
-#include <vector>
 
 namespace cerfcore {
 
@@ -69,8 +69,8 @@ private:
     std::thread       worker_;
     std::atomic<bool> busy_{false};
 
-    std::vector<std::function<void()>> pre_save_listeners_;
-    std::vector<std::function<void()>> post_restore_listeners_;
+    CallbackList<>                     pre_save_listeners_;
+    CallbackList<>                     post_restore_listeners_;
     uint64_t                           registered_rom_bytes_ = 0;
 };
 

@@ -50,11 +50,11 @@ void Sa1111Sbi::OnHostPinsChange() {
 }
 
 void Sa1111Sbi::RegisterGrantListener(std::function<void()> fn) {
-    grant_listeners_.push_back(std::move(fn));
+    grant_listeners_.Add(std::move(fn));
 }
 
 void Sa1111Sbi::NotifyGrant() {
-    for (auto& fn : grant_listeners_) fn();
+    grant_listeners_.Call();
 }
 
 /* Table 3-10 MBGE: "0=MBGNT is gated and disabled. 1=MBGNT is enabled."; Figure 3-7 (printed

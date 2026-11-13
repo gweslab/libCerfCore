@@ -75,7 +75,7 @@ void Pr31x00Clock::OnReady() {
     });
     emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
         SetCoreRate(0u);
-        for (auto& fn : video_listeners_) fn();
+        video_listeners_.Call();
         NotifyModuleClocks();
     });
 }
@@ -195,11 +195,11 @@ void Pr31x00Clock::PresetSerialClock(uint32_t cserdiv) {
 }
 
 void Pr31x00Clock::RegisterModuleClockListener(std::function<void()> fn) {
-    module_listeners_.push_back(std::move(fn));
+    module_listeners_.Add(std::move(fn));
 }
 
 void Pr31x00Clock::NotifyModuleClocks() {
-    for (auto& fn : module_listeners_) fn();
+    module_listeners_.Call();
 }
 
 /* TMPR3911 §12.3.1 p12-13 DIVMOD; BAUDVAL / 4 with RF 10 at DIVMOD 0: philips_nino_300 nk.exe
@@ -211,13 +211,13 @@ GuestCycleClock::Rate Pr31x00Clock::VideoClockRate() const {
 }
 
 void Pr31x00Clock::RegisterVideoClockListener(std::function<void()> fn) {
-    video_listeners_.push_back(std::move(fn));
+    video_listeners_.Add(std::move(fn));
 }
 
 void Pr31x00Clock::NotifyVideoClock(GuestCycleClock::Rate before) {
     const GuestCycleClock::Rate now = VideoClockRate();
     if (now.Reduced() == before.Reduced()) return;
-    for (auto& fn : video_listeners_) fn();
+    video_listeners_.Call();
 }
 
 void Pr31x00Clock::SaveState(StateWriter& w) {

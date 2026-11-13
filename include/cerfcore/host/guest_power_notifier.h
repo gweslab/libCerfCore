@@ -1,9 +1,9 @@
 #pragma once
 
 #include "../core/service.h"
+#include "../core/callback_list.h"
 
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -24,7 +24,7 @@ public:
 private:
     void Banner(const char* line);
 
-    std::vector<std::function<void()>> reboot_listeners_;
+    CallbackList<> reboot_listeners_;
 };
 
 }

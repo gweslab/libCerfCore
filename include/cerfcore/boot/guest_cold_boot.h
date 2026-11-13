@@ -2,11 +2,11 @@
 
 #include "../core/service.h"
 #include "../state/state_stream.h"
+#include "../core/callback_list.h"
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -38,7 +38,7 @@ public:
     void RestoreState(StateReader& r);
 
 private:
-    std::vector<std::function<void()>> replays_;
+    CallbackList<>                     replays_;
     std::atomic<bool>                  pending_{false};
     std::function<void()>              fill_;
     std::atomic<bool>                  fill_pending_{false};

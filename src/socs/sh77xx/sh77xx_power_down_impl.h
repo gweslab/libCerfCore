@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 #include <cerfcore/host/guest_deep_sleep.h>
 #include <cerfengine/sh/sh_interrupt_channel.h>
@@ -12,6 +11,7 @@
 #include "../reg_window_impl.h"
 #include "sh77xx_standby_control.h"
 #include "sh77xx_wdt.h"
+#include <cerfcore/core/callback_list.h>
 
 namespace cerfcore {
 
@@ -53,7 +53,7 @@ public:
     bool ModuleStopped(uint8_t mstp) const override { return (this->StoredReg(0u) & mstp) != 0u; }
 
     void RegisterChangeListener(typename Slot::ChangeListener listener) override {
-        listeners_.push_back(std::move(listener));
+        listeners_.Add(std::move(listener));
     }
 
 protected:
@@ -62,11 +62,11 @@ protected:
     void AfterStore(uint32_t) override {
         const uint8_t after = static_cast<uint8_t>(this->StoredReg(0u));
         if (after == before_) return;
-        for (const typename Slot::ChangeListener& listener : listeners_) listener(before_, after);
+        listeners_.Call(before_, after);
     }
 
 private:
-    std::vector<typename Slot::ChangeListener> listeners_;
+    CallbackList<uint8_t, uint8_t>             listeners_;
     uint8_t                                    before_ = 0u;
 };
 

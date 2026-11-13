@@ -2,10 +2,10 @@
 
 #include <cerfcore/core/service.h>
 #include "../../execution/guest_cycle_clock.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -40,7 +40,7 @@ private:
     Omap3530CmPer*                     per_           = nullptr;
     Omap3530SyscPadconf*               padconf_       = nullptr;
     Omap3530McBspClockPad*             pad_           = nullptr;
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<>                     listeners_;
 };
 
 }

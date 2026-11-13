@@ -97,25 +97,25 @@ void GuestCycleClock::SetClockRate(Rate rate) {
     SetUnits(r);
     LogRate();
     Arm(throttle_, now + NsToCycles(slice_left_ns));
-    for (auto& fn : rate_listeners_) fn();
+    rate_listeners_.Call();
 }
 
 void GuestCycleClock::RegisterRateListener(std::function<void()> fn) {
-    rate_listeners_.push_back(std::move(fn));
+    rate_listeners_.Add(std::move(fn));
 }
 
 void GuestCycleClock::RegisterIdleListener(std::function<void()> fn) {
-    idle_listeners_.push_back(std::move(fn));
+    idle_listeners_.Add(std::move(fn));
 }
 
 void GuestCycleClock::RegisterIdleExitListener(std::function<void()> fn) {
-    idle_exit_listeners_.push_back(std::move(fn));
+    idle_exit_listeners_.Add(std::move(fn));
 }
 
 void GuestCycleClock::ExitIdle() {
     if (!in_idle_) return;
     in_idle_ = false;
-    for (auto& fn : idle_exit_listeners_) fn();
+    idle_exit_listeners_.Call();
 }
 
 void GuestCycleClock::OnReady() {
@@ -249,7 +249,7 @@ void GuestCycleClock::OnThrottle() {
 
 void GuestCycleClock::IdleStep(void* wake_event) {
     in_idle_ = true;
-    for (auto& fn : idle_listeners_) fn();
+    idle_listeners_.Call();
     WaitStep(wake_event);
 }
 

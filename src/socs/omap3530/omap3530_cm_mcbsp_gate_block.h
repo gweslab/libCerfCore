@@ -1,6 +1,7 @@
 #pragma once
 
 #include "omap3530_prcm_stub_block.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
@@ -33,7 +34,7 @@ private:
     uint64_t McBspGatesLocked() const;
     uint64_t GatesOf(const std::vector<uint32_t>& regs) const;
 
-    std::vector<std::function<void()>> clock_listeners_;
+    CallbackList<>                     clock_listeners_;
     bool                               reset_changed_ = false;
 };
 

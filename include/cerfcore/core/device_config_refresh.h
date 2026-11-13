@@ -1,9 +1,9 @@
 #pragma once
 
 #include "service.h"
+#include "callback_list.h"
 
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -16,7 +16,7 @@ public:
     void Refresh();
 
 private:
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<> listeners_;
 };
 
 }

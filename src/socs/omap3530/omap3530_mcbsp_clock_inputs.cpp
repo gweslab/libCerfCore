@@ -60,11 +60,11 @@ bool Omap3530McBspClockInputs::FsrFromFsx(uint32_t port) const {
 }
 
 void Omap3530McBspClockInputs::RegisterListener(std::function<void()> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void Omap3530McBspClockInputs::Notify() {
-    for (auto& fn : listeners_) fn();
+    listeners_.Call();
 }
 
 REGISTER_SERVICE(Omap3530McBspClockInputs);

@@ -87,15 +87,15 @@ uint64_t Pxa255MemoryController::Sdclk2Hz() const {
 
 void Pxa255MemoryController::RegisterSdclk2Listener(std::function<void()> fn) {
     published_sdclk2_hz_ = Sdclk2Hz();
-    sdclk2_listeners_.push_back(std::move(fn));
+    sdclk2_listeners_.Add(std::move(fn));
 }
 
 void Pxa255MemoryController::PublishSdclk2() {
-    if (sdclk2_listeners_.empty()) return;
+    if (sdclk2_listeners_.Empty()) return;
     const uint64_t hz = Sdclk2Hz();
     if (hz == published_sdclk2_hz_) return;
     published_sdclk2_hz_ = hz;
-    for (auto& fn : sdclk2_listeners_) fn();
+    sdclk2_listeners_.Call();
 }
 
 uint32_t Pxa255MemoryController::ReadWord(uint32_t addr) {

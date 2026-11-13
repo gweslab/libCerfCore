@@ -30,13 +30,13 @@ void Sa11xxLcd::OnReady() {
     reset.RegisterResetReleaseListener([this] {
         if (!enable_dropped_by_reset_) return;
         enable_dropped_by_reset_ = false;
-        for (auto& fn : enable_listeners_) fn();
+        enable_listeners_.Call();
     });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 
 void Sa11xxLcd::RegisterEnableListener(std::function<void()> fn) {
-    enable_listeners_.push_back(std::move(fn));
+    enable_listeners_.Add(std::move(fn));
 }
 
 void Sa11xxLcd::PublishScreenSizeOnEnableEdge(uint32_t old_lccr0,
@@ -74,7 +74,7 @@ void Sa11xxLcd::WriteReg(uint32_t off, uint32_t value) {
                bit; without it the JIT hangs in that polling loop forever. */
             if ((old & 0x1u) != 0u && (value & 0x1u) == 0u) lcsr_ |= kLcsrLdd;
             if (((old ^ value) & 0x1u) != 0u) {
-                for (auto& fn : enable_listeners_) fn();
+                enable_listeners_.Call();
             }
             break;
         }

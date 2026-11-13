@@ -2,10 +2,10 @@
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 #include <cerfcore/core/service.h>
 #include "../../execution/guest_cycle_clock.h"
+#include <cerfcore/core/callback_list.h>
 
 namespace cerfcore {
 
@@ -22,7 +22,7 @@ public:
     void CountRateRestored();
 
 private:
-    std::vector<std::function<void()>> count_rate_listeners_;
+    CallbackList<> count_rate_listeners_;
 };
 
 }

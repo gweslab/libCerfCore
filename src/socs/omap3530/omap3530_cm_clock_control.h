@@ -2,10 +2,10 @@
 
 #include "../../execution/guest_cycle_clock.h"
 #include "omap3530_prcm_stub_block.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -45,7 +45,7 @@ private:
     void NotifyRate();
 
     uint64_t osc_hz_ = 0;
-    std::vector<std::function<void()>> rate_listeners_;
+    CallbackList<> rate_listeners_;
 };
 
 }

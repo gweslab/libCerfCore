@@ -2,10 +2,10 @@
 
 #include <cerfcore/core/service.h>
 #include "../../host/battery_widget.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -38,7 +38,7 @@ private:
 
     Vr41xxGiu*    giu_ = nullptr;
     BatteryWidget battery_;
-    std::vector<std::function<void()>> change_listeners_;
+    CallbackList<> change_listeners_;
 };
 
 }

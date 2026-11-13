@@ -12,6 +12,7 @@
 #include "../core/tick_scale.h"
 #include "../platform/host_wait_timer.h"
 #include <cerfengine/clock_host.h>
+#include <cerfcore/core/callback_list.h>
 
 #if CERF_DEV_MODE
 #include <atomic>
@@ -107,9 +108,9 @@ private:
     void     SleepUntilWallNs(int64_t target_ns);
 
     std::vector<std::unique_ptr<Event>> events_;
-    std::vector<std::function<void()>>  rate_listeners_;
-    std::vector<std::function<void()>>  idle_listeners_;
-    std::vector<std::function<void()>>  idle_exit_listeners_;
+    CallbackList<>                      rate_listeners_;
+    CallbackList<>                      idle_listeners_;
+    CallbackList<>                      idle_exit_listeners_;
     bool          in_idle_     = false;
     Event*        throttle_    = nullptr;
     VirtualClock* wall_        = nullptr;

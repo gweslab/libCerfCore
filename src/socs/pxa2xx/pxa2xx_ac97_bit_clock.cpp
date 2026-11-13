@@ -32,12 +32,12 @@ GuestCycleClock::Rate Pxa2xxAc97BitClock::PadClock() const {
     return codec_bitclk_ ? codec_->BitClockRate() : GuestCycleClock::Rate{0u, 1u};
 }
 
-void Pxa2xxAc97BitClock::AddPadListener(std::function<void(uint64_t)> fn) { pad_listeners_.push_back(std::move(fn)); }
+void Pxa2xxAc97BitClock::AddPadListener(std::function<void(uint64_t)> fn) { pad_listeners_.Add(std::move(fn)); }
 
 void Pxa2xxAc97BitClock::SetCodecDriving(uint64_t at, bool on) {
     if (on == codec_bitclk_) return;
     codec_bitclk_ = on;
-    for (auto& fn : pad_listeners_) fn(at);
+    pad_listeners_.Call(at);
 }
 
 void Pxa2xxAc97BitClock::Start(uint64_t now) {

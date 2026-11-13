@@ -2,10 +2,10 @@
 
 #include <cerfcore/core/service.h>
 #include "../../execution/guest_cycle_clock.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -49,7 +49,7 @@ private:
 
     Ac97Codec*                        codec_ = nullptr;
     std::function<void(uint64_t)>     on_change_;
-    std::vector<std::function<void(uint64_t)>> pad_listeners_;
+    CallbackList<uint64_t> pad_listeners_;
 
     bool codec_bitclk_ = false;
     bool unit_clock_   = true;

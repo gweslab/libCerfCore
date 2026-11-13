@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -17,7 +17,7 @@ protected:
     void DriveAferst(bool high);
 
 private:
-    std::vector<std::function<void(bool)>> aferst_listeners_;
+    CallbackList<bool> aferst_listeners_;
     bool aferst_high_ = false;
 };
 

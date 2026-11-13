@@ -5,9 +5,6 @@
 
 #include <atomic>
 #include <cstdint>
-#include <functional>
-#include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -26,10 +23,6 @@ public:
         return running_.load(std::memory_order_acquire);
     }
 
-    /* util/qemu-timer.c qemu_clock_enable: the enable edge notifies every
-       timer list attached to the clock. */
-    void RegisterEnableNotify(std::function<void()> fn);
-
 private:
     int64_t HostTicks() const;
 
@@ -39,9 +32,6 @@ private:
     std::atomic<bool>     running_{true};
     int64_t               host_hz_     = 1;
     int64_t               ns_per_tick_ = 0;
-
-    std::mutex                         notify_mtx_;
-    std::vector<std::function<void()>> notify_;
 };
 
 }

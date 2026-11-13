@@ -3,6 +3,7 @@
 #include "../core/service.h"
 #include "../state/shutdown_choice.h"
 #include "guest_power_notifier.h"
+#include "../core/callback_list.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -114,10 +115,10 @@ private:
     void DeliverWake(ResumeSource src);
     void PowerUpClockStop();
 
-    std::vector<std::function<void()>> power_up_listeners_;
-    std::vector<std::function<void()>> user_wake_inputs_;
-    std::vector<std::function<void()>> sleep_entry_listeners_;
-    std::vector<std::function<void()>> park_clocks_;
+    CallbackList<>                     power_up_listeners_;
+    CallbackList<>                     user_wake_inputs_;
+    CallbackList<>                     sleep_entry_listeners_;
+    CallbackList<>                     park_clocks_;
     std::vector<std::function<bool()>> park_wake_sources_;
     std::vector<std::function<int64_t()>> park_wake_dues_;
     mutable std::mutex         span_mtx_;

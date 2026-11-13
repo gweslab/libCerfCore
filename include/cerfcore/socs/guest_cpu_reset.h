@@ -2,10 +2,10 @@
 
 #include "../core/service.h"
 #include "../state/state_stream.h"
+#include "../core/callback_list.h"
 
 #include <atomic>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -74,8 +74,8 @@ private:
 
     ResetCauseLatch*                                latch_ = nullptr;
     std::atomic<bool>                               report_warm_pending_{false};
-    std::vector<std::function<void(ResetLineKind)>> reset_listeners_;
-    std::vector<std::function<void()>>              release_listeners_;
+    CallbackList<ResetLineKind>                     reset_listeners_;
+    CallbackList<>                                  release_listeners_;
     std::atomic<ResetLineKind>                      pending_kind_{ResetLineKind::Other};
     std::atomic<bool>                               pending_is_resume_{false};
     bool                                            delivered_is_resume_ = false;

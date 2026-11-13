@@ -47,19 +47,19 @@ void GuestDeepSleep::RegisterPowerOnWake() {
 }
 
 void GuestDeepSleep::RegisterPowerUpListener(std::function<void()> fn) {
-    power_up_listeners_.push_back(std::move(fn));
+    power_up_listeners_.Add(std::move(fn));
 }
 
 void GuestDeepSleep::RegisterUserWakeInput(std::function<void()> fn) {
-    user_wake_inputs_.push_back(std::move(fn));
+    user_wake_inputs_.Add(std::move(fn));
 }
 
 void GuestDeepSleep::RegisterSleepEntryListener(std::function<void()> fn) {
-    sleep_entry_listeners_.push_back(std::move(fn));
+    sleep_entry_listeners_.Add(std::move(fn));
 }
 
 void GuestDeepSleep::RegisterParkClock(std::function<void()> fn) {
-    park_clocks_.push_back(std::move(fn));
+    park_clocks_.Add(std::move(fn));
 }
 
 void GuestDeepSleep::RegisterParkWakeSource(std::function<bool()> fn) {
@@ -102,7 +102,7 @@ void GuestDeepSleep::PollPark() {
             span = slept_ns_ + (HostSteadyNanos() - sleep_entry_ns_);
         }
     }
-    for (auto& fn : park_clocks_) fn();
+    park_clocks_.Call();
     bool           have   = false;
     ShutdownChoice choice = ShutdownChoice::Cancel;
     {
@@ -127,7 +127,7 @@ void GuestDeepSleep::PollPark() {
 }
 
 void GuestDeepSleep::FinishPark() {
-    for (auto& fn : park_clocks_) fn();
+    park_clocks_.Call();
     auto& guest = emu_.Get<EngineBridge>().Guest();
     if (!guest.DeepSleep() || !guest.ResetPending()) return;
     ClaimSleepEnd();
@@ -199,7 +199,7 @@ void GuestDeepSleep::Enter() {
     wake_claimed_.store(false, std::memory_order_release);
     emu_.Get<GuestPowerNotifier>().NotifyPowerDown();
     guest.EnterDeepSleep();
-    for (auto& fn : sleep_entry_listeners_) fn();
+    sleep_entry_listeners_.Call();
     const int64_t due    = CollectParkWakeDue();
     int64_t       due_in = 0;
     {
@@ -286,7 +286,7 @@ void GuestDeepSleep::ConsumeSleepSpan() {
 void GuestDeepSleep::DeliverWake(ResumeSource src) {
     if (!ClaimSleepEnd()) return;
     if (src == ResumeSource::User) {
-        for (auto& fn : user_wake_inputs_) fn();
+        user_wake_inputs_.Call();
     }
     if (clock_stop_) {
         PowerUpClockStop();
@@ -356,7 +356,7 @@ void GuestDeepSleep::Recover() {
 
 void GuestDeepSleep::PowerUpClockStop() {
     clock_stop_->OnPowerUp();
-    for (auto& fn : power_up_listeners_) fn();
+    power_up_listeners_.Call();
 }
 
 }

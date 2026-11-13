@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <array>
 #include <cstdint>
@@ -52,7 +53,7 @@ private:
 
     mutable std::mutex mu_;
     std::array<uint16_t, 0x1000u / 2u> regs_{};
-    std::vector<std::function<void()>> devconf_listeners_;
+    CallbackList<>                     devconf_listeners_;
     std::vector<PadListener>           pad_listeners_;
     bool                               devconf_changed_ = false;
     bool                               pads_reset_      = false;

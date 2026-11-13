@@ -14,10 +14,10 @@
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "s3c2410_clock_input.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -89,7 +89,7 @@ public:
     }
 
     void RegisterRateListener(std::function<void()> fn) override {
-        listeners_.push_back(std::move(fn));
+        listeners_.Add(std::move(fn));
     }
 
     uint32_t ReadRegister(uint32_t offset) override {
@@ -153,7 +153,7 @@ public:
                         "S3C2410ClockPower: CLKCON clears the clock gates 0x%05X, "
                         "whose effect CERF does not model", gated_off);
                 }
-                for (auto& fn : listeners_) fn();
+                listeners_.Call();
                 if ((value & kClkConPowerOff) != 0u) {
                     emu_.Get<GuestDeepSleep>().Enter();
                     return;
@@ -234,10 +234,10 @@ private:
     void ApplyRates() {
         Derive();
         emu_.Get<GuestCycleClock>().SetClockHz(CoreClockHz());
-        for (auto& fn : listeners_) fn();
+        listeners_.Call();
     }
 
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<> listeners_;
     cerfengine::ArmMmu*  mmu_            = nullptr;
     uint32_t regs_[kSlotCount] = {};
     uint64_t fin_hz_         = 0;

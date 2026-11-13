@@ -5,11 +5,11 @@
 #include <cerfcore/core/fatal.h>
 #include "imx51_ccm.h"
 #include "imx51_id.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
 #include <utility>
-#include <vector>
 
 namespace cerfcore {
 
@@ -86,7 +86,7 @@ public:
     }
 
     void RegisterGateListener(std::function<void()> fn) override {
-        listeners_.push_back(std::move(fn));
+        listeners_.Add(std::move(fn));
     }
 
 private:
@@ -106,11 +106,11 @@ private:
                                       s.clock.cg, s.name);
             }
         }
-        for (auto& fn : listeners_) fn();
+        listeners_.Call();
     }
 
     Imx51Ccm*                          ccm_ = nullptr;
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<>                     listeners_;
 };
 
 }

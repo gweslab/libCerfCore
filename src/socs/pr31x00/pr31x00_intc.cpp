@@ -10,6 +10,7 @@
 #include "../../peripherals/peripheral_dispatcher.h"
 #include <cerfcore/state/state_stream.h>
 #include "pr31x00_reset_line.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <array>
 #include <cstdint>
@@ -359,12 +360,12 @@ void Pr31x00Intc::WriteWord(uint32_t addr, uint32_t value) {
             HaltUnsupportedAccess("PR31x00 INTC Enable reserved bits", addr, value);
         }
         StoreEnableLocked(set, value);
-        std::vector<std::function<void()>> fire;
+        CallbackList<> fire;
         for (const EnableListener& l : enable_listeners_) {
-            if (l.set == set && (value & l.bits) != 0u) fire.push_back(l.cb);
+            if (l.set == set && (value & l.bits) != 0u) fire.Add(l.cb);
         }
         lk.unlock();
-        for (const auto& cb : fire) cb();
+        fire.Call();
         return;
     }
 

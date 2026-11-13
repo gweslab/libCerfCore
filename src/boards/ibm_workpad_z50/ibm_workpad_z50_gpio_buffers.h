@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -44,7 +44,7 @@ private:
     uint8_t                          extension_ram_strap_ = 0;
     std::atomic<uint8_t> cs0_out_{0};
     std::atomic<uint8_t> cs1_out_{0};
-    std::vector<std::function<void()>> output_listeners_;
+    CallbackList<> output_listeners_;
 };
 
 }

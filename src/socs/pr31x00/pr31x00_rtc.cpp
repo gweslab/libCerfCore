@@ -313,11 +313,11 @@ std::optional<uint64_t> Pr31x00Rtc::CycleOfTc0Carry(uint64_t n) {
 }
 
 void Pr31x00Rtc::RegisterCountListener(std::function<void()> fn) {
-    count_listeners_.push_back(std::move(fn));
+    count_listeners_.Add(std::move(fn));
 }
 
 void Pr31x00Rtc::NotifyCountListeners() {
-    for (auto& fn : count_listeners_) fn();
+    count_listeners_.Call();
 }
 
 void Pr31x00Rtc::ApplyTimerCtlLocked(uint32_t value) {

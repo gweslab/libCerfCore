@@ -14,14 +14,14 @@ namespace cerfcore {
 REGISTER_SERVICE(GuestColdBoot);
 
 void GuestColdBoot::RegisterReplay(std::function<void()> fn) {
-    replays_.push_back(std::move(fn));
+    replays_.Add(std::move(fn));
 }
 
 void GuestColdBoot::RecordPatch(uint32_t pa, uint32_t len) {
     std::vector<uint8_t> bytes(len);
     emu_.Get<EmulatedMemory>().CopyOut(pa, bytes.data(), len);
     LOG(Boot, "GuestColdBoot: recorded %u-byte patch at PA 0x%08X\n", len, pa);
-    replays_.push_back([this, pa, bytes = std::move(bytes)] {
+    replays_.Add([this, pa, bytes = std::move(bytes)] {
         emu_.Get<EmulatedMemory>().CopyIn(pa, bytes.data(), bytes.size());
     });
 }
@@ -55,11 +55,11 @@ void GuestColdBoot::ExecuteIfPending() {
 
     if (wipe) {
         LOG(Boot, "GuestColdBoot: hard reset - wiping volatile RAM, replaying "
-                  "%zu boot-time writes\n", replays_.size());
+                  "%zu boot-time writes\n", replays_.Size());
         emu_.Get<EmulatedMemory>().WipeVolatileRegions();
     } else {
         LOG(Boot, "GuestColdBoot: reset filling RAM from a saved image, replaying "
-                  "%zu boot-time writes\n", replays_.size());
+                  "%zu boot-time writes\n", replays_.Size());
         fill();
     }
     ReplayBootWrites();
@@ -67,7 +67,7 @@ void GuestColdBoot::ExecuteIfPending() {
 }
 
 void GuestColdBoot::ReplayBootWrites() {
-    for (auto& fn : replays_) fn();
+    replays_.Call();
     emu_.Get<EngineBridge>().Guest().FlushTranslationCache();
 }
 

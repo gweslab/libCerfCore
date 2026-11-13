@@ -108,11 +108,11 @@ uint16_t IbmWorkpadZ50Battery::Edv1Mv() const { return kEdv1Mv; }
 uint16_t IbmWorkpadZ50Battery::EdvfMv() const { return kEdvfMv; }
 
 void IbmWorkpadZ50Battery::RegisterChangeListener(std::function<void()> fn) {
-    change_listeners_.push_back(std::move(fn));
+    change_listeners_.Add(std::move(fn));
 }
 
 void IbmWorkpadZ50Battery::NotifyChange() {
-    for (const auto& fn : change_listeners_) fn();
+    change_listeners_.Call();
 }
 
 }

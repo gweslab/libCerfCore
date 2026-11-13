@@ -16,6 +16,7 @@
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "vr41xx_icu.h"
 #include "vr41xx_pmu.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
@@ -109,7 +110,7 @@ public:
     }
 
     void RegisterOutputDataLowListener(std::function<void(uint16_t previous)> fn) override {
-        podat_l_listeners_.push_back(std::move(fn));
+        podat_l_listeners_.Add(std::move(fn));
     }
 
     void RegisterAlternateFunction(int first_gpio, int last_gpio, AlternateFunction fn) override {
@@ -117,11 +118,11 @@ public:
     }
 
     void RegisterOutputDriveListener(std::function<void()> fn) override {
-        drive_listeners_.push_back(std::move(fn));
+        drive_listeners_.Add(std::move(fn));
     }
 
     void NotifyOutputDriveChanged() override {
-        for (auto& fn : drive_listeners_) fn();
+        drive_listeners_.Call();
     }
 
     void RegisterPinDeviceState(std::function<void(StateWriter&)> save,
@@ -355,7 +356,7 @@ private:
     }
 
     void NotifyOutputDataLow(uint16_t previous) {
-        for (auto& fn : podat_l_listeners_) fn(previous);
+        podat_l_listeners_.Call(previous);
     }
 
     static PinDrive Level(uint32_t bit) {
@@ -384,9 +385,9 @@ private:
     cerfengine::MipsInterruptChannel* channel_ = nullptr;
     bool               hibernating_ = false;
     bool               suspended_   = false;
-    std::vector<std::function<void(uint16_t)>> podat_l_listeners_;
+    CallbackList<uint16_t>                     podat_l_listeners_;
     std::vector<Alternate>                     alternates_;
-    std::vector<std::function<void()>>         drive_listeners_;
+    CallbackList<>                             drive_listeners_;
 
     /* Every GIU register's RTCRST column is 0 except GIUPODATL's (VR4121 UM
        19.2.1-19.2.16, VR4102 UM 18.2.1-18.2.16). */

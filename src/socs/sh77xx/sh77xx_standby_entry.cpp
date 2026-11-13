@@ -24,10 +24,10 @@ void Sh77xxStandbyEntry::OnReady() {
     });
 }
 
-void Sh77xxStandbyEntry::RegisterListener(std::function<void()> listener) { listeners_.push_back(std::move(listener)); }
+void Sh77xxStandbyEntry::RegisterListener(std::function<void()> listener) { listeners_.Add(std::move(listener)); }
 
 void Sh77xxStandbyEntry::Enter() {
-    for (const std::function<void()>& listener : listeners_) listener();
+    listeners_.Call();
 }
 
 }

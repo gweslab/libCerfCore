@@ -2,10 +2,10 @@
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 #include <cerfengine/mips/mips_system_host.h>
 #include "engine_bridge.h"
+#include <cerfcore/core/callback_list.h>
 
 namespace cerfcore {
 
@@ -34,9 +34,9 @@ protected:
     void ColdBoot() override;
 
 private:
-    std::vector<std::function<void()>> reset_listeners_;
-    std::vector<std::function<void()>> post_reset_listeners_;
-    std::vector<std::function<void()>> restore_listeners_;
+    CallbackList<> reset_listeners_;
+    CallbackList<> post_reset_listeners_;
+    CallbackList<> restore_listeners_;
 };
 
 }

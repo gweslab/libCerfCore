@@ -63,7 +63,7 @@ void Hd64461Gpio::RestoreState(StateReader& r) {
 
 void Hd64461Gpio::PostRestore() { NotifyListeners(); }
 
-void Hd64461Gpio::AddPinListener(std::function<void()> listener) { listeners_.push_back(std::move(listener)); }
+void Hd64461Gpio::AddPinListener(std::function<void()> listener) { listeners_.Add(std::move(listener)); }
 
 uint32_t Hd64461Gpio::PinMode(uint32_t port, uint32_t pin) const {
     return ModeOf(pins_[port].load(std::memory_order_acquire), pin);
@@ -152,7 +152,7 @@ void Hd64461Gpio::PublishLocked() {
 }
 
 void Hd64461Gpio::NotifyListeners() {
-    for (const std::function<void()>& listener : listeners_) listener();
+    listeners_.Call();
 }
 
 }

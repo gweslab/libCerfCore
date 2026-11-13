@@ -21,11 +21,6 @@ int64_t VirtualClock::HostTicks() const {
     return host_platform::MonotonicTicks();
 }
 
-void VirtualClock::RegisterEnableNotify(std::function<void()> fn) {
-    std::lock_guard<std::mutex> lk(notify_mtx_);
-    notify_.push_back(std::move(fn));
-}
-
 /* system/cpu-timers.c cpu_get_clock: the monotonic time elapsed in the VM,
    read under a seqlock. */
 int64_t VirtualClock::NowNs() const {
@@ -86,15 +81,6 @@ void VirtualClock::Resume() {
 
     std::atomic_thread_fence(std::memory_order_release);
     seq_.fetch_add(1, std::memory_order_relaxed);
-
-    /* util/qemu-timer.c qemu_clock_enable: the enable edge runs
-       qemu_clock_notify over the clock's timer lists. */
-    std::vector<std::function<void()>> to_run;
-    {
-        std::lock_guard<std::mutex> lk(notify_mtx_);
-        to_run = notify_;
-    }
-    for (const auto& fn : to_run) fn();
 }
 
 }

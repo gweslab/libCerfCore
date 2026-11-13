@@ -4,13 +4,13 @@
 #include "../core/service.h"
 #include "memory_kind.h"
 #include <cerfengine/physical_memory_host.h>
+#include "../core/callback_list.h"
 
 #include <atomic>
 #include <bit>
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -152,7 +152,7 @@ private:
     Region              regions_[kMaxRegions]{};
     std::atomic<size_t> count_{0};
     std::mutex          add_mutex_;
-    std::vector<std::function<void()>> decode_listeners_;
+    CallbackList<> decode_listeners_;
 };
 
 }

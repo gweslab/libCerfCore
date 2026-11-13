@@ -17,7 +17,7 @@ void GuestPowerNotifier::Banner(const char* line) {
 }
 
 void GuestPowerNotifier::RegisterRebootListener(std::function<void()> fn) {
-    reboot_listeners_.push_back(std::move(fn));
+    reboot_listeners_.Add(std::move(fn));
 }
 
 void GuestPowerNotifier::NotifyPowerDown() {
@@ -27,7 +27,7 @@ void GuestPowerNotifier::NotifyPowerDown() {
 void GuestPowerNotifier::NotifyReboot() {
     Banner("!! CERF: CPU reset !!");
     if (auto* fr = emu_.TryGet<FrameRenderer>()) fr->RearmContentLatch();
-    for (auto& fn : reboot_listeners_) fn();
+    reboot_listeners_.Call();
 }
 
 void GuestPowerNotifier::NotifyResetReleased() {

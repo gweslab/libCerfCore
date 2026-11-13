@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cerfcore/core/service.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -23,8 +23,8 @@ public:
 
 private:
     GuestCpuReset*                     reset_ = nullptr;
-    std::vector<std::function<void()>> reset_listeners_;
-    std::vector<std::function<void()>> release_listeners_;
+    CallbackList<>                     reset_listeners_;
+    CallbackList<>                     release_listeners_;
 };
 
 }

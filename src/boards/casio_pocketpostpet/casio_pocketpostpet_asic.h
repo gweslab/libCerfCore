@@ -3,6 +3,7 @@
 #include <cerfcore/peripherals/peripheral_base.h>
 
 #include "../../lcd/display_size_latch.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
@@ -150,7 +151,7 @@ private:
     uint16_t reg_1002_ = 0;
     uint16_t reg_1010_ = 0;
     uint16_t reg_1134_ = 0;
-    std::vector<std::function<void()>> audio_control_listeners_;
+    CallbackList<> audio_control_listeners_;
     uint16_t reg_7a0_  = 0;
     uint16_t reg_7a2_  = 0;
     uint16_t reg_7a4_  = 0;

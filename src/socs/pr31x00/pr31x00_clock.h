@@ -2,10 +2,10 @@
 
 #include "../../execution/guest_cycle_clock.h"
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -60,8 +60,8 @@ private:
     Tx39ConfigRegister* config_ = nullptr;
     uint32_t ctl_   = 0;
     uint32_t power_ = 0;
-    std::vector<std::function<void()>> video_listeners_;
-    std::vector<std::function<void()>> module_listeners_;
+    CallbackList<> video_listeners_;
+    CallbackList<> module_listeners_;
 };
 
 }

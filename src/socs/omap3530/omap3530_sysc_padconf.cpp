@@ -142,7 +142,7 @@ void Omap3530SyscPadconf::AfterWrite(uint32_t off, uint32_t bytes) {
 }
 
 void Omap3530SyscPadconf::NotifyDevconf() {
-    for (auto& fn : devconf_listeners_) fn();
+    devconf_listeners_.Call();
 }
 
 bool Omap3530SyscPadconf::McBspClksFromPad(uint32_t port) const {
@@ -168,7 +168,7 @@ bool Omap3530SyscPadconf::McBsp1FsrFromFsx() const {
 }
 
 void Omap3530SyscPadconf::RegisterDevconfListener(std::function<void()> fn) {
-    devconf_listeners_.push_back(std::move(fn));
+    devconf_listeners_.Add(std::move(fn));
 }
 
 uint32_t Omap3530SyscPadconf::PadMuxMode(uint32_t pad_off) const {

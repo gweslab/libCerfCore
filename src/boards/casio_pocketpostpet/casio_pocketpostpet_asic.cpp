@@ -173,11 +173,11 @@ bool CasioPocketpostpetAsic::SpeakerMuted() const { return (reg_1010_ & 1u) != 0
 bool CasioPocketpostpetAsic::MicPowered() const { return (reg_1010_ & 2u) == 0u && (reg_1000_ & 0x100u) != 0u; }
 
 void CasioPocketpostpetAsic::RegisterAudioControlListener(std::function<void()> fn) {
-    audio_control_listeners_.push_back(std::move(fn));
+    audio_control_listeners_.Add(std::move(fn));
 }
 
 void CasioPocketpostpetAsic::NotifyAudioControl() {
-    for (auto& listener : audio_control_listeners_) listener();
+    audio_control_listeners_.Call();
 }
 
 /* nk.exe ISR 0x9F0BA2C4: interrupt asserted (GIU pin 9 low) while a 0xE2 line is

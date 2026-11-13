@@ -164,7 +164,7 @@ void Tps65950AudioInterface::Apply(const Config& next) {
         cfg_.drives_bus ? 1 : 0, cfg_.pad_on ? 1 : 0);
     if (bus_change) listener_->OnPeerRestarted(now);
     if (!(PadRate() == pad_before)) {
-        for (auto& fn : pad_listeners_) fn();
+        pad_listeners_.Call();
     }
 }
 
@@ -216,7 +216,7 @@ void Tps65950AudioInterface::SetPeerListener(Omap3530McBspPeerListener* listener
 }
 
 void Tps65950AudioInterface::RegisterPadListener(std::function<void()> fn) {
-    pad_listeners_.push_back(std::move(fn));
+    pad_listeners_.Add(std::move(fn));
 }
 
 void Tps65950AudioInterface::ReceiveFrame(const Omap3530McBspDxFrame& frame) {

@@ -159,12 +159,12 @@ void RateProbe::LogLoop() {
                           "second - invoking the registered stall dumps "
                           "(#%u)\n",
                     sd_fired_);
-                std::vector<std::function<void()>> fns;
+                CallbackList<> fns;
                 {
                     std::lock_guard<std::mutex> lk(sd_mtx_);
                     fns = stall_dumps_;
                 }
-                for (const auto& fn : fns) fn();
+                fns.Call();
             }
             sd_active_prev_ = active;
         }

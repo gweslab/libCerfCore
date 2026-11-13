@@ -2,10 +2,10 @@
 
 #include <cerfcore/core/service.h>
 #include "../freescale_timer_clocks.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -29,7 +29,7 @@ private:
 
     FreescaleModuleClocks* modules_      = nullptr;
     FreescaleTimerClocks*  timer_clocks_ = nullptr;
-    std::vector<std::function<void(FreescaleLowPowerMode)>> listeners_;
+    CallbackList<FreescaleLowPowerMode> listeners_;
 };
 
 }

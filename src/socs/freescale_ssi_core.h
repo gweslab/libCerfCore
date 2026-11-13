@@ -6,10 +6,10 @@
 #include "freescale_ssi_slot_grid.h"
 #include "freescale_ssi_status.h"
 #include "freescale_ssi_transmitter.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -103,7 +103,7 @@ private:
     StatusPort                             rx_port_[2];
     std::function<GuestCycleClock::Rate()> ssi_clock_;
     std::function<bool()>                  clocked_;
-    std::vector<std::function<void()>>     listeners_;
+    CallbackList<>                         listeners_;
     uint32_t scr_ = 0, sier_ = 0, stcr_ = 0, srcr_ = 0, stccr_ = 0, srccr_ = 0, sfcsr_ = 0;
     uint32_t str_ = 0, sacnt_ = 0, sacadd_ = 0, sacdat_ = 0, tx_tag_ = 0, stmsk_ = 0, srmsk_ = 0;
     uint32_t saccst_ = 0, cmd_bits_ = 0;

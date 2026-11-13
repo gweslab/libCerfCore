@@ -1,11 +1,11 @@
 #pragma once
 
 #include "sa1111_unit.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -58,7 +58,7 @@ private:
     void     SampleSources();
 
     std::mutex mtx_;
-    std::vector<std::function<void()>> samplers_;
+    CallbackList<> samplers_;
     Sa1111Sbi* sbi_ = nullptr;
 
     Bank     bank_[2];

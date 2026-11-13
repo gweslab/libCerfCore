@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <functional>
 #include <utility>
-#include <vector>
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 namespace cerfcore {
 
@@ -33,17 +33,17 @@ public:
 
     uint32_t PinMode(uint32_t port, uint32_t pin) const { return (PortControl(port) >> (pin * 2u)) & 3u; }
 
-    void AddControlListener(std::function<void()> listener) { listeners_.push_back(std::move(listener)); }
+    void AddControlListener(std::function<void()> listener) { listeners_.Add(std::move(listener)); }
 
 protected:
     virtual uint16_t PortControl(uint32_t port) const = 0;
 
     void NotifyControlChanged() {
-        for (const std::function<void()>& listener : listeners_) listener();
+        listeners_.Call();
     }
 
 private:
-    std::vector<std::function<void()>> listeners_;
+    CallbackList<> listeners_;
 };
 
 }

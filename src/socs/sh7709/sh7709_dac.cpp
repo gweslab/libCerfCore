@@ -8,13 +8,13 @@ namespace {
 constexpr cerf_reg_window_detail::RegWindowModel kSh7709Dac =
     sh77xx_dac::WindowOf(cerf_reg_window_detail::OtherReset::kReset);
 
-class Sh7709Dac : public cerf_reg_window_detail::RegWindowBase<SocId::Sh7709, kSh7709Dac> {
+class Sh7709Dac : public sh77xx_dac::Sh77xxDacBase<SocId::Sh7709, kSh7709Dac> {
 public:
-    using RegWindowBase::RegWindowBase;
+    using Sh77xxDacBase::Sh77xxDacBase;
 };
 
 }
 
-REGISTER_SERVICE(Sh7709Dac);
+REGISTER_SERVICE_AS(Sh7709Dac, Sh77xxDac);
 
 }

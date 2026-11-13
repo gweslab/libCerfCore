@@ -79,7 +79,7 @@ void Fatal::OnHalt(const InstanceHalt& halt) {
         }
     }
     jit_->RequestStop();
-    for (auto& fn : halt_listeners_) fn(halt.Code());
+    halt_listeners_.Call(halt.Code());
 }
 
 }

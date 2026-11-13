@@ -1,10 +1,10 @@
 #pragma once
 
 #include "sa1111_unit.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -46,7 +46,7 @@ private:
     void EnterSleep();
 
     std::function<Mbgnt()> mbgnt_;
-    std::vector<std::function<void()>> grant_listeners_;
+    CallbackList<> grant_listeners_;
 
     /* SA-1111 Developer's Manual Table 3-9 (page 3-15): RCLKEn bit 1 "(RCLK and DCLK)", Sleep bit 2
        and Doze bit 3 "WO", "1 = Enter sleep mode" / "1 = Enter doze mode", "0 = No effect.",

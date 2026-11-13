@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cerfcore/core/service.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -34,7 +34,7 @@ private:
     void Assert();
     void Release();
 
-    std::vector<std::function<void(bool)>> listeners_;
+    CallbackList<bool> listeners_;
     Pin               pin_  = Pin::Floating;
     std::atomic<bool> held_{false};
     bool              power_on_pending_ = false;

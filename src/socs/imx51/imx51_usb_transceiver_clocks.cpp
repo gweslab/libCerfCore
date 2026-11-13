@@ -44,11 +44,11 @@ void Imx51UsbTransceiverClocks::OnReady() {
 }
 
 void Imx51UsbTransceiverClocks::RegisterChangeListener(std::function<void(FreescaleLowPowerMode)> fn) {
-    listeners_.push_back(std::move(fn));
+    listeners_.Add(std::move(fn));
 }
 
 void Imx51UsbTransceiverClocks::Notify(FreescaleLowPowerMode mode) {
-    for (auto& fn : listeners_) fn(mode);
+    listeners_.Call(mode);
 }
 
 /* MCIMX51RM Table 60-5 OTG_Xcvr_clk_sel / H1_Xcvr_clk_sel: "Depends on which PHY is connected

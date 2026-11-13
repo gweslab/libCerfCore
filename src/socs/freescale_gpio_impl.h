@@ -11,11 +11,11 @@
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include "irq_controller.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -90,7 +90,7 @@ public:
     }
 
     void RegisterInputListener(std::function<void(uint32_t, bool)> fn) {
-        input_listeners_.push_back(std::move(fn));
+        input_listeners_.Add(std::move(fn));
     }
     bool PinDriven(uint32_t pin) const { return ((driven_mask_ >> pin) & 1u) != 0u; }
     bool PinPadLevel(uint32_t pin) const {
@@ -101,7 +101,7 @@ public:
        software-I2C "HIC1:" on GPIO4.16/17, hsi2c.dll sub_C09F18D8) observes the
        guest's SCL/SDA edges through a write callback and reads the master-driven
        level via these getters; it drives the line back through SetInputPin. */
-    void AddWriteObserver(std::function<void()> cb) { write_obs_.push_back(std::move(cb)); }
+    void AddWriteObserver(std::function<void()> cb) { write_obs_.Add(std::move(cb)); }
     void SetObserverState(std::function<void(StateWriter&)> save,
                           std::function<void(StateReader&)> restore) {
         obs_save_    = std::move(save);
@@ -212,7 +212,7 @@ private:
     }
 
     void NotifyWrite() {
-        for (auto& fn : write_obs_) fn();
+        write_obs_.Call();
     }
 
     void ClearRegisters() {
@@ -256,7 +256,7 @@ private:
     }
 
     void NotifyInputLocked(uint32_t pin) {
-        for (auto& fn : input_listeners_) fn(pin, PinPadLevel(pin));
+        input_listeners_.Call(pin, PinPadLevel(pin));
     }
 
     void SetLevelBit(uint32_t pin, bool level) {
@@ -354,10 +354,10 @@ private:
     uint32_t input_mask_  = 0xFFFFFFFFu;
     uint32_t output_mask_ = 0xFFFFFFFFu;
     Imx51Iomuxc* iomuxc_  = nullptr;
-    std::vector<std::function<void()>> write_obs_;
+    CallbackList<> write_obs_;
     std::function<void(StateWriter&)> obs_save_;
     std::function<void(StateReader&)> obs_restore_;
-    std::vector<std::function<void(uint32_t, bool)>> input_listeners_;
+    CallbackList<uint32_t, bool> input_listeners_;
     std::mutex irq_mu_;
     bool irq_low_asserted_  = false;
     bool irq_high_asserted_ = false;

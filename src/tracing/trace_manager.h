@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cerfcore/core/service.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
@@ -89,7 +90,7 @@ private:
 
 #if CERF_DEV_MODE
     void DispatchIterContext(const TraceContext& ctx);
-    std::vector<TraceHandler> iter_handlers_;
+    CallbackList<const TraceContext&> iter_handlers_;
 #endif
 };
 

@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <functional>
-#include <vector>
 
 namespace cerfcore {
 
@@ -48,7 +48,7 @@ public:
 private:
     static constexpr uint32_t kLcsrLdd = 0x1u;
 
-    std::vector<std::function<void()>> enable_listeners_;
+    CallbackList<> enable_listeners_;
     bool     enable_dropped_by_reset_ = false;
     uint32_t lccr0_ = 0;
     uint32_t lcsr_  = kLcsrLdd;

@@ -193,11 +193,11 @@ GuestCycleClock::Rate Omap3530CmClockControl::Fclk96M() const {
 }
 
 void Omap3530CmClockControl::RegisterRateListener(std::function<void()> fn) {
-    rate_listeners_.push_back(std::move(fn));
+    rate_listeners_.Add(std::move(fn));
 }
 
 void Omap3530CmClockControl::NotifyRate() {
-    for (auto& fn : rate_listeners_) fn();
+    rate_listeners_.Call();
 }
 
 /* Table 4-182 (printed p. 469-470): CM_IDLEST_CKGEN reports ST_PERIPH_CLK [1] DPLL4

@@ -127,8 +127,8 @@ void MipsEngineBridge::MipsReset(cerfengine::MipsCpuState* st) {
     st->tlb_in_use     = st->nb_tlb;
     st->min_page_shift = cfg.MinPageShift();
     st->pc             = emu_.Get<RomParserService>().EntryVa();
-    for (auto& fn : reset_listeners_) fn();
-    for (auto& fn : post_reset_listeners_) fn();
+    reset_listeners_.Call();
+    post_reset_listeners_.Call();
 }
 
 cerfengine::MipsCp0Decision MipsEngineBridge::MipsCp0(uint32_t rd) {
@@ -136,15 +136,15 @@ cerfengine::MipsCp0Decision MipsEngineBridge::MipsCp0(uint32_t rd) {
 }
 
 void MipsEngineBridge::RegisterResetListener(std::function<void()> fn) {
-    reset_listeners_.push_back(std::move(fn));
+    reset_listeners_.Add(std::move(fn));
 }
 
 void MipsEngineBridge::RegisterPostResetListener(std::function<void()> fn) {
-    post_reset_listeners_.push_back(std::move(fn));
+    post_reset_listeners_.Add(std::move(fn));
 }
 
 void MipsEngineBridge::RegisterRestoreListener(std::function<void()> fn) {
-    restore_listeners_.push_back(std::move(fn));
+    restore_listeners_.Add(std::move(fn));
 }
 
 void MipsEngineBridge::SaveCpuState(StateWriter& w) {
@@ -165,7 +165,7 @@ void MipsEngineBridge::RestoreCpuState(StateReader& r) {
     emu_.Get<GuestCycleClock>().OnCyclesRestored();
     jit.OnStateRestored();
     emu_.Get<MipsCp0Ops>().OnCpuStateRestored();
-    for (auto& fn : restore_listeners_) fn();
+    restore_listeners_.Call();
 }
 
 void MipsEngineBridge::SaveMmuState(StateWriter& w) {

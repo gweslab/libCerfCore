@@ -4,11 +4,11 @@
 #include "../reg_window_impl.h"
 #include "sh77xx_cpg_impl.h"
 #include "sh77xx_frqcr.h"
+#include <cerfcore/core/callback_list.h>
 
 #include <cstdint>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 namespace cerfcore {
 
@@ -52,7 +52,7 @@ public:
     uint16_t Value() const override { return this->StoredReg(0); }
 
     void RegisterChangeListener(Sh77xxFrqcr::ChangeListener listener) override {
-        listeners_.push_back(std::move(listener));
+        listeners_.Add(std::move(listener));
     }
 
 protected:
@@ -73,10 +73,10 @@ private:
         const uint16_t from = applied_;
         applied_            = frqcr;
         SetCpuRate(frqcr);
-        for (const Sh77xxFrqcr::ChangeListener& listener : listeners_) listener(from, frqcr);
+        listeners_.Call(from, frqcr);
     }
 
-    std::vector<Sh77xxFrqcr::ChangeListener> listeners_;
+    CallbackList<uint16_t, uint16_t>         listeners_;
     uint16_t                                 applied_ = kSh77xxFrqcrReset;
 };
 
