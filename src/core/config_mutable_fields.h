@@ -25,6 +25,7 @@ public:
     void LoadGaPalette(const nlohmann::json& ga, DeviceConfig& config, const std::string& path);
     void LoadGaFields(const nlohmann::json& ga, DeviceConfig& config, const std::string& path);
     void LoadHud(const nlohmann::json& root, DeviceConfig& config, const std::string& path);
+    void LoadShaders(const nlohmann::json& root, DeviceConfig& config, const std::string& path);
     void LoadAll(const nlohmann::json& root, DeviceConfig& config, const std::string& path);
 };
 

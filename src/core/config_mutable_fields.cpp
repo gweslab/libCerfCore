@@ -31,6 +31,9 @@ void CfgResetMutableFields(DeviceConfig& config) {
     config.share_folder.clear();
     config.share_folder_mount_point.clear();
     config.hud.clear();
+    config.shader_presets.clear();
+    config.shader_parameters.clear();
+    config.shader_screenshots = kDefaultShaderScreenshots;
 }
 
 void ConfigMutableFields::LoadScreenFields(const nlohmann::json& board, DeviceConfig& config,
@@ -144,8 +147,41 @@ void ConfigMutableFields::LoadHud(const nlohmann::json& root, DeviceConfig& conf
         config.hud = emu_.Get<ConfigReader>().ReadOptString(root, config_key::kHud, path, {});
 }
 
+void ConfigMutableFields::LoadShaders(const nlohmann::json& root, DeviceConfig& config, const std::string& path) {
+    if (!root.contains(config_key::kShaders)) return;
+    auto&       reader  = emu_.Get<ConfigReader>();
+    const auto& shaders = root[config_key::kShaders];
+    if (!shaders.is_object())
+        reader.Fail(path, std::string("'") + config_key::kShaders + "' must be an object");
+    config.shader_presets.clear();
+    config.shader_parameters.clear();
+    config.shader_screenshots = kDefaultShaderScreenshots;
+    reader.LoadOptBool(shaders, config_key::kShaderScreenshots, config.shader_screenshots, path, config_key::kShaders);
+    if (const nlohmann::json* presets =
+            reader.ReadOptObjectArray(shaders, config_key::kShaderPresets, path, config_key::kShaders)) {
+        const std::string entry = CfgElementPath(CfgKeyPath({config_key::kShaders, config_key::kShaderPresets}));
+        for (const auto& preset : *presets) {
+            const std::string preset_path = reader.ReadOptString(preset, config_key::kShaderPath, path, entry);
+            if (preset_path.empty())
+                reader.Fail(path, "'" + CfgKeyPath({entry, config_key::kShaderPath}) + "' must be a preset path");
+            bool enabled = kDefaultShaderPresetEnabled;
+            reader.LoadOptBool(preset, config_key::kShaderEnabled, enabled, path, entry);
+            config.shader_presets.push_back(ShaderPresetEntry{preset_path, enabled});
+        }
+    }
+    if (!shaders.contains(config_key::kShaderParameters)) return;
+    const auto& parameters = shaders[config_key::kShaderParameters];
+    const std::string key  = CfgKeyPath({config_key::kShaders, config_key::kShaderParameters});
+    if (!parameters.is_object()) reader.Fail(path, "'" + key + "' must be an object of numbers");
+    for (const auto& [name, value] : parameters.items()) {
+        if (!value.is_number()) reader.Fail(path, "'" + key + "." + name + "' must be a number");
+        config.shader_parameters.emplace_back(name, value.get<float>());
+    }
+}
+
 void ConfigMutableFields::LoadAll(const nlohmann::json& root, DeviceConfig& config, const std::string& path) {
     LoadHud(root, config, path);
+    LoadShaders(root, config, path);
     if (root.contains(config_key::kBoard)) {
         const auto& b = root[config_key::kBoard];
         if (!b.is_object())

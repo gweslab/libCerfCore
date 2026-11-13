@@ -2,6 +2,7 @@
 #include "device_config_keys.h"
 #include "service.h"
 #include "sd_card_cid.h"
+#include "shader_preset_entry.h"
 #include <cstdint>
 #include <map>
 #include <string>
@@ -61,6 +62,7 @@ constexpr bool kDefaultNetworkEnabled     = true;
 constexpr bool kDefaultGuestAdditions     = false;
 constexpr bool kDefaultStartFullscreen    = false;
 constexpr bool kDefaultDoubleTapHelper    = true;
+constexpr bool kDefaultShaderScreenshots  = true;
 constexpr bool kDefaultAllowUntrustedApps = false;
 
 std::string DefaultStorageFileName(std::string_view storage_id);
@@ -172,6 +174,10 @@ struct DeviceConfig : public Service {
     bool double_tap_helper = kDefaultDoubleTapHelper;
 
     std::string hud;
+
+    std::vector<ShaderPresetEntry>             shader_presets;
+    std::vector<std::pair<std::string, float>> shader_parameters;
+    bool                                       shader_screenshots = kDefaultShaderScreenshots;
 
     bool no_focus = false;
 
