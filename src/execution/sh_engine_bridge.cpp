@@ -55,7 +55,7 @@ protected:
 
     void ColdBoot() override {
         cerfengine::ShCpu& cpu = Engine().Get<cerfengine::ShCpu>();
-        cpu.ResetState();
+        cpu.ResetState(cerfengine::ShResetKind::kPowerOn);
         LOG(Jit, "ShEngineBridge::ColdBoot: reset PC=0x%08X\n", cpu.State()->pc);
     }
 };

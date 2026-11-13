@@ -2,6 +2,8 @@
 
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfengine/sh/sh_cpu.h>
 #include <cerfengine/sh/sh_cpu_state.h>
 #include <cerfengine/sh/sh_mmu.h>
@@ -14,7 +16,7 @@ namespace cerfcore {
 
 namespace {
 
-class ShCcnRegisters : public Peripheral {
+class ShCcnRegisters : public Peripheral, public ResetCauseLatch {
 public:
     using Peripheral::Peripheral;
 
@@ -22,10 +24,22 @@ public:
 
     void OnReady() override {
         cerfengine::Engine& engine = emu_.Get<EngineBridge>().Engine();
-        state_                     = engine.Get<cerfengine::ShCpu>().State();
+        cpu_                       = &engine.Get<cerfengine::ShCpu>();
+        state_                     = cpu_->State();
         mmu_                       = &engine.Get<cerfengine::ShMmu>();
         emu_.Get<PeripheralDispatcher>().Register(this);
+        emu_.Get<GuestCpuReset>().SetCauseLatch(this);
     }
+
+    void LatchWarmReset() override { cpu_->SetPendingResetKind(cerfengine::ShResetKind::kManual); }
+
+    void LatchColdReset() override { cpu_->SetPendingResetKind(cerfengine::ShResetKind::kPowerOn); }
+
+    void LatchWatchdogReset() override {
+        emu_.Get<Fatal>().Die("ShCcnRegisters: GuestCpuReset::WatchdogReset on an SH CPU");
+    }
+
+    void ReportOnlyWarmReset() override { cpu_->ReportResetKind(cerfengine::ShResetKind::kManual); }
 
     uint32_t MmioBase() const override { return kTraPa; }
     uint32_t MmioSize() const override { return kCcrPa - kTraPa; }
@@ -69,6 +83,7 @@ private:
     static constexpr uint32_t kTraImm     = 0x000003FCu;
     static constexpr uint32_t kExpevtCode = 0x00000FFFu;
 
+    cerfengine::ShCpu*      cpu_   = nullptr;
     cerfengine::ShCpuState* state_ = nullptr;
     cerfengine::ShMmu*      mmu_   = nullptr;
 };
