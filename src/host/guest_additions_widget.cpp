@@ -58,7 +58,7 @@ std::vector<WidgetControl> GuestAdditionsWidget::Controls() {
         ActionControl chres;
         chres.id    = "customizations";
         chres.label = "Resolution / Customizations…";
-        chres.press = [this] { emu_.Get<CustomizationsEditor>().Open(false); };
+        chres.press = [this] { emu_.Get<CustomizationsEditor>().Open(); };
         actions.children.push_back(WidgetControl{std::move(chres)});
     }
 

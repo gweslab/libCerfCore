@@ -39,7 +39,7 @@ public:
         ActionControl configure;
         configure.id    = "configure";
         configure.label = "Configure shared folder…";
-        configure.press = [this] { emu_.Get<CustomizationsEditor>().Open(false); };
+        configure.press = [this] { emu_.Get<CustomizationsEditor>().Open(); };
         return {WidgetControl{std::move(configure)}};
     }
 
