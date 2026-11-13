@@ -137,6 +137,7 @@ uint16_t Wm97xxCodec::SlotWord(uint32_t slot, uint64_t n) {
 void Wm97xxCodec::PruneSlotWords(uint32_t slot, uint64_t frames) { digitiser_.Prune(slot, frames); }
 
 void Wm97xxCodec::PostRestore() {
+    pens_.Clear();
     if (!pen_down_) return;
     SetPenDown(false);
 }
