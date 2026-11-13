@@ -2,7 +2,6 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
-#include "../../execution/engine_bridge.h"
 #include <cerfcore/state/state_stream.h>
 
 #include <algorithm>
@@ -57,8 +56,10 @@ void CasioJx670Touch::Init(CerfEmulator& emu, std::function<void()> on_status_ch
     clock_        = &emu.Get<GuestCycleClock>();
     sample_event_ = clock_->Add([this] { OnSampleEvent(); });
     clock_->RegisterRateListener([this] { OnRateChange(); });
-    host_requests_ = &emu.Get<EngineBridge>().Engine().Get<cerfengine::HostRequestChannel>();
-    host_requests_->RegisterListener([this] { OnHostRequest(); });
+    pens_.Attach(emu, [this](const HostPenInput::Pen& pen) {
+        std::lock_guard<std::mutex> lk(mtx_);
+        ApplyPenLocked(pen.kind == HostPenInput::kPenDown, pen.x, pen.y);
+    });
 }
 
 bool CasioJx670Touch::TryReadWord(uint32_t off, uint32_t& out) {
@@ -129,23 +130,13 @@ bool CasioJx670Touch::TryReadHalf(uint32_t, uint16_t&)  { return false; }
 bool CasioJx670Touch::TryWriteHalf(uint32_t, uint16_t)  { return false; }
 
 void CasioJx670Touch::SetPen(bool down, int surface_x, int surface_y) {
-    {
-        std::lock_guard<std::mutex> lk(mtx_);
-        host_pen_.push_back(HostPen{down, surface_x, surface_y});
-        host_x_ = surface_x;
-        host_y_ = surface_y;
-    }
-    host_requests_->Request();
+    pens_.Track(surface_x, surface_y);
+    pens_.Queue(HostPenInput::Pen{down ? HostPenInput::kPenDown : HostPenInput::kPenUp, surface_x, surface_y});
 }
 
 void CasioJx670Touch::OnCaptureLost() {
-    int x, y;
-    {
-        std::lock_guard<std::mutex> lk(mtx_);
-        x = host_x_;
-        y = host_y_;
-    }
-    SetPen(false, x, y);
+    const HostPenInput::Point p = pens_.Latest();
+    SetPen(false, p.x, p.y);
 }
 
 void CasioJx670Touch::PresentDownLocked() {
@@ -166,14 +157,6 @@ void CasioJx670Touch::PresentLiftLocked() {
     ctrl_300_ &= ~kPenStateMask;
     sample_pending_.store(false, std::memory_order_release);
     NotifyStatus();
-}
-
-void CasioJx670Touch::OnHostRequest() {
-    std::lock_guard<std::mutex> lk(mtx_);
-    if (host_pen_.empty()) return;
-    std::vector<HostPen> pens;
-    pens.swap(host_pen_);
-    for (const HostPen& p : pens) ApplyPenLocked(p.down, p.x, p.y);
 }
 
 void CasioJx670Touch::ApplyPenLocked(bool down, int surface_x, int surface_y) {
@@ -283,7 +266,7 @@ void CasioJx670Touch::RestoreState(StateReader& r) {
     int_enable_.store(int_enable, std::memory_order_release);
     pen_down_ = false;
     sampling_ = false;
-    host_pen_.clear();
+    pens_.Clear();
     clock_->Disarm(sample_event_);
     sample_pending_.store(false, std::memory_order_release);
     pen_event_.store(false, std::memory_order_release);

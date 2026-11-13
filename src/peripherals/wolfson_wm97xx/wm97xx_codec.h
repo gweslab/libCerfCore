@@ -1,15 +1,11 @@
 #pragma once
 
 #include "../ac97_codec.h"
+#include "../touch/host_pen_input.h"
 #include "wm97xx_digitiser.h"
 
-#include <atomic>
 #include <cstdint>
 #include <functional>
-#include <mutex>
-#include <vector>
-
-namespace cerfengine { class HostRequestChannel; }
 
 namespace cerfcore {
 
@@ -57,8 +53,8 @@ protected:
     bool     DigitiserPowered();
     uint16_t ResultWord(const Wm97xxDigitiser::Result& r);
     uint16_t ReadResultRegister(uint64_t frame, uint16_t held);
-    uint16_t RawX() const { return raw_x_.load(std::memory_order_relaxed); }
-    uint16_t RawY() const { return raw_y_.load(std::memory_order_relaxed); }
+    uint16_t RawX() const;
+    uint16_t RawY() const;
     void     SavePen(StateWriter& w) const;
     void     RestorePen(StateReader& r);
 
@@ -67,15 +63,10 @@ protected:
 
 private:
     void SetPenDown(bool down);
-    void DrainPenEdges();
     bool WakeOnPen(uint64_t now);
 
-    std::atomic<uint16_t>     raw_x_{0};
-    std::atomic<uint16_t>     raw_y_{0};
     std::function<void(bool)> pen_line_;
-    cerfengine::HostRequestChannel*       host_requests_ = nullptr;
-    std::mutex                edge_mtx_;
-    std::vector<bool>         edges_;
+    HostPenInput              pens_;
 };
 
 }

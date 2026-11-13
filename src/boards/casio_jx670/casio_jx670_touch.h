@@ -1,14 +1,13 @@
 #pragma once
 
 #include "../../execution/guest_cycle_clock.h"
-#include <cerfengine/host_request_channel.h>
+#include "../../peripherals/touch/host_pen_input.h"
 #include "../../socs/cycle_anchored_counter.h"
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <vector>
 
 namespace cerfcore {
 
@@ -41,13 +40,6 @@ public:
     void PostRestore();
 
 private:
-    struct HostPen {
-        bool down;
-        int  x;
-        int  y;
-    };
-
-    void OnHostRequest();
     void OnSampleEvent();
     void OnRateChange();
     void ApplyPenLocked(bool down, int surface_x, int surface_y);
@@ -98,13 +90,10 @@ private:
 
     GuestCycleClock*           clock_        = nullptr;
     GuestCycleClock::Event*    sample_event_ = nullptr;
-    cerfengine::HostRequestChannel*        host_requests_ = nullptr;
     NarrowCycleAnchoredCounter samples_;
     uint32_t                   next_sample_  = 0;
     bool                       sampling_     = false;
-    std::vector<HostPen>       host_pen_;
-    int                        host_x_       = 0;
-    int                        host_y_       = 0;
+    HostPenInput               pens_;
 };
 
 }

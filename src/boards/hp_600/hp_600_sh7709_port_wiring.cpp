@@ -22,9 +22,13 @@ constexpr uint8_t kPortGInputs         = 0xFFu;
 constexpr uint8_t kPortHOnKey          = 0x01u;
 constexpr uint8_t kPortHAcAdapter      = 0x02u;
 constexpr uint8_t kPortHSerialCarrier  = 0x04u;
+constexpr uint8_t kPortHPenDown        = 0x08u;
 constexpr uint8_t kPortHCompanionIrq   = 0x10u;
-constexpr uint8_t kPortHWired          = kPortHOnKey | kPortHAcAdapter | kPortHSerialCarrier | kPortHCompanionIrq;
+constexpr uint8_t kPortHWired =
+    kPortHOnKey | kPortHAcAdapter | kPortHSerialCarrier | kPortHPenDown | kPortHCompanionIrq;
+constexpr uint8_t kPortLTouchPlates    = 0x06u;
 constexpr uint8_t kPortLCharging       = 0x20u;
+constexpr uint8_t kPortLWired          = kPortLTouchPlates | kPortLCharging;
 constexpr uint8_t kPortScSerialCts     = 0x80u;
 
 constexpr uint8_t kPortGLidOpen         = 0x01u;
@@ -60,7 +64,7 @@ public:
             case kSh77xxPortF:  return kPortFKeySense;
             case kSh77xxPortG:  return kPortGInputs;
             case kSh77xxPortH:  return kPortHWired;
-            case kSh77xxPortL:  return kPortLCharging;
+            case kSh77xxPortL:  return kPortLWired;
             case kSh77xxPortSc: return kPortScSerialCts;
             default:            return 0u;
         }

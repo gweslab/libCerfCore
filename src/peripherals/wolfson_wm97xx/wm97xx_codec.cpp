@@ -4,8 +4,6 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
 #include "../../execution/guest_cycle_clock.h"
-#include "../../execution/engine_bridge.h"
-#include <cerfengine/host_request_channel.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -26,34 +24,22 @@ constexpr uint16_t kRpr        = 1u << 13;
 }  // namespace
 
 void Wm97xxCodec::OnReady() {
-    host_requests_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::HostRequestChannel>();
-    host_requests_->RegisterListener([this] { DrainPenEdges(); });
-}
-
-void Wm97xxCodec::SetPenPosition(uint16_t raw_x, uint16_t raw_y) {
-    raw_x_.store(raw_x, std::memory_order_relaxed);
-    raw_y_.store(raw_y, std::memory_order_relaxed);
-}
-
-void Wm97xxCodec::QueuePenEdge(bool down) {
-    {
-        std::lock_guard<std::mutex> lk(edge_mtx_);
-        edges_.push_back(down);
-    }
-    host_requests_->Request();
-}
-
-void Wm97xxCodec::DrainPenEdges() {
-    std::vector<bool> edges;
-    {
-        std::lock_guard<std::mutex> lk(edge_mtx_);
-        edges.swap(edges_);
-    }
-    for (bool down : edges) {
+    pens_.Attach(emu_, [this](const HostPenInput::Pen& pen) {
+        const bool down = pen.kind == HostPenInput::kPenDown;
         if (down != pen_down_) LOG(Periph, "[WM97xx] pen %s\n", down ? "DOWN" : "UP");
         SetPenDown(down);
-    }
+    });
 }
+
+void Wm97xxCodec::SetPenPosition(uint16_t raw_x, uint16_t raw_y) { pens_.Track(raw_x, raw_y); }
+
+void Wm97xxCodec::QueuePenEdge(bool down) {
+    pens_.Queue(HostPenInput::Pen{down ? HostPenInput::kPenDown : HostPenInput::kPenUp, 0, 0});
+}
+
+uint16_t Wm97xxCodec::RawX() const { return static_cast<uint16_t>(pens_.Latest().x); }
+
+uint16_t Wm97xxCodec::RawY() const { return static_cast<uint16_t>(pens_.Latest().y); }
 
 uint32_t Wm97xxCodec::FastRateFrames(uint32_t cr) { return kFastRateFrames[cr]; }
 
