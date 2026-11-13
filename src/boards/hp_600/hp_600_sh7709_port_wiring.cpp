@@ -24,8 +24,9 @@ constexpr uint8_t kPortHAcAdapter      = 0x02u;
 constexpr uint8_t kPortHSerialCarrier  = 0x04u;
 constexpr uint8_t kPortHPenDown        = 0x08u;
 constexpr uint8_t kPortHCompanionIrq   = 0x10u;
-constexpr uint8_t kPortHWired =
-    kPortHOnKey | kPortHAcAdapter | kPortHSerialCarrier | kPortHPenDown | kPortHCompanionIrq;
+constexpr uint8_t kPortHUnreadInput    = 0x40u;
+constexpr uint8_t kPortHWired = kPortHOnKey | kPortHAcAdapter | kPortHSerialCarrier | kPortHPenDown |
+                                kPortHCompanionIrq | kPortHUnreadInput;
 constexpr uint8_t kPortLTouchPlates    = 0x06u;
 constexpr uint8_t kPortLCharging       = 0x20u;
 constexpr uint8_t kPortLWired          = kPortLTouchPlates | kPortLCharging;
