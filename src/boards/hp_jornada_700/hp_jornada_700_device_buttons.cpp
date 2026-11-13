@@ -11,17 +11,6 @@ namespace cerfcore {
 
 namespace {
 
-/* Bezel soft buttons: raw-ADC zone centers per jornada720 touch.dll sub_FB1314 (gate
-   X 31..67; Y zones 151-274 / 361-469 / 591-689 / 816-914). */
-struct BezelEntry { const char* id; const char* label; uint16_t adc_y; };
-constexpr uint16_t kBezelAdcX = 49;
-constexpr BezelEntry kBezel[] = {
-    { "settings",     "Settings",     212 },
-    { "backup",       "HP backup",    415 },
-    { "dialer",       "HP dialer",    640 },
-    { "media_player", "Media player", 865 },
-};
-
 class HpJornada700DeviceButtons : public DeviceButtons {
 public:
     using DeviceButtons::DeviceButtons;
@@ -31,17 +20,15 @@ public:
     }
 
     std::vector<ActionControl> Actions() override {
-        std::vector<ActionControl> out;
-        for (const BezelEntry& b : kBezel) {
-            ActionControl it;
-            it.id    = b.id;
-            it.label = b.label;
-            it.press = [this, y = b.adc_y] {
-                emu_.Get<HpJornada700Touch>().TapRawAdc(kBezelAdcX, y);
-            };
-            out.push_back(std::move(it));
-        }
-        return out;
+        static constexpr uint16_t     kBezelAdcX = 49;
+        static constexpr RawTapButton kBezel[]   = {
+            { "settings",     "Settings",     212 },
+            { "backup",       "HP backup",    415 },
+            { "dialer",       "HP dialer",    640 },
+            { "media_player", "Media player", 865 },
+        };
+        return RawTapColumn(kBezel, kBezelAdcX,
+                            [this](uint16_t x, uint16_t y) { emu_.Get<HpJornada700Touch>().TapRawAdc(x, y); });
     }
 };
 

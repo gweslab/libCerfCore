@@ -22,6 +22,8 @@ constexpr HostPenInput::PanelRange kScreen{38u, 950u, 80u, 900u};
 constexpr uint32_t kPlateXDrive = 0u;
 constexpr uint32_t kPlateYDrive = 1u;
 constexpr uint32_t kScanEnable  = 5u;
+constexpr uint8_t  kRawTap      = HostPenInput::kFirstOwnerKind;
+constexpr GuestCycleClock::Rate kRawTapHold{10u, 1u};
 
 }
 
@@ -33,13 +35,38 @@ bool Hp600Sh7709TouchPanel::ShouldRegister() {
 void Hp600Sh7709TouchPanel::OnReady() {
     intc_  = &emu_.Get<Sh77xxIntc>();
     ports_ = &emu_.Get<Sh77xxPortData>();
-    pens_.Attach(emu_, [this](const HostPenInput::Pen& pen) { DrivePenLine(pen.kind == HostPenInput::kPenDown); });
+    pens_.Attach(emu_, [this](const HostPenInput::Pen& pen) { ApplyPen(pen); });
+    raw_hold_.Attach([this] { EndRawTap(); });
     emu_.Get<GuestDeepSleep>().RegisterParkClock([this] { pens_.Apply(); });
     emu_.Get<Hibernation>().RegisterPostRestoreListener([this] {
         pens_.Clear();
-        DrivePenLine(false);
+        EndRawTap();
     });
     DrivePenLine(false);
+}
+
+void Hp600Sh7709TouchPanel::ApplyPen(const HostPenInput::Pen& pen) {
+    if (pen.kind != kRawTap) {
+        raw_tap_ = false;
+        raw_hold_.Stop();
+        DrivePenLine(pen.kind == HostPenInput::kPenDown);
+        return;
+    }
+    raw_x_   = static_cast<uint16_t>(pen.x);
+    raw_y_   = static_cast<uint16_t>(pen.y);
+    raw_tap_ = true;
+    DrivePenLine(true);
+    raw_hold_.Start(kRawTapHold);
+}
+
+void Hp600Sh7709TouchPanel::EndRawTap() {
+    raw_tap_ = false;
+    raw_hold_.Stop();
+    DrivePenLine(false);
+}
+
+void Hp600Sh7709TouchPanel::TapRaw(uint16_t adc_x, uint16_t adc_y) {
+    pens_.Queue(HostPenInput::Pen{kRawTap, adc_x, adc_y});
 }
 
 void Hp600Sh7709TouchPanel::PenDown(int x, int y) {
@@ -59,6 +86,7 @@ uint16_t Hp600Sh7709TouchPanel::ReadPlate(Plate plate) {
     const PinDrive low     = y_plate ? y_drive : x_drive;
     const PinDrive high    = y_plate ? x_drive : y_drive;
     if (scan == PinDrive::kHigh && low == PinDrive::kLow && high == PinDrive::kHigh) {
+        if (raw_tap_) return y_plate ? raw_y_ : raw_x_;
         const HostPenInput::Point p     = pens_.Latest();
         uint16_t                  adc_x = 0u;
         uint16_t                  adc_y = 0u;

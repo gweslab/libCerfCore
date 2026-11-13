@@ -246,6 +246,14 @@
     "hp_620lx_tasks": { "button": { "keys": ["VK_F6"], "icon": "checklist" } },
     "hp_620lx_contacts": { "button": { "keys": ["VK_F7"], "icon": "contacts" } },
     "hp_620lx_fiscal": { "button": { "keys": ["VK_F8"], "icon": "calculate" } },
+    "hp_620lx_bezel": {
+      "column": [
+        { "button": { "action": "settings", "icon": "settings" } },
+        { "button": { "action": "mail", "icon": "mail" } },
+        { "button": { "action": "fax", "icon": "fax" } },
+        { "button": { "action": "find", "icon": "search" } }
+      ]
+    },
     "hp_620lx_keyboard": {
       "column": [
         {
@@ -780,6 +788,7 @@
       "board_ids": ["hp_620lx", "hp_620lx_japan", "hp_660lx"],
       "gap": 0.01,
       "panels": [
+        { "side": "right", "align": "center", "width": 0.25, "height": 1.0, "content": "hp_620lx_bezel" },
         { "side": "bottom", "align": "center", "width": 1.0, "height": 0.42, "content": "hp_620lx_keyboard" }
       ]
     },
