@@ -15,4 +15,8 @@ inline int64_t HostSteadyNanos() {
     return static_cast<int64_t>(duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count());
 }
 
+inline bool HostSteadySquareWaveHigh(uint64_t half_period_ms) {
+    return (HostSteadyMicros() / 1000u / half_period_ms) % 2u == 0u;
+}
+
 }

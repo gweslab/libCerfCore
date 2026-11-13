@@ -17,6 +17,6 @@ public:
 
 }
 
-REGISTER_SERVICE(Sh7709Adc);
+REGISTER_SERVICE_AS(Sh7709Adc, Sh77xxAdc);
 
 }

@@ -40,6 +40,7 @@ public:
     bool LcdcClockRunning() const;
     bool PccChannelClockRunning(uint32_t channel) const;
     bool TimerClockRunning(uint32_t channel) const;
+    bool TimerOutputsSelected() const;
 
 protected:
     uint16_t SampleRegister(uint32_t i, uint32_t addr) override;
@@ -48,10 +49,11 @@ protected:
     void     AfterReset() override;
 
 private:
-    void PublishStbcrLocked();
+    void PublishLocked();
 
     const Hd64461SocketWiring* wiring_ = nullptr;
     std::atomic<uint16_t>      stbcr_{0u};
+    std::atomic<uint16_t>      syscr_{0u};
 };
 
 }

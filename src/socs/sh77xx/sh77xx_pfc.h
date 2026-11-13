@@ -18,6 +18,7 @@ inline constexpr uint32_t kSh77xxPortF     = 5u;
 inline constexpr uint32_t kSh77xxPortG     = 6u;
 inline constexpr uint32_t kSh77xxPortH     = 7u;
 inline constexpr uint32_t kSh77xxPortJ     = 8u;
+inline constexpr uint32_t kSh77xxPortK     = 9u;
 inline constexpr uint32_t kSh77xxPortL     = 10u;
 inline constexpr uint32_t kSh77xxPortSc    = 11u;
 

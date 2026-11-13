@@ -38,6 +38,8 @@ bool Hp600Sh7709Battery::Charging() const {
     return !battery_.IsOnBattery() && battery_.FillPercent() < kFullPercent;
 }
 
+bool Hp600Sh7709Battery::OnExternalPower() const { return !battery_.IsOnBattery(); }
+
 uint16_t Hp600Sh7709Battery::MainBatteryAdc() const {
     const int level = std::min((battery_.FillPercent() + kPercentPerLevel / 2) / kPercentPerLevel, kTopLevel);
     if (level == kTopLevel) return kLevelThresholds[kTopLevel];

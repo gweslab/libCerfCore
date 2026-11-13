@@ -8,8 +8,10 @@
 #include "../../boards/hp_600/hp_600_family_id.h"
 #include "../../cpu/sh/sh_board_clock.h"
 #include "../peripheral_dispatcher.h"
+#include "hd64461_gpio.h"
 #include "hd64461_intc.h"
 #include "hd64461_system_control.h"
+#include "hd64461_timer_output.h"
 
 #include <string>
 
@@ -40,6 +42,9 @@ constexpr uint32_t kPowerOnConstant = 0xFFFFu;
 
 constexpr uint32_t kPrescaleShift[4] = {4u, 3u, 2u, 0u};
 
+constexpr uint32_t kOutputPin[2]    = {2u, 3u};
+constexpr uint64_t kOutputPulseCkio = 16u;
+
 constexpr Hd64461IntcSource kRequestSource[2] = {Hd64461IntcSource::kTmu0, Hd64461IntcSource::kTmu1};
 
 constexpr const char* kChannelPrefix[2] = {"timer0_", "timer1_"};
@@ -55,11 +60,15 @@ bool Hd64461Timer::ShouldRegister() {
 void Hd64461Timer::OnReady() {
     clock_  = &emu_.Get<GuestCycleClock>();
     intc_   = &emu_.Get<Hd64461Intc>();
-    system_ = &emu_.Get<Hd64461SystemControl>();
-    ckio_.Attach(emu_.Get<ShBoardClock>().CkioHz(), 1u);
+    system_  = &emu_.Get<Hd64461SystemControl>();
+    gpio_    = &emu_.Get<Hd64461Gpio>();
+    output_  = emu_.TryGet<Hd64461TimerOutput>();
+    ckio_hz_ = emu_.Get<ShBoardClock>().CkioHz();
+    ckio_.Attach(ckio_hz_, 1u);
     for (Channel& ch : ch_) {
         Channel* channel = &ch;
         ch.event         = clock_->Add([this, channel] { Sync(*channel); });
+        ch.output_event  = clock_->Add([this, channel] { Pulse(*channel); });
     }
     clock_->RegisterRateListener([this] { Retime(); });
     GuestCpuReset& reset = emu_.Get<GuestCpuReset>();
@@ -79,6 +88,11 @@ uint64_t Hd64461Timer::Ticks(const Channel& ch) { return ckio_.Now() >> Prescale
 bool Hd64461Timer::Counting(const Channel& ch) const { return (ch.control & kTcrStart) != 0u && ch.clocked; }
 
 void Hd64461Timer::Arm(Channel& ch) {
+    if (!Counting(ch) || (ch.control & kTcrOutput) == 0u) {
+        clock_->Disarm(ch.output_event);
+    } else {
+        ckio_.ArmAt(ch.output_event, ch.counter.NextReload() << PrescaleShift(ch.control));
+    }
     if (!Counting(ch) || ch.masked || ch.counter.Flagged()) {
         clock_->Disarm(ch.event);
         return;
@@ -96,10 +110,21 @@ void Hd64461Timer::Sync(Channel& ch) {
     Arm(ch);
 }
 
-void Hd64461Timer::RequireNoOutputPulse(const Channel& ch) const {
-    if ((ch.control & kTcrOutput) == 0u || !Counting(ch)) return;
-    emu_.Get<Fatal>().Die("Hd64461Timer: timer %u counts with TMO%u# enabled (TCR 0x%04X)", Index(ch), Index(ch),
-                          ch.control);
+void Hd64461Timer::Pulse(Channel& ch) {
+    Sync(ch);
+    if (!system_->TimerOutputsSelected()) return;
+    const uint32_t mode = gpio_->PinMode(Hd64461Gpio::kPortA, kOutputPin[Index(ch)]);
+    if (mode != kHd64461PinModeFunction2 && mode != kHd64461PinModePullUpInput) {
+        emu_.Get<Fatal>().Die("Hd64461Timer: TMO%u# pulse with PA%u in mode %u", Index(ch), kOutputPin[Index(ch)],
+                              mode);
+    }
+    const uint64_t period = (uint64_t{1} << PrescaleShift(ch.control)) * (uint64_t{ch.counter.Constant()} + 1u);
+    if (period <= kOutputPulseCkio) {
+        emu_.Get<Fatal>().Die("Hd64461Timer: TMO%u# period of %llu CKIO with TCR 0x%04X", Index(ch),
+                              static_cast<unsigned long long>(period), ch.control);
+    }
+    if (output_ == nullptr) emu_.Get<Fatal>().Die("Hd64461Timer: TMO%u# pulse with no board net", Index(ch));
+    output_->Pulse(Index(ch), static_cast<uint32_t>(ckio_hz_ / period));
 }
 
 uint16_t Hd64461Timer::ReadCount(Channel& ch) {
@@ -129,7 +154,6 @@ void Hd64461Timer::WriteControl(Channel& ch, uint16_t value) {
         ch.counter.WriteCount(Ticks(ch), ch.counter.Constant());
         if (ch.clocked) ch.counter.Start(Ticks(ch));
     }
-    RequireNoOutputPulse(ch);
     Drive(ch);
     Arm(ch);
 }
@@ -230,7 +254,6 @@ void Hd64461Timer::SetClocked(Channel& ch, bool clocked) {
     if ((ch.control & kTcrStart) != 0u && !clocked) ch.counter.Stop(Ticks(ch));
     ch.clocked = clocked;
     if ((ch.control & kTcrStart) != 0u && clocked) ch.counter.Start(Ticks(ch));
-    RequireNoOutputPulse(ch);
     Drive(ch);
     Arm(ch);
 }

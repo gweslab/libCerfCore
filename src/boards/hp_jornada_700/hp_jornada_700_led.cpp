@@ -19,8 +19,7 @@ constexpr WidgetRgb kClrRim{150, 160, 150};
 }  /* namespace */
 
 bool HpJornada700Led::LitNow(State s) {
-    return s == State::On ||
-           (s == State::Blink && (HostSteadyMicros() / 1000u / kBlinkPeriodMs) % 2u == 0u);
+    return s == State::On || (s == State::Blink && HostSteadySquareWaveHigh(kBlinkPeriodMs));
 }
 
 bool HpJornada700Led::ShouldRegister() {

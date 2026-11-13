@@ -19,6 +19,7 @@ public:
     bool     Flagged() const { return flag_; }
     uint32_t Constant() const { return constant_; }
     uint64_t NextFlag() const;
+    uint64_t NextReload() const { return reload_; }
 
     void     ClearFlag() { flag_ = false; }
     void     Advance(uint64_t tick);

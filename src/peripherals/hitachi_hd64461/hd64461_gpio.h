@@ -13,6 +13,10 @@ namespace cerfcore {
 
 class Hd64461GpioWiring;
 
+inline constexpr uint32_t kHd64461PinModeFunction2   = 0u;
+inline constexpr uint32_t kHd64461PinModeOutput      = 1u;
+inline constexpr uint32_t kHd64461PinModePullUpInput = 2u;
+
 namespace cerf_hd64461_gpio_detail {
 
 using cerf_reg_window_detail::OtherReset;
@@ -65,6 +69,7 @@ public:
     void RestoreState(StateReader& r) override;
     void PostRestore() override;
 
+    uint32_t PinMode(uint32_t port, uint32_t pin) const;
     PinDrive Drive(uint32_t port, uint32_t pin) const;
     bool     Pcmcia1PinsConnected() const;
     void     AddPinListener(std::function<void()> listener);

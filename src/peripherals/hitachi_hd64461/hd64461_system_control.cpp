@@ -28,6 +28,7 @@ constexpr uint16_t kLcdcClock  = kSlckeIst | kSlckeOst | kSlcdst;
 constexpr uint16_t kTimerClock = kStm0st | kStm1st;
 
 constexpr uint16_t kSptaIr = 0x0080u;
+constexpr uint16_t kSptaTm = 0x0040u;
 constexpr uint16_t kSptbUr = 0x0020u;
 
 }
@@ -40,13 +41,13 @@ void Hd64461SystemControl::OnReady() {
     wiring_ = &emu_.Get<Hd64461SocketWiring>();
     RegWindow::OnReady();
     std::lock_guard<std::mutex> lk(lock_);
-    PublishStbcrLocked();
+    PublishLocked();
 }
 
 void Hd64461SystemControl::RestoreState(StateReader& r) {
     RegWindow::RestoreState(r);
     std::lock_guard<std::mutex> lk(lock_);
-    PublishStbcrLocked();
+    PublishLocked();
 }
 
 bool Hd64461SystemControl::LcdcClockRunning() const {
@@ -61,6 +62,10 @@ bool Hd64461SystemControl::TimerClockRunning(uint32_t channel) const {
     return (stbcr_.load(std::memory_order_acquire) & (channel == 0u ? kStm0st : kStm1st)) == 0u;
 }
 
+bool Hd64461SystemControl::TimerOutputsSelected() const {
+    return (syscr_.load(std::memory_order_acquire) & kSptaTm) != 0u;
+}
+
 uint16_t Hd64461SystemControl::SampleRegister(uint32_t i, uint32_t addr) {
     (void)addr;
     return static_cast<uint16_t>(StoredReg(i) | wiring_->ModePins());
@@ -73,15 +78,18 @@ void Hd64461SystemControl::BeforeStore(uint32_t i, uint16_t value) {
 }
 
 void Hd64461SystemControl::AfterStore(uint32_t i) {
-    if (i != kStbcr) return;
     const uint16_t before = stbcr_.load(std::memory_order_relaxed);
-    PublishStbcrLocked();
+    PublishLocked();
+    if (i != kStbcr) return;
     if (((before ^ StoredReg(kStbcr)) & kLcdcClock) != 0u) emu_.Get<Hd64461Lcdc>().OnModuleClockChanged();
     if (((before ^ StoredReg(kStbcr)) & kTimerClock) != 0u) emu_.Get<Hd64461Timer>().OnModuleClockChanged();
 }
 
-void Hd64461SystemControl::AfterReset() { PublishStbcrLocked(); }
+void Hd64461SystemControl::AfterReset() { PublishLocked(); }
 
-void Hd64461SystemControl::PublishStbcrLocked() { stbcr_.store(StoredReg(kStbcr), std::memory_order_release); }
+void Hd64461SystemControl::PublishLocked() {
+    stbcr_.store(StoredReg(kStbcr), std::memory_order_release);
+    syscr_.store(StoredReg(kSyscr), std::memory_order_release);
+}
 
 }

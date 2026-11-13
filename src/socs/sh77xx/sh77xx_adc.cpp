@@ -96,14 +96,20 @@ uint8_t Sh77xxAdc::ReadControlStatus() {
 void Sh77xxAdc::WriteControlStatus(uint8_t value) {
     if ((value & kAdf) == 0u && end_read_) ClearEndFlag();
     control_ = static_cast<uint8_t>(value & kStoredStatus);
-    if ((value & kAdst) != 0u) Convert(value);
+    if ((value & kAdst) != 0u) Convert();
     Drive();
 }
 
-void Sh77xxAdc::Convert(uint8_t value) {
+void Sh77xxAdc::ExternalTrigger() {
+    if (trigger_ != kTriggerEnable) return;
+    Convert();
+    Drive();
+}
+
+void Sh77xxAdc::Convert() {
     if (stbcr2_->ModuleStopped(kStbcr2Mstp5)) {
-        emu_.Get<Fatal>().Die("Sh77xxAdc: ADCSR write 0x%02X starts a conversion while STBCR2 MSTP5 stops the A/D clock",
-                              value);
+        emu_.Get<Fatal>().Die("Sh77xxAdc: conversion with ADCSR 0x%02X while STBCR2 MSTP5 stops the A/D clock",
+                              control_ | kAdst);
     }
     const uint32_t channel = control_ & kChannel;
     if ((control_ & kMulti) != 0u) {

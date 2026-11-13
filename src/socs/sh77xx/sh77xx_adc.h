@@ -28,13 +28,15 @@ public:
     void RestoreState(StateReader& r) override;
     void PostRestore() override;
 
+    void ExternalTrigger();
+
 private:
     static constexpr uint32_t kDataRegisters = 4u;
 
     uint8_t ReadData(uint32_t offset);
     uint8_t ReadControlStatus();
     void    WriteControlStatus(uint8_t value);
-    void    Convert(uint8_t value);
+    void    Convert();
     void    ClearEndFlag();
     bool    Interrupting() const;
     void    Drive();

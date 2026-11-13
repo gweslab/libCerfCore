@@ -9,6 +9,7 @@
 #include "hp_600_net_hold.h"
 #include "hp_600_sh7709_battery.h"
 #include "hp_600_sh7709_key_matrix.h"
+#include "hp_600_sh7709_notification_led_net.h"
 
 namespace cerfcore {
 
@@ -36,7 +37,6 @@ constexpr uint8_t kPortGLidOpen         = 0x01u;
 constexpr uint8_t kPortGMainBatteryOut  = 0x04u;
 constexpr uint8_t kPortGNotificationLed = 0x08u;
 constexpr uint8_t kPortGBoardDriven     = kPortGLidOpen | kPortGMainBatteryOut | kPortGNotificationLed;
-constexpr uint8_t kPortJNotificationLed = 0x02u;
 
 class Hp600Sh7709PortWiring : public Sh77xxPortWiring {
 public:
@@ -77,7 +77,7 @@ public:
             return static_cast<uint8_t>(battery_->Charging() ? nets & ~kPortLCharging : nets | kPortLCharging);
         }
         if (port != kSh77xxPortG) return nets;
-        const bool led_net_high = (nets_.Levels(kSh77xxPortJ) & kPortJNotificationLed) != 0u;
+        const bool led_net_high = (nets_.Levels(kSh77xxPortJ) & kHp600Sh7709PortJNotificationLed) != 0u;
         return static_cast<uint8_t>((nets & ~kPortGBoardDriven) | kPortGLidOpen |
                                     (led_net_high ? kPortGNotificationLed : 0u));
     }

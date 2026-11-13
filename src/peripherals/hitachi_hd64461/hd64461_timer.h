@@ -10,8 +10,10 @@
 
 namespace cerfcore {
 
+class Hd64461Gpio;
 class Hd64461Intc;
 class Hd64461SystemControl;
+class Hd64461TimerOutput;
 
 class Hd64461Timer : public Peripheral {
 public:
@@ -38,10 +40,11 @@ private:
 
     struct Channel {
         ReloadDownCounter       counter{ReloadDownCounter::FlagPoint::kZero};
-        GuestCycleClock::Event* event   = nullptr;
-        uint16_t                control = 0u;
-        bool                    masked  = false;
-        bool                    clocked = true;
+        GuestCycleClock::Event* event        = nullptr;
+        GuestCycleClock::Event* output_event = nullptr;
+        uint16_t                control      = 0u;
+        bool                    masked       = false;
+        bool                    clocked      = true;
     };
 
     uint32_t Index(const Channel& ch) const;
@@ -50,7 +53,7 @@ private:
     void     Arm(Channel& ch);
     void     Drive(Channel& ch);
     void     Sync(Channel& ch);
-    void     RequireNoOutputPulse(const Channel& ch) const;
+    void     Pulse(Channel& ch);
     uint16_t ReadCount(Channel& ch);
     void     WriteControl(Channel& ch, uint16_t value);
     uint16_t ReadRequests();
@@ -61,9 +64,12 @@ private:
     void     PowerOnReset();
     void     Retime();
 
-    GuestCycleClock*      clock_  = nullptr;
-    Hd64461Intc*          intc_   = nullptr;
-    Hd64461SystemControl* system_ = nullptr;
+    GuestCycleClock*      clock_   = nullptr;
+    Hd64461Intc*          intc_    = nullptr;
+    Hd64461SystemControl* system_  = nullptr;
+    Hd64461Gpio*          gpio_    = nullptr;
+    Hd64461TimerOutput*   output_  = nullptr;
+    uint64_t              ckio_hz_ = 0u;
     OscillatorTicks       ckio_{emu_, false};
     Channel               ch_[kChannels];
 };

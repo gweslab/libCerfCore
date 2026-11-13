@@ -38,7 +38,7 @@ bool NecMobilepro900SeriesLed::Blinking() const {
 }
 
 bool NecMobilepro900SeriesLed::LitNow() const {
-    return (HostSteadyMicros() / 1000u / kBlinkPeriodMs) % 2u == 0u;
+    return HostSteadySquareWaveHigh(kBlinkPeriodMs);
 }
 
 std::string NecMobilepro900SeriesLed::Tooltip() const {

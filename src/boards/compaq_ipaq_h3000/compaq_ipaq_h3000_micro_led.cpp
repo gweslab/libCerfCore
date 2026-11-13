@@ -18,7 +18,7 @@ constexpr uint8_t   kColorYellow       = 0;
 constexpr uint8_t   kColorGreen        = 1;
 constexpr uint64_t  kMicrosPerTick     = 100000;
 constexpr uint64_t  kTicksForZero      = 256;
-constexpr uint64_t  kChargeBlinkTicks  = 20;
+constexpr uint64_t  kChargeBlinkHalfMs = 1000;
 constexpr WidgetRgb kClrGreen{120, 255, 140};
 constexpr WidgetRgb kClrYellow{255, 200, 40};
 constexpr WidgetRgb kClrDark{34, 44, 36};
@@ -88,7 +88,7 @@ CompaqIpaqH3000MicroLed::Glow CompaqIpaqH3000MicroLed::GlowNow() const {
     }
     if (!battery_->OnAc()) return Glow::kDark;
     if (!battery_->Charging()) return Glow::kYellow;
-    return tick % kChargeBlinkTicks < kChargeBlinkTicks / 2 ? Glow::kYellow : Glow::kDark;
+    return HostSteadySquareWaveHigh(kChargeBlinkHalfMs) ? Glow::kYellow : Glow::kDark;
 }
 
 std::string CompaqIpaqH3000MicroLed::Tooltip() const {

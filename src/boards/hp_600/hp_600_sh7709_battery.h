@@ -18,6 +18,7 @@ public:
     void OnReady() override;
 
     bool     Charging() const;
+    bool     OnExternalPower() const;
     uint16_t MainBatteryAdc() const;
 
 private:

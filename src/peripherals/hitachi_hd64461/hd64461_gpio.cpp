@@ -19,9 +19,6 @@ using cerf_hd64461_gpio_detail::kDataIndex;
 using cerf_hd64461_gpio_detail::kPins;
 using cerf_hd64461_gpio_detail::kPorts;
 
-constexpr uint32_t kModeFunction   = 0u;
-constexpr uint32_t kModeOutput     = 1u;
-constexpr uint32_t kModePullUp     = 2u;
 constexpr uint32_t kControlShift   = 16u;
 constexpr uint32_t kPcmcia1Channel = 1u;
 
@@ -31,6 +28,8 @@ constexpr uint8_t  kPortCPcmcia1Inputs  = 0xE0u;
 constexpr uint8_t  kPortDPcmcia1Inputs  = 0xF3u;
 constexpr uint16_t kPortCPcmcia1Outputs = 0x03FFu;
 constexpr uint16_t kPortDPcmcia1Outputs = 0x00F0u;
+
+uint32_t ModeOf(uint32_t pins, uint32_t pin) { return (pins >> (kControlShift + pin * 2u)) & 3u; }
 
 }
 
@@ -66,13 +65,17 @@ void Hd64461Gpio::PostRestore() { NotifyListeners(); }
 
 void Hd64461Gpio::AddPinListener(std::function<void()> listener) { listeners_.push_back(std::move(listener)); }
 
+uint32_t Hd64461Gpio::PinMode(uint32_t port, uint32_t pin) const {
+    return ModeOf(pins_[port].load(std::memory_order_acquire), pin);
+}
+
 PinDrive Hd64461Gpio::Drive(uint32_t port, uint32_t pin) const {
     const uint32_t pins = pins_[port].load(std::memory_order_acquire);
-    switch ((pins >> (kControlShift + pin * 2u)) & 3u) {
-        case kModeFunction:
+    switch (ModeOf(pins, pin)) {
+        case kHd64461PinModeFunction2:
             return ((kFunctionOutputs[port] >> pin) & 1u) != 0u ? PinDrive::kFunction : PinDrive::kUndriven;
-        case kModeOutput:  return ((pins >> pin) & 1u) != 0u ? PinDrive::kHigh : PinDrive::kLow;
-        case kModePullUp:  return PinDrive::kPulledUp;
+        case kHd64461PinModeOutput:      return ((pins >> pin) & 1u) != 0u ? PinDrive::kHigh : PinDrive::kLow;
+        case kHd64461PinModePullUpInput: return PinDrive::kPulledUp;
         default:           return PinDrive::kUndriven;
     }
 }
@@ -111,7 +114,8 @@ uint16_t Hd64461Gpio::SampleRegister(uint32_t i, uint32_t addr) {
     const uint32_t port    = i - kDataIndex;
     const uint16_t control = StoredReg(port);
     const uint8_t  latch   = static_cast<uint8_t>(StoredReg(i));
-    const uint8_t  output  = static_cast<uint8_t>(ModePins(control, kModeFunction) | ModePins(control, kModeOutput));
+    const uint8_t  output  = static_cast<uint8_t>(ModePins(control, kHd64461PinModeFunction2) |
+                                                  ModePins(control, kHd64461PinModeOutput));
     const uint8_t  socket  = Pcmcia1Inputs(port);
     uint8_t        nets    = wiring_->NetLevels(port);
     if (socket != 0u) nets = static_cast<uint8_t>((nets & ~socket) | (Pcmcia1InputLevels(port) & socket));
@@ -120,7 +124,7 @@ uint16_t Hd64461Gpio::SampleRegister(uint32_t i, uint32_t addr) {
 
 void Hd64461Gpio::BeforeStore(uint32_t i, uint16_t value) {
     if (i != kPortC && i != kPortD) return;
-    const uint8_t driven = static_cast<uint8_t>(ModePins(value, kModeOutput) & Pcmcia1Inputs(i));
+    const uint8_t driven = static_cast<uint8_t>(ModePins(value, kHd64461PinModeOutput) & Pcmcia1Inputs(i));
     if (driven != 0u) {
         emu_.Get<Fatal>().Die("Hd64461Gpio: GP%cCR write 0x%04X drives PCMCIA1 input pins 0x%02X",
                               static_cast<char>('A' + i), value, driven);
