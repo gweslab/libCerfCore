@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
-#include "../../peripherals/external_device_clock.h"
+#include "../../peripherals/serial/serial_device_clock_timer.h"
+#include "../../peripherals/serial/serial_endpoint_port.h"
 #include "../../peripherals/serial/serial_line.h"
 #include "pr31x00_serial_wiring.h"
 #include "pr31x00_uart_dma.h"
@@ -18,7 +19,6 @@
 namespace cerfcore {
 
 class Pr31x00Clock;
-class SerialCradle;
 
 class Pr31x00Uart : public Peripheral, public SerialLine {
 public:
@@ -81,9 +81,7 @@ private:
     Pr31x00UartDma::LineTiming LineTimingLocked() const;
     void       OnRxLineIdle();
     void       RaiseRxInts(const Pr31x00UartDma::RxInts& ints);
-    void       NotifyControlLines(bool dtr, bool rts);
     void       FireLineConfig();
-    void       OnEndpointTimerDue();
 
     uint32_t    ctl1_ = 0;
     std::string tx_line_;
@@ -92,13 +90,10 @@ private:
 
     mutable std::mutex mu_;
 
-    std::recursive_mutex endpoint_mu_;
-    SerialEndpoint*      endpoint_ = nullptr;
+    SerialDeviceClockTimer endpoint_timer_;
+    SerialEndpointPort     port_;
 
-    ExternalDeviceClock*        device_clock_   = nullptr;
-    ExternalDeviceClock::Timer* endpoint_timer_ = nullptr;
-
-    Pr31x00UartDma*         dma_         = nullptr;
+    Pr31x00UartDma*       dma_         = nullptr;
     uint32_t                dma_port_    = 0;
     Pr31x00UartTransmitter* tx_          = nullptr;
     uint32_t                tx_port_     = 0;
@@ -110,11 +105,6 @@ private:
     LineConfig line_cfg_;
 
     Pr31x00Clock* module_clock_ = nullptr;
-
-    RxDrainFn    rx_drain_cb_;
-    LineConfigFn line_cfg_cb_;
-
-    std::unique_ptr<SerialCradle> cradle_;
 };
 
 }

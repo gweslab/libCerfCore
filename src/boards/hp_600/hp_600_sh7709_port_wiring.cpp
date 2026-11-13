@@ -19,8 +19,9 @@ constexpr uint8_t kPortERowsAndPins    = 0xFFu;
 constexpr uint8_t kPortFKeySense       = 0xFFu;
 constexpr uint8_t kPortGInputs         = 0xFFu;
 constexpr uint8_t kPortHOnKey          = 0x01u;
+constexpr uint8_t kPortHSerialCarrier  = 0x04u;
 constexpr uint8_t kPortHCompanionIrq   = 0x10u;
-constexpr uint8_t kPortHWired          = kPortHOnKey | kPortHCompanionIrq;
+constexpr uint8_t kPortHWired          = kPortHOnKey | kPortHSerialCarrier | kPortHCompanionIrq;
 constexpr uint8_t kPortScSerialCts     = 0x80u;
 
 constexpr uint8_t kPortGLidOpen         = 0x01u;

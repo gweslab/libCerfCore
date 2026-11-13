@@ -300,7 +300,11 @@ void Sh77xxDmac::ValidateStart(const Channel& ch) {
                       i);
         }
     }
-    ValidateRequestRegister(ch, RequestSelect(ch.chcr));
+    const uint32_t rs = RequestSelect(ch.chcr);
+    ValidateRequestRegister(ch, rs);
+    if (rs >= kRsModuleFirst && rs <= kRsSerialLast) {
+        fatal.Die("Sh77xxDmac: channel %u enabled for the serial request source 0x%X, which is not modeled", i, rs);
+    }
 }
 
 void Sh77xxDmac::ValidateRequestRegister(const Channel& ch, uint32_t rs) {

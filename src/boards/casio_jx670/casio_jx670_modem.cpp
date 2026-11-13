@@ -36,11 +36,10 @@ bool CasioJx670Modem::ShouldRegister() {
 }
 
 void CasioJx670Modem::OnReady() {
-    device_clock_ = &emu_.Get<ExternalDeviceClock>();
-    line_timer_   = &device_clock_->AddTimer([this] { uart_->OnLineTimer(); });
+    line_timer_.AttachLineTimer();
     uart_ = std::make_unique<Serial16550>(
-        nullptr, [this](bool a) { OnUartIrq(a); }, Serial16550::Config{},
-        Serial16550::Clock{1843200u, 1u}, *this);
+        [this](bool a) { OnUartIrq(a); }, Serial16550::Config{},
+        Serial16550::Clock{1843200u, 1u}, line_timer_);
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
         ctrl_8600_   = 0;
         socket_a1c0_ = 0;
@@ -48,10 +47,6 @@ void CasioJx670Modem::OnReady() {
         uart_->LineReset(kind);
     });
 }
-
-void CasioJx670Modem::ArmLineTimer(int64_t delay_ns) { device_clock_->Arm(*line_timer_, delay_ns); }
-
-void CasioJx670Modem::DisarmLineTimer() { device_clock_->Disarm(*line_timer_); }
 
 bool CasioJx670Modem::TryReadByte(uint32_t off, uint8_t& out) {
     if (In16550(off)) { out = uart_->ReadReg8((off - k16550Base) / 4u); return true; }
@@ -103,7 +98,7 @@ void CasioJx670Modem::SaveState(StateWriter& w) const {
     w.Write("socket_a1c0", socket_a1c0_);
     w.Write("socket_a1c4", socket_a1c4_);
     uart_->SaveState(w);
-    device_clock_->SaveTimer(*line_timer_, w, "line_timer_");
+    line_timer_.SaveLineTimer(w, "line_timer_");
 }
 
 void CasioJx670Modem::RestoreState(StateReader& r) {
@@ -111,11 +106,11 @@ void CasioJx670Modem::RestoreState(StateReader& r) {
     r.Read("socket_a1c0", socket_a1c0_);
     r.Read("socket_a1c4", socket_a1c4_);
     uart_->RestoreState(r);
-    device_clock_->RestoreTimer(*line_timer_, r, "line_timer_");
+    line_timer_.RestoreLineTimer(r, "line_timer_");
 }
 
 void CasioJx670Modem::PostRestore() {
-    device_clock_->ResumeTimer(*line_timer_);
+    line_timer_.ResumeLineTimer();
     uart_->PostRestoreLine();
 }
 

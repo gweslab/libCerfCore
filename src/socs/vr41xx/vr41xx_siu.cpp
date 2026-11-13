@@ -16,7 +16,7 @@ void Vr41xxSiu::OnReady() {
 
     emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
         RefreshClocks();
-        ResendEndpointInputs();
+        Port().ResendModemInputs();
     });
     TrackClock(kCmuMskSiu);
     TrackClock(kCmuMskSsiu);
@@ -35,16 +35,14 @@ void Vr41xxSiu::OnReady() {
     emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] { ApplyModemInputs(); });
     wiring_->RegisterSupplyListener([this] {
         ApplyModemInputs();
-        RefreshControlLines();
+        Port().NotifyControlLines();
     });
     emu_.Get<GuestDeepSleep>().RegisterSleepEntryListener([this] {
         hibernating_.store(true, std::memory_order_release);
-        RefreshControlLines();
+        Port().NotifyControlLines();
     });
 
-    cradle_ = std::make_unique<SerialCradle>(emu_, *this, modem_->label);
-    SetActivityWidget(cradle_.get());
-    emu_.Get<HostWidgetRegistry>().Register(cradle_.get());
+    Port().AttachCradle(emu_, modem_->label);
     LOG(Periph, "[UART] SIU attached as serial endpoint line '%s'\n", modem_->label.c_str());
 }
 
@@ -60,10 +58,12 @@ void Vr41xxSiu::PushRx(const uint8_t* data, size_t n) {
     if (Rs232Selected()) Uart16550::PushRx(data, n);
 }
 
-bool Vr41xxSiu::DeliverTx(uint8_t byte) {
-    if (Rs232Selected()) return Uart16550::DeliverTx(byte);
+void Vr41xxSiu::DeliverTx(uint8_t byte) {
+    if (Rs232Selected()) {
+        Uart16550::DeliverTx(byte);
+        return;
+    }
     if (TransmitsOnTxd()) EmitDebugTx(byte);
-    return false;
 }
 
 bool Vr41xxSiu::TransmitsOnTxd() {
@@ -87,7 +87,6 @@ void Vr41xxSiu::WriteExtReg(uint32_t idx, uint32_t value) {
 }
 
 void Vr41xxSiu::SaveState(StateWriter& w) {
-    if (cradle_) cradle_->SaveCradleState(w);
     Uart16550::SaveState(w);
     const uint8_t irsel = irsel_.load(std::memory_order_acquire);
     w.Write("irsel", irsel);
@@ -96,7 +95,6 @@ void Vr41xxSiu::SaveState(StateWriter& w) {
 }
 
 void Vr41xxSiu::RestoreState(StateReader& r) {
-    if (cradle_) cradle_->RestoreCradleState(r);
     Uart16550::RestoreState(r);
     uint8_t irsel = 0u;
     r.Read("irsel", irsel);

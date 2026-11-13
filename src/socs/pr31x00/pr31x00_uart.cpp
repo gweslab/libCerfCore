@@ -10,9 +10,6 @@
 #include <cerfcore/core/log.h>
 #include "../../peripherals/peripheral_dispatcher.h"
 #include "pr31x00_reset_line.h"
-#include <cerfcore/host/host_widget_registry.h>
-#include "../../peripherals/serial/serial_cradle.h"
-#include "../../peripherals/serial/serial_endpoint.h"
 #include <cerfcore/state/state_stream.h>
 #include "../../tracing/kernel_debug_sink.h"
 
@@ -77,8 +74,7 @@ bool Pr31x00Uart::ShouldRegister() {
 
 void Pr31x00Uart::OnReady() {
     ctl1_ = kCtl1Reset & kCtl1Writable;
-    device_clock_   = &emu_.Get<ExternalDeviceClock>();
-    endpoint_timer_ = &device_clock_->AddTimer([this] { OnEndpointTimerDue(); });
+    endpoint_timer_.AttachLineTimer();
     module_clock_ = &emu_.Get<Pr31x00Clock>();
     dma_      = &emu_.Get<Pr31x00UartDma>();
     dma_port_ = dma_->Attach(TxSource(),
@@ -113,24 +109,28 @@ void Pr31x00Uart::OnReady() {
     if (auto* wiring = emu_.TryGet<Pr31x00SerialWiring>()) modem_ = wiring->ForUart(MmioBase());
     modem_lines_ = &emu_.Get<Pr31x00UartModemLines>();
     modem_port_  = modem_lines_->Attach(modem_ ? &*modem_ : nullptr,
-                                        [this](bool dtr, bool rts) { NotifyControlLines(dtr, rts); });
+                                        [this](bool, bool) { port_.NotifyControlLines(); });
     if (!modem_) return;
 
     SetModemInputs(false, false, false, false);
 
-    cradle_ = std::make_unique<SerialCradle>(emu_, *this, modem_->label);
-    emu_.Get<HostWidgetRegistry>().Register(cradle_.get());
+    port_.AttachCradle(emu_, modem_->label);
     LOG(Periph, "[UART] %s attached as serial endpoint line '%s'\n",
         TxSource(), modem_->label.c_str());
 }
 
-Pr31x00Uart::Pr31x00Uart(CerfEmulator& emu) : Peripheral(emu) {}
+Pr31x00Uart::Pr31x00Uart(CerfEmulator& emu)
+    : Peripheral(emu),
+      endpoint_timer_(emu, [this] { port_.OnTimer(); }),
+      port_(*this, endpoint_timer_, [this] {
+          SerialControlLines lines;
+          modem_lines_->Control(modem_port_, lines.dtr, lines.rts);
+          return lines;
+      }) {}
 
 Pr31x00Uart::~Pr31x00Uart() = default;
 
-void Pr31x00Uart::OnShutdown() {
-    if (cradle_) cradle_->OnShutdown();
-}
+void Pr31x00Uart::OnShutdown() { port_.OnShutdown(); }
 
 uint32_t Pr31x00Uart::ReadWord(uint32_t addr) {
     switch (addr - MmioBase()) {
@@ -237,12 +237,7 @@ void Pr31x00Uart::RaiseTxInts(const Pr31x00UartTransmitter::TxInts& ints) {
 }
 
 void Pr31x00Uart::DeliverTx(const uint8_t* data, size_t n) {
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    if (endpoint_) {
-        endpoint_->OnGuestTx(data, n);
-        if (cradle_) cradle_->MarkTx();
-        return;
-    }
+    if (port_.DeliverTx(data, n, true)) return;
     auto& sink = emu_.Get<KernelDebugSink>();
     for (size_t i = 0; i < n; ++i) sink.EmitChar(static_cast<char>(data[i]), tx_line_, TxSource());
 }
@@ -272,7 +267,7 @@ void Pr31x00Uart::PushRx(const uint8_t* data, size_t n) {
         if ((ctl1_ & kCtl1EnUart) == 0u) return;
     }
     dma_->Receive(dma_port_, data, n);
-    if (cradle_) cradle_->MarkRx();
+    port_.MarkRx();
 }
 
 /* The wire, not the guest's buffer: the DMA engine cannot tell how far the driver has
@@ -281,10 +276,7 @@ bool Pr31x00Uart::RxEmpty() const {
     return dma_->LineIdle(dma_port_);
 }
 
-void Pr31x00Uart::OnRxLineIdle() {
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    if (rx_drain_cb_) rx_drain_cb_();
-}
+void Pr31x00Uart::OnRxLineIdle() { port_.NotifyRxDrained(); }
 
 void Pr31x00Uart::RaiseRxInts(const Pr31x00UartDma::RxInts& ints) {
     uint32_t bits = 0;
@@ -295,10 +287,7 @@ void Pr31x00Uart::RaiseRxInts(const Pr31x00UartDma::RxInts& ints) {
     emu_.Get<Pr31x00Intc>().SetPending(1, bits);
 }
 
-void Pr31x00Uart::SetRxDrainCallback(RxDrainFn cb) {
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    rx_drain_cb_ = std::move(cb);
-}
+void Pr31x00Uart::SetRxDrainCallback(RxDrainFn cb) { port_.SetRxDrainCallback(std::move(cb)); }
 
 void Pr31x00Uart::SetModemInputs(bool cts, bool dsr, bool ri, bool dcd) {
     if (modem_) modem_lines_->SetInputs(modem_port_, cts, dsr, ri, dcd);
@@ -354,10 +343,7 @@ SerialLine::LineConfig Pr31x00Uart::GetLineConfig() const {
     return line_cfg_;
 }
 
-void Pr31x00Uart::SetLineConfigCallback(LineConfigFn cb) {
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    line_cfg_cb_ = std::move(cb);
-}
+void Pr31x00Uart::SetLineConfigCallback(LineConfigFn cb) { port_.SetLineConfigCallback(std::move(cb)); }
 
 void Pr31x00Uart::FireLineConfig() {
     LineConfig cfg;
@@ -368,36 +354,17 @@ void Pr31x00Uart::FireLineConfig() {
         line_cfg_   = cfg;
     }
     ApplyClockState();
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    if (line_cfg_cb_) line_cfg_cb_(cfg);
+    port_.NotifyLineConfig(cfg);
 }
 
-void Pr31x00Uart::SetEndpoint(SerialEndpoint* ep) {
-    bool dtr, rts;
-    modem_lines_->Control(modem_port_, dtr, rts);
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    endpoint_ = ep;
-    if (ep) ep->OnControlLines(dtr, rts);
-}
+void Pr31x00Uart::SetEndpoint(SerialEndpoint* ep) { port_.SetEndpoint(ep); }
 
-void Pr31x00Uart::NotifyControlLines(bool dtr, bool rts) {
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    if (endpoint_) endpoint_->OnControlLines(dtr, rts);
-}
+void Pr31x00Uart::ArmEndpointTimer(int64_t delay_ns) { port_.ArmTimer(delay_ns); }
 
-void Pr31x00Uart::ArmEndpointTimer(int64_t delay_ns) {
-    device_clock_->Arm(*endpoint_timer_, delay_ns);
-}
-
-void Pr31x00Uart::DisarmEndpointTimer() { device_clock_->Disarm(*endpoint_timer_); }
-
-void Pr31x00Uart::OnEndpointTimerDue() {
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    if (endpoint_) endpoint_->OnEndpointTimer();
-}
+void Pr31x00Uart::DisarmEndpointTimer() { port_.DisarmTimer(); }
 
 void Pr31x00Uart::SaveState(StateWriter& w) {
-    if (cradle_) cradle_->SaveCradleState(w);
+    port_.SaveCradleState(w);
     uint32_t ctl1_v, baud;
     {
         std::lock_guard<std::mutex> lk(mu_);
@@ -409,13 +376,12 @@ void Pr31x00Uart::SaveState(StateWriter& w) {
     modem_lines_->SaveState(modem_port_, w);
     dma_->SaveState(dma_port_, w);
     tx_->SaveState(tx_port_, w);
-    device_clock_->SaveTimer(*endpoint_timer_, w, "endpoint_timer_");
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    if (endpoint_) endpoint_->SaveState(w);
+    endpoint_timer_.SaveLineTimer(w, "endpoint_timer_");
+    port_.SaveEndpointState(w);
 }
 
 void Pr31x00Uart::RestoreState(StateReader& r) {
-    if (cradle_) cradle_->RestoreCradleState(r);
+    port_.RestoreCradleState(r);
     Pr31x00UartDma::LineTiming framing;
     {
         std::lock_guard<std::mutex> lk(mu_);
@@ -426,25 +392,19 @@ void Pr31x00Uart::RestoreState(StateReader& r) {
     modem_lines_->RestoreState(modem_port_, r);
     dma_->RestoreState(dma_port_, r, framing);
     tx_->RestoreState(tx_port_, r);
-    device_clock_->RestoreTimer(*endpoint_timer_, r, "endpoint_timer_");
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    if (endpoint_) endpoint_->RestoreState(r);
+    endpoint_timer_.RestoreLineTimer(r, "endpoint_timer_");
+    port_.RestoreEndpointState(r);
 }
 
 void Pr31x00Uart::PostRestore() {
-    device_clock_->ResumeTimer(*endpoint_timer_);
+    endpoint_timer_.ResumeLineTimer();
     {
         std::lock_guard<std::mutex> lk(mu_);
         line_cfg_   = ComputeLineConfigLocked();
         fired_baud_ = line_cfg_.baud;
     }
     ApplyClockState();
-    bool dtr, rts;
-    modem_lines_->Control(modem_port_, dtr, rts);
-    std::lock_guard<std::recursive_mutex> elk(endpoint_mu_);
-    if (!endpoint_) return;
-    endpoint_->PostRestore();
-    endpoint_->OnControlLines(dtr, rts);
+    port_.PostRestore();
 }
 
 }

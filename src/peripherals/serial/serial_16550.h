@@ -1,5 +1,6 @@
 #pragma once
 
+#include "serial_endpoint_port.h"
 #include "serial_line.h"
 #include "serial_line_timer.h"
 
@@ -13,7 +14,6 @@
 
 namespace cerfcore {
 
-class HostWidget;
 class SerialEndpoint;
 
 class StateWriter;
@@ -63,8 +63,9 @@ public:
         uint32_t divide;
     };
 
-    Serial16550(SerialEndpoint* endpoint, IrqLineFn irq_line, Config cfg, Clock clock,
-                SerialLineTimer& timer);
+    Serial16550(IrqLineFn irq_line, Config cfg, Clock clock, SerialLineTimer& timer);
+
+    SerialEndpointPort& Port() { return port_; }
 
     uint8_t ReadReg8 (uint32_t offset);
     void SaveState(StateWriter& w) const;
@@ -95,29 +96,22 @@ public:
 
     void ArmEndpointTimer(int64_t delay_ns) override;
     void DisarmEndpointTimer() override;
-    void OnLineTimer();
-
-    /* Status-bar widget the port's traffic lights up: the owning UART's SerialCradle,
-       or a card's PcmciaSlot. Set once by the owner before any traffic flows. */
-    void SetActivityWidget(HostWidget* w) { activity_ = w; }
 
     void Reset();
     void ResetRegisters();
     void MasterReset();
     void LineReset(ResetLineKind kind);
-    void ResendEndpointInputs();
 
     void PostRestoreLine();
 
 protected:
-    virtual bool DeliverTx(uint8_t byte);
-    bool         DeliverTxToEndpoint(uint8_t byte);
+    virtual void DeliverTx(uint8_t byte);
 
     virtual bool ControlOutputsDriven();
-    void         RefreshControlLines();
     void         LoadModemInputs(bool cts, bool dsr, bool ri, bool dcd);
 
 private:
+    SerialControlLines ControlLines();
     void       ApplyModemLevelsLocked(uint8_t levels);
     size_t     RxTriggerLocked() const;
     uint8_t    PendingSourceLocked() const;
@@ -127,23 +121,10 @@ private:
     LineConfig GetLineConfigLocked() const;
     void       ClearRegistersLocked();
 
-    IrqLineFn        irq_line_;
-    Config           cfg_;
-    Clock            clock_;
-    SerialLineTimer& timer_;
-    HostWidget*      activity_ = nullptr;
-
-    /* A cradle swaps the personality from the UI thread while the JIT thread is inside
-       DeliverTx / OnControlLines, so the pointer and the callbacks it installs are held
-       under their own lock. Recursive: an endpoint may re-enter the line (PushRx) from
-       inside a callback made under it. Order: endpoint_mu_ before mu_. */
-    mutable std::recursive_mutex endpoint_mu_;
-    SerialEndpoint*              endpoint_;
-    RxDrainFn                    rx_drain_;
-    LineConfigFn                 line_cfg_cb_;
-    bool                         lines_known_ = false;
-    bool                         sent_dtr_    = false;
-    bool                         sent_rts_    = false;
+    IrqLineFn          irq_line_;
+    Config             cfg_;
+    Clock              clock_;
+    SerialEndpointPort port_;
 
     mutable std::mutex mu_;
 

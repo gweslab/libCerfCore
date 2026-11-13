@@ -27,6 +27,6 @@ public:
 
 }
 
-REGISTER_SERVICE(Sh7709PortData);
+REGISTER_SERVICE_AS(Sh7709PortData, Sh77xxPortData);
 
 }

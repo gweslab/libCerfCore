@@ -72,12 +72,12 @@ void SerialPcCard::OnInserted() {
        not the UART's: PC16550D §8.6.7 bit 3 makes OUT2 "an auxiliary user-designated
        output" with no interrupt role inside the part. */
     uart_ = std::make_unique<Serial16550>(
-        nullptr, [this](bool a) { OnUartIrq(a); },
+        [this](bool a) { OnUartIrq(a); },
         Serial16550::Config{/*ier_mask=*/0x0Fu,
                             /*irq_gate_mcr=*/0x08u,
                             0u},
         Serial16550::Clock{1843200u, 1u}, *this);
-    uart_->SetActivityWidget(slot_);
+    uart_->Port().SetActivityWidget(slot_);
     endpoint_->BindUart(*uart_);
     uart_->SetEndpoint(endpoint_.get());
 }
@@ -88,7 +88,7 @@ void SerialPcCard::OnShutdown() {
     endpoint_.reset();
 }
 
-void SerialPcCard::OnSlotTimer() { uart_->OnLineTimer(); }
+void SerialPcCard::OnSlotTimer() { uart_->Port().OnTimer(); }
 
 void SerialPcCard::ArmLineTimer(int64_t delay_ns) { slot_->ArmCardTimer(delay_ns); }
 

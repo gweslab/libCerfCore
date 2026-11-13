@@ -62,12 +62,12 @@ public:
         reset.RegisterResetListener([this](ResetLineKind kind) {
             if (kind == ResetLineKind::Rtc) ResetLatches();
         });
-        reset.RegisterResetReleaseListener([this] { wiring_->TrackDrive(*this); });
+        reset.RegisterResetReleaseListener([this] { TrackDrive(); });
         pfc_->AddControlListener([this] {
             RequireIntcPinsUndriven();
-            wiring_->TrackDrive(*this);
+            TrackDrive();
         });
-        wiring_->TrackDrive(*this);
+        TrackDrive();
     }
 
     uint32_t MmioBase() const override { return kDataBase; }
@@ -133,7 +133,7 @@ public:
             }
         }
         latch_[port] = static_cast<uint8_t>(value & ~p.input_only);
-        wiring_->TrackDrive(*this);
+        TrackDrive();
     }
 
     void SaveState(StateWriter& w) override {
@@ -146,9 +146,14 @@ public:
         wiring_->RestoreState(r);
     }
 
-    void PostRestore() override { wiring_->TrackDrive(*this); }
+    void PostRestore() override { TrackDrive(); }
 
 private:
+    void TrackDrive() {
+        wiring_->TrackDrive(*this);
+        this->NotifyDriveChanged();
+    }
+
     static Sh77xxIntcPin IntcPin(const PortData& p, uint32_t pin) {
         return static_cast<Sh77xxIntcPin>(static_cast<uint32_t>(p.intc_first) + pin - LowestPin(p.intc_pins));
     }

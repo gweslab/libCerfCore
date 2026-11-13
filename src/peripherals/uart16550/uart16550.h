@@ -2,11 +2,10 @@
 
 #include <cerfcore/peripherals/peripheral_base.h>
 #include "../serial/serial_16550.h"
-#include "../serial/serial_line_timer.h"
+#include "../serial/serial_device_clock_timer.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include "../../tracing/kernel_debug_sink.h"
-#include "../external_device_clock.h"
 #include "../peripheral_dispatcher.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
 
@@ -15,13 +14,15 @@
 
 namespace cerfcore {
 
-class Uart16550 : public Peripheral, public SerialLineTimer, public Serial16550 {
+class Uart16550 : public Peripheral, public SerialDeviceClockTimer, public Serial16550 {
 public:
     Uart16550(CerfEmulator& emu, Config cfg, Clock clock)
         : Peripheral(emu),
-          Serial16550(nullptr, [this](bool pending) { SetInterruptLine(pending); }, cfg, clock, *this) {}
+          SerialDeviceClockTimer(emu, [this] { Port().OnTimer(); }),
+          Serial16550([this](bool pending) { SetInterruptLine(pending); }, cfg, clock, *this) {}
 
     void OnReady() override;
+    void OnShutdown() override { Port().OnShutdown(); }
 
     uint32_t MmioSize() const override { return 0x00001000u; }
 
@@ -53,9 +54,6 @@ public:
     void RestoreState(StateReader& r) override;
     void PostRestore() override;
 
-    void ArmLineTimer(int64_t delay_ns) override;
-    void DisarmLineTimer() override;
-
 protected:
     virtual uint32_t    RegStride() const = 0;
     virtual const char* Name()      const = 0;
@@ -75,14 +73,11 @@ protected:
         HaltUnsupportedAccess("WriteWord", MmioBase() + idx * RegStride(), value);
     }
 
-    bool DeliverTx(uint8_t byte) override;
+    void DeliverTx(uint8_t byte) override;
     void EmitDebugTx(uint8_t byte);
 
 private:
     std::string tx_line_;   /* host-side console accumulator, not guest state */
-
-    ExternalDeviceClock*        device_clock_ = nullptr;
-    ExternalDeviceClock::Timer* line_timer_   = nullptr;
 };
 
 }

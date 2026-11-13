@@ -5,8 +5,6 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/boards/board_context.h>
-#include <cerfcore/host/host_widget_registry.h>
-#include "../../peripherals/serial/serial_cradle.h"
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "vr41xx_cmu.h"
@@ -38,15 +36,11 @@ public:
 
     void OnReady() override;
 
-    void OnShutdown() override {
-        if (cradle_) cradle_->OnShutdown();
-    }
-
     void SetModemInputs(bool cts, bool dsr, bool ri, bool dcd) override;
     void PushRx(const uint8_t* data, size_t n) override;
 
 protected:
-    bool DeliverTx(uint8_t byte) override;
+    void DeliverTx(uint8_t byte) override;
     bool ControlOutputsDriven() override;
 
     uint32_t    RegStride() const override { return 1u; }
@@ -101,7 +95,6 @@ private:
 
     Vr41xxSerialWiring*               wiring_  = nullptr;
     std::optional<Vr41xxSerialModem>  modem_;
-    std::unique_ptr<SerialCradle>     cradle_;
 };
 
 }

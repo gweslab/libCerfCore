@@ -2,16 +2,12 @@
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
-#include <cerfcore/host/host_widget_registry.h>
-#include "../../peripherals/serial/serial_cradle.h"
 #include "../../socs/vr41xx/vr41xx_giu.h"
 #include "../../peripherals/nec_vrc4172/vrc4172_chip_selected.h"
-#include <cerfcore/state/state_stream.h>
 #include <cerfcore/boards/board_context.h>
 #include "nec_mobilepro_700_family_id.h"
 
 #include <cstdint>
-#include <memory>
 
 namespace cerfcore {
 
@@ -34,14 +30,8 @@ public:
     void OnChipSelectReady() override {
         Uart16550::OnReady();
 
-        cradle_ = std::make_unique<SerialCradle>(emu_, *this, "COM4 (internal modem)");
-        SetActivityWidget(cradle_.get());
-        emu_.Get<HostWidgetRegistry>().Register(cradle_.get());
+        Port().AttachCradle(emu_, "COM4 (internal modem)");
         LOG(Periph, "[UART] HardModem attached as serial endpoint line 'COM4'\n");
-    }
-
-    void OnShutdown() override {
-        if (cradle_) cradle_->OnShutdown();
     }
 
 protected:
@@ -53,18 +43,6 @@ protected:
         /* GIU pin 0: nk.exe OAL ISR sub_9F002050 returns SYSINTR 39 on GIUINT bit0. */
         emu_.Get<Vr41xxGiu>().SetPinLevel(0, pending);
     }
-
-    void SaveState(StateWriter& w) override {
-        if (cradle_) cradle_->SaveCradleState(w);
-        Uart16550::SaveState(w);
-    }
-    void RestoreState(StateReader& r) override {
-        if (cradle_) cradle_->RestoreCradleState(r);
-        Uart16550::RestoreState(r);
-    }
-
-private:
-    std::unique_ptr<SerialCradle> cradle_;
 };
 
 }  /* namespace */
