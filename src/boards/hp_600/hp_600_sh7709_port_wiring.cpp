@@ -7,6 +7,7 @@
 #include "../../socs/sh77xx/sh77xx_port_data.h"
 #include "hp_600_family_id.h"
 #include "hp_600_net_hold.h"
+#include "hp_600_sh7709_battery.h"
 #include "hp_600_sh7709_key_matrix.h"
 
 namespace cerfcore {
@@ -19,9 +20,11 @@ constexpr uint8_t kPortERowsAndPins    = 0xFFu;
 constexpr uint8_t kPortFKeySense       = 0xFFu;
 constexpr uint8_t kPortGInputs         = 0xFFu;
 constexpr uint8_t kPortHOnKey          = 0x01u;
+constexpr uint8_t kPortHAcAdapter      = 0x02u;
 constexpr uint8_t kPortHSerialCarrier  = 0x04u;
 constexpr uint8_t kPortHCompanionIrq   = 0x10u;
-constexpr uint8_t kPortHWired          = kPortHOnKey | kPortHSerialCarrier | kPortHCompanionIrq;
+constexpr uint8_t kPortHWired          = kPortHOnKey | kPortHAcAdapter | kPortHSerialCarrier | kPortHCompanionIrq;
+constexpr uint8_t kPortLCharging       = 0x20u;
 constexpr uint8_t kPortScSerialCts     = 0x80u;
 
 constexpr uint8_t kPortGLidOpen         = 0x01u;
@@ -39,7 +42,10 @@ public:
         return board.GetBoardFamilyId() == BoardFamilyId::Hp600 && board.GetSocId() == SocId::Sh7709;
     }
 
-    void OnReady() override { matrix_ = &emu_.Get<Hp600Sh7709KeyMatrix>(); }
+    void OnReady() override {
+        matrix_  = &emu_.Get<Hp600Sh7709KeyMatrix>();
+        battery_ = &emu_.Get<Hp600Sh7709Battery>();
+    }
 
     void TrackDrive(const Sh77xxPortData& ports) override {
         nets_.Track(ports);
@@ -54,6 +60,7 @@ public:
             case kSh77xxPortF:  return kPortFKeySense;
             case kSh77xxPortG:  return kPortGInputs;
             case kSh77xxPortH:  return kPortHWired;
+            case kSh77xxPortL:  return kPortLCharging;
             case kSh77xxPortSc: return kPortScSerialCts;
             default:            return 0u;
         }
@@ -61,6 +68,9 @@ public:
 
     uint8_t NetLevels(uint32_t port) const override {
         const uint8_t nets = nets_.Levels(port);
+        if (port == kSh77xxPortL) {
+            return static_cast<uint8_t>(battery_->Charging() ? nets & ~kPortLCharging : nets | kPortLCharging);
+        }
         if (port != kSh77xxPortG) return nets;
         const bool led_net_high = (nets_.Levels(kSh77xxPortJ) & kPortJNotificationLed) != 0u;
         return static_cast<uint8_t>((nets & ~kPortGBoardDriven) | kPortGLidOpen |
@@ -72,7 +82,8 @@ public:
     void RestoreState(StateReader& r) override { nets_.RestoreState(r); }
 
 private:
-    Hp600Sh7709KeyMatrix*                           matrix_ = nullptr;
+    Hp600Sh7709KeyMatrix*                           matrix_  = nullptr;
+    Hp600Sh7709Battery*                             battery_ = nullptr;
     Hp600NetHold<kSh77xxPortCount, kSh77xxPortPins> nets_;
 };
 
