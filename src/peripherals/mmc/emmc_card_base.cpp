@@ -27,6 +27,7 @@ bool IsCardOwnedExtCsdByte(uint32_t offset) {
 
 void EmmcCardBase::OnReady() {
     power_on_wp_.assign(WpGroupCount(), 0u);
+    pre_boot_ = BootPartitionEnabled();
     emu_.Get<GuestCpuReset>().RegisterResetListener(
         [this](ResetLineKind) { Reset(); });
 }
@@ -37,14 +38,16 @@ MmcCommandResult EmmcCardBase::Command(uint8_t index, uint32_t argument,
     const uint16_t arg_rca = static_cast<uint16_t>(argument >> 16);
 
     read_data_.clear();
+    const bool pre_boot = pre_boot_;
+    pre_boot_ = false;
 
     switch (index) {
     case kCmdGoIdleState:
-        if (argument != kGoIdleArgument) break;
+        if (argument == kGoPreIdleArgument || (argument == kBootInitiationArgument && pre_boot)) break;
         multi_read_  = false;
         multi_write_ = false;
         state_     = MmcState::Idle;
-        rca_       = 0u;
+        rca_       = kDefaultRca;
         hs_timing_ = 0u;
         user_wp_   = 0u;
         return MmcCommandResult::NoResponse;
@@ -239,7 +242,8 @@ void EmmcCardBase::ReceiveBlock(const uint8_t* data, uint32_t bytes) {
 
 void EmmcCardBase::Reset() {
     state_     = MmcState::Idle;
-    rca_       = 0u;
+    pre_boot_  = BootPartitionEnabled();
+    rca_       = kDefaultRca;
     hs_timing_ = 0u;
     user_wp_   = 0u;
     multi_read_  = false;
@@ -309,6 +313,13 @@ void EmmcCardBase::BuildExtCsd() {
     read_data_[kExtCsdHsTiming]      = hs_timing_;
     read_data_[kExtCsdUserWp]        = user_wp_;
     read_data_[kExtCsdErasedMemCont] = CheckedErasedMemCont();
+}
+
+bool EmmcCardBase::BootPartitionEnabled() const {
+    for (const EmmcExtCsdByte& property : ExtCsdProperties()) {
+        if (property.offset == kExtCsdPartitionConfig) return (property.value & kBootPartitionEnableMask) != 0u;
+    }
+    return false;
 }
 
 // JEDEC JESD84-A43 section 7.5.8, Table 69
@@ -400,6 +411,7 @@ void EmmcCardBase::HaltUnmodelledCommand(uint8_t index, uint32_t argument) {
 
 void EmmcCardBase::SaveState(StateWriter& w) {
     w.Write<uint32_t>("card_state", static_cast<uint32_t>(state_));
+    w.Write<uint32_t>("pre_boot", pre_boot_ ? 1u : 0u);
     w.Write<uint32_t>("rca", rca_);
     w.Write<uint32_t>("hs_timing", hs_timing_);
     w.Write<uint32_t>("user_wp", user_wp_);
@@ -411,6 +423,7 @@ void EmmcCardBase::SaveState(StateWriter& w) {
 
 void EmmcCardBase::RestoreState(StateReader& r) {
     uint32_t state     = 0u;
+    uint32_t pre_boot  = 0u;
     uint32_t rca       = 0u;
     uint32_t hs_timing = 0u;
     uint32_t user_wp   = 0u;
@@ -418,6 +431,7 @@ void EmmcCardBase::RestoreState(StateReader& r) {
     uint32_t multi_w   = 0u;
     uint32_t next      = 0u;
     r.Read("card_state", state);
+    r.Read("pre_boot", pre_boot);
     r.Read("rca", rca);
     r.Read("hs_timing", hs_timing);
     r.Read("user_wp", user_wp);
@@ -464,7 +478,8 @@ void EmmcCardBase::RestoreState(StateReader& r) {
             "eMMC card in slot %u: restored state %u rca 0x%X is not a state "
             "this card can reach", SlotIndex(), state, rca);
     }
-    state_ = static_cast<MmcState>(state);
+    state_    = static_cast<MmcState>(state);
+    pre_boot_ = (pre_boot == 1u);
     rca_   = static_cast<uint16_t>(rca);
 }
 

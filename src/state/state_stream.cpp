@@ -8,6 +8,7 @@
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
 
 namespace cerfcore {
 
@@ -35,6 +36,12 @@ StateWriter::StateWriter(CerfEmulator& emu, const std::string& path)
     ok_ = true;
 }
 
+StateWriter::StateWriter(CerfEmulator& emu, std::vector<uint8_t>& memory)
+    : emu_(emu), memory_(&memory) {
+    memory_->clear();
+    ok_ = true;
+}
+
 void StateWriter::Fail(const char* what, uint32_t gle) {
     ok_ = false;
     if (!error_.empty()) return;
@@ -44,12 +51,18 @@ void StateWriter::Fail(const char* what, uint32_t gle) {
 StateWriter::~StateWriter() {
     file_.Close();
     uint32_t ignored = 0;
-    if (!committed_)
+    if (!memory_ && !committed_)
         host_platform::DeleteHostFile(temp_path_, ignored);
 }
 
 void StateWriter::WriteRaw(const void* src, size_t n) {
     if (!ok_) return;
+    if (memory_) {
+        const auto* bytes = static_cast<const uint8_t*>(src);
+        memory_->insert(memory_->end(), bytes, bytes + n);
+        bytes_written_ += n;
+        return;
+    }
     const auto* p = static_cast<const uint8_t*>(src);
     while (n > 0) {
         const uint32_t chunk = n > kIoChunk ? kIoChunk : static_cast<uint32_t>(n);
@@ -95,6 +108,10 @@ void StateWriter::EndFrame() {
 
 void StateWriter::PatchAt(uint64_t offset, const void* src, size_t n) {
     if (!ok_) return;
+    if (memory_) {
+        std::memcpy(memory_->data() + static_cast<size_t>(offset), src, n);
+        return;
+    }
     if (!file_.SeekTo(offset)) {
         const uint32_t gle = host_platform::LastErrorCode();
         LOG(Caution, "StateWriter: PatchAt seek failed gle=%u\n", gle);
@@ -156,6 +173,12 @@ StateReader::StateReader(CerfEmulator& emu, const std::string& path) : emu_(emu)
     ok_ = true;
 }
 
+StateReader::StateReader(CerfEmulator& emu, const std::vector<uint8_t>& memory)
+    : emu_(emu), memory_(&memory) {
+    file_size_ = memory.size();
+    ok_        = true;
+}
+
 void StateReader::Reject(const char* fmt, ...) {
     ok_ = false;
     char reason[512];
@@ -188,6 +211,11 @@ void StateReader::RequireRemaining(size_t n) {
 
 void StateReader::ReadRaw(void* dst, size_t n) {
     RequireRemaining(n);
+    if (memory_) {
+        std::memcpy(dst, memory_->data() + static_cast<size_t>(pos_), n);
+        pos_ += n;
+        return;
+    }
     auto* p = static_cast<uint8_t*>(dst);
     while (n > 0) {
         const uint32_t chunk = n > kIoChunk ? kIoChunk : static_cast<uint32_t>(n);
@@ -259,6 +287,10 @@ void StateReader::SkipFrame() {
 }
 
 void StateReader::SeekTo(uint64_t offset) {
+    if (memory_) {
+        pos_ = offset;
+        return;
+    }
     if (!file_.SeekTo(offset))
         Reject("seek to %llu failed gle=%u", static_cast<unsigned long long>(offset),
                host_platform::LastErrorCode());

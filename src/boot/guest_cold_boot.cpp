@@ -22,9 +22,16 @@ void GuestColdBoot::RecordPatch(uint32_t pa, uint32_t len) {
     std::vector<uint8_t> bytes(len);
     emu_.Get<EmulatedMemory>().CopyOut(pa, bytes.data(), len);
     LOG(Boot, "GuestColdBoot: recorded %u-byte patch at PA 0x%08X\n", len, pa);
-    replays_.Add([this, pa, bytes = std::move(bytes)] {
-        emu_.Get<EmulatedMemory>().CopyIn(pa, bytes.data(), bytes.size());
+    replays_.Add([this, pa, bytes = std::move(bytes), generation = patch_generation_] {
+        if (generation == patch_generation_) emu_.Get<EmulatedMemory>().CopyIn(pa, bytes.data(), bytes.size());
     });
+    ++live_patches_;
+}
+
+void GuestColdBoot::ClearRecordedPatches() {
+    ++patch_generation_;
+    cleared_patches_ += live_patches_;
+    live_patches_ = 0;
 }
 
 void GuestColdBoot::RequestHardResetFromHost() {
@@ -61,11 +68,11 @@ void GuestColdBoot::ExecuteIfPending() {
 
     if (wipe) {
         LOG(Boot, "GuestColdBoot: hard reset - wiping volatile RAM, replaying "
-                  "%zu boot-time writes\n", replays_.Size());
+                  "%zu boot-time writes\n", replays_.Size() - cleared_patches_);
         emu_.Get<EmulatedMemory>().WipeVolatileRegions();
     } else {
         LOG(Boot, "GuestColdBoot: reset filling RAM from a saved image, replaying "
-                  "%zu boot-time writes\n", replays_.Size());
+                  "%zu boot-time writes\n", replays_.Size() - cleared_patches_);
         fill();
     }
     ReplayBootWrites();
@@ -73,7 +80,8 @@ void GuestColdBoot::ExecuteIfPending() {
 }
 
 void GuestColdBoot::ReplayBootWrites() {
-    replays_.Call();
+    const CallbackList<> replays = replays_;
+    replays.Call();
     emu_.Get<EngineBridge>().Guest().FlushTranslationCache();
 }
 

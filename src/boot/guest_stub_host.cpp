@@ -19,6 +19,10 @@ bool GuestStubHost::ShouldRegister() {
     return emu_.Get<DeviceConfig>().guest_additions;
 }
 
+void GuestStubHost::OnReady() {
+    emu_.Get<RomParserService>().RegisterReplaceListener([this] { band_next_ = 0; });
+}
+
 bool GuestStubHost::LargestVictimSection(uint32_t o32_pa, uint16_t objcnt,
                                          uint32_t& out_va, uint32_t& out_size) {
     auto& mem = emu_.Get<EmulatedMemory>();

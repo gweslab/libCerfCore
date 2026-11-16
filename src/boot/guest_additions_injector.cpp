@@ -56,45 +56,30 @@ public:
         emu_.Get<RomPlacer>();
 
         auto& parser = emu_.Get<RomParserService>();
-        if (!parser.Ok()) {
-            LOG(Caution, "parser not ready, skipping\n");
-            return;
-        }
+        if (!Inject()) return;
 
-        ce_major_ = DetectCeMajor();
-        layout_ = (ce_major_ <= 2 && ce_minor_ < 11) ? &kE32RomCE20
-                : (ce_major_ <= 2)                   ? &kE32RomCE211
-                : (ce_major_ <= 4)                   ? &kE32RomCE3
-                                                     : &kE32RomCE5plus;
-        const char* layout_name = (layout_ == &kE32RomCE20)  ? "CE2.0"
-                                : (layout_ == &kE32RomCE211) ? "CE2.11"
-                                : (layout_ == &kE32RomCE3)   ? "pre-CE5"
-                                                             : "CE5+";
-        LOG(GuestAdditions, "CE version=%u.%u; e32_rom layout=%s\n",
-            ce_major_, ce_minor_, layout_name);
-
-        const auto victims = emu_.Get<BoardDatabase>().GaVideoDriverNames();
-
-        const std::string stub_path =
-            emu_.Get<GuestAdditionsBinaries>().StubPath();
-
-        auto& imgfs = emu_.Get<ImgfsInjector>();
-        int matched = 0;
-        for (const auto& victim : victims) {
-            /* IMGFS injects the SAME stub, not the full body: a kernel-loaded
-               full body shares one .data across gwes + the device.exe carrier at
-               the high victim vbase (the CE5 loader doesn't per-process it) and
-               corrupts gwes's globals; the stub manual-maps the body per-process. */
-            if (Replace(victim.c_str(), stub_path)) ++matched;
-            if (imgfs.ReplaceVictim(victim.c_str(), stub_path)) ++matched;
-        }
-        if (matched == 0) {
-            emu_.Get<Fatal>().Die("no display-driver victim matched");
-        }
-        LOG(GuestAdditions, "%d victim(s) replaced\n", matched);
+        emu_.Get<GuestColdBoot>().RegisterReplay([this] {
+            if (reinject_) {
+                reinject_ = false;
+                Inject();
+            }
+        });
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { RestoreHosts(); });
+        parser.RegisterReplaceListener([this] {
+            emu_.Get<GuestColdBoot>().ClearRecordedPatches();
+            host_restores_.clear();
+            reinject_ = true;
+        });
     }
 
 private:
+    struct RamSnapshot {
+        uint32_t             pa;
+        std::vector<uint8_t> bytes;
+    };
+
+    void RestoreHosts();
+    RamSnapshot Snapshot(uint32_t pa, uint32_t len);
     bool Replace(const char* victim_name, const std::string& source_path);
 
     bool FindVictim(const char* name, size_t& out_index, uint32_t& out_entry_kva);
@@ -112,7 +97,56 @@ private:
     uint32_t            ce_major_ = 5;
     uint32_t            ce_minor_ = 0;
     const E32RomLayout* layout_   = &kE32RomCE5plus;
+    std::vector<RamSnapshot> host_restores_;
+    bool                     reinject_ = false;
+
+    bool Inject();
 };
+
+bool GuestAdditionsInjector::Inject() {
+    auto& parser = emu_.Get<RomParserService>();
+    if (!parser.Ok()) {
+        LOG(Caution, "parser not ready, skipping\n");
+        return false;
+    }
+
+    ce_major_ = DetectCeMajor();
+    layout_ = (ce_major_ <= 2 && ce_minor_ < 11) ? &kE32RomCE20
+            : (ce_major_ <= 2)                   ? &kE32RomCE211
+            : (ce_major_ <= 4)                   ? &kE32RomCE3
+                                                 : &kE32RomCE5plus;
+    const char* layout_name = (layout_ == &kE32RomCE20)  ? "CE2.0"
+                            : (layout_ == &kE32RomCE211) ? "CE2.11"
+                            : (layout_ == &kE32RomCE3)   ? "pre-CE5"
+                                                         : "CE5+";
+    LOG(GuestAdditions, "CE version=%u.%u; e32_rom layout=%s\n",
+        ce_major_, ce_minor_, layout_name);
+
+    const auto victims = emu_.Get<BoardDatabase>().GaVideoDriverNames();
+    const std::string stub_path = emu_.Get<GuestAdditionsBinaries>().StubPath();
+    auto& imgfs = emu_.Get<ImgfsInjector>();
+    int matched = 0;
+    for (const auto& victim : victims) {
+        if (Replace(victim.c_str(), stub_path)) ++matched;
+        if (imgfs.ReplaceVictim(victim.c_str(), stub_path)) ++matched;
+    }
+    if (matched == 0) {
+        emu_.Get<Fatal>().Die("no display-driver victim matched");
+    }
+    LOG(GuestAdditions, "%d victim(s) replaced\n", matched);
+    return true;
+}
+
+void GuestAdditionsInjector::RestoreHosts() {
+    auto& mem = emu_.Get<EmulatedMemory>();
+    for (const auto& h : host_restores_) mem.CopyIn(h.pa, h.bytes.data(), h.bytes.size());
+}
+
+GuestAdditionsInjector::RamSnapshot GuestAdditionsInjector::Snapshot(uint32_t pa, uint32_t len) {
+    RamSnapshot snap{pa, std::vector<uint8_t>(len)};
+    emu_.Get<EmulatedMemory>().CopyOut(pa, snap.bytes.data(), len);
+    return snap;
+}
 
 uint32_t GuestAdditionsInjector::DetectCeMajor() {
     uint16_t major = 0, minor = 0;
@@ -392,16 +426,7 @@ bool GuestAdditionsInjector::Replace(const char* victim_name,
     if (!in_place) {
         coldboot.RecordPatch(pt.VaToPa(primary_toc.romhdr_va) + kHdrDllFirstOff, 4);
     }
-
-    if (in_place) {
-        std::vector<uint8_t> host_initial(foot_bytes);
-        mem.CopyOut(host_pa, host_initial.data(), foot_bytes);
-        emu_.Get<GuestCpuReset>().RegisterResetListener(
-            [this, host_pa, host_initial = std::move(host_initial)](ResetLineKind) {
-                emu_.Get<EmulatedMemory>().CopyIn(host_pa, host_initial.data(),
-                                                  host_initial.size());
-            });
-    }
+    if (in_place) host_restores_.push_back(Snapshot(host_pa, foot_bytes));
     return true;
 }
 

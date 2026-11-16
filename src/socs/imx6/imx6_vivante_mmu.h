@@ -1,0 +1,39 @@
+#pragma once
+
+#include "imx6_vivante_state.h"
+
+#include <cstddef>
+#include <cstdint>
+
+namespace cerfcore {
+
+class CerfEmulator;
+
+namespace imx6_vivante {
+
+class VivanteMmu {
+public:
+    VivanteMmu(VivanteState& state, CerfEmulator& emu)
+        : state_(state), emu_(emu) {}
+
+    const uint8_t* TranslateToHost(
+        uint32_t gpu_address, size_t size,
+        MmuClient client = MmuClient::Texture) const;
+    uint8_t* TranslateToHostWrite(
+        uint32_t gpu_address, size_t size,
+        MmuClient client = MmuClient::PixelEngine) const;
+    const uint8_t* PageTableEntryToHost(uint32_t gpu_address, MmuClient client) const;
+
+private:
+    static uint32_t PageTableRegister(MmuClient client);
+    static uint32_t MemoryBaseRegister(MmuClient client);
+    bool TranslateMmuv1(uint32_t gpu_address, MmuClient client,
+                        uint32_t& physical) const;
+
+    VivanteState& state_;
+    CerfEmulator& emu_;
+};
+
+}
+
+}

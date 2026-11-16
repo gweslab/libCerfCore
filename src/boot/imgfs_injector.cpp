@@ -46,7 +46,17 @@ bool ImgfsInjector::ShouldRegister() {
 void ImgfsInjector::OnReady() {
     auto& parser = emu_.Get<RomParserService>();
     if (!parser.Ok()) return;
-    const auto& rom = parser.Primary();
+    Anchor();
+    parser.RegisterReplaceListener([this] { stale_ = true; });
+}
+
+void ImgfsInjector::Anchor() {
+    flash_pa_base_  = 0;
+    flash_anchored_ = false;
+    ce_major_       = 5;
+    free_ftl_slots_.clear();
+    next_new_ls_    = 0;
+    const auto& rom = emu_.Get<RomParserService>().Primary();
     if (!rom.has_imgfs || rom.imgfs_modules.empty()) return;
 
     auto* nk = emu_.Get<RomParserQueries>().KernelModule();
@@ -106,6 +116,10 @@ void ImgfsInjector::OnReady() {
 
 bool ImgfsInjector::ReplaceVictim(const char* victim_name,
                                    const std::string& source_path) {
+    if (stale_) {
+        stale_ = false;
+        Anchor();
+    }
     auto& parser = emu_.Get<RomParserService>();
     if (!parser.Ok()) return false;
     const auto& rom = parser.Primary();

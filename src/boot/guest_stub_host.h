@@ -18,6 +18,7 @@ public:
     using Service::Service;
 
     bool ShouldRegister() override;
+    void OnReady() override;
 
     GuestStubHostSpan Pick(const char* victim_name, uint32_t o32_pa,
                            uint16_t objcnt, uint32_t foot_bytes, bool in_place);

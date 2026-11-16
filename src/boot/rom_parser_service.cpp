@@ -2,7 +2,9 @@
 
 #include <cerfcore/boot/rom_parser_service.h>
 
+#include "board_boot_image.h"
 #include "ce1_rom_parse.h"
+#include "oms_object_tree.h"
 #include "ce_imgfs_walker.h"
 #include "rom_image_parse.h"
 #include "rom_symbol_flash_parse.h"
@@ -106,6 +108,18 @@ bool RomParserService::ParseOne(ParsedRom& rom) {
             return false;
         }
         rom.flat = std::span<const uint8_t>(rom.flat_storage);
+    } else if (cerf::fwf_oms::IsOmsStream(rom.raw.data(), rom.raw.size())) {
+        auto* board_image = emu_.TryGet<BoardBootImage>();
+        std::string error = "the board has no boot loader for a Siemens FWF container";
+        if (!board_image || !board_image->ReadBootImage(rom.flat_storage, error)) {
+            LOG(Caution, "RomParser %s: no OS image: %s\n", rom.filename.c_str(), error.c_str());
+            return false;
+        }
+        rom.is_fwf = true;
+        rom.flat = std::span<const uint8_t>(rom.flat_storage);
+        rom.flat_base_va = 0;
+        LOG(Boot, "RomParser %s: Siemens FWF container - OS image %.1f MB\n", rom.filename.c_str(),
+            double(rom.flat.size()) / 1024.0 / 1024.0);
     } else if (rom.raw.size() >= sizeof(kNosajSignature) &&
                std::memcmp(rom.raw.data(), kNosajSignature,
                            sizeof(kNosajSignature)) == 0) {
@@ -385,6 +399,30 @@ bool RomParserService::ParseOne(ParsedRom& rom) {
     LOG(Boot, "RomParser %s: %zu XIP region(s), entry kva=0x%08X\n",
         rom.filename.c_str(), rom.xips.size(), rom.entry_va);
     return true;
+}
+
+void RomParserService::ReleasePrimaryImage() {
+    ParsedRom& rom = loaded_[0];
+    rom.flat = {};
+    std::vector<uint8_t>().swap(rom.flat_storage);
+    std::vector<uint8_t>().swap(rom.raw);
+}
+
+bool RomParserService::ReparsePrimary(ParsedRom& out) {
+    out = ParsedRom{};
+    out.filename = loaded_[0].filename;
+    out.path     = loaded_[0].path;
+    return ParseOne(out);
+}
+
+void RomParserService::ReplacePrimary(ParsedRom&& rom) {
+    loaded_[0] = std::move(rom);
+    ++generation_;
+    replace_listeners_.Call();
+}
+
+void RomParserService::RegisterReplaceListener(std::function<void()> fn) {
+    replace_listeners_.Add(std::move(fn));
 }
 
 void RomParserService::OnReady() {

@@ -12,6 +12,7 @@
 #include <cerfcore/state/state_stream.h>
 #include "freescale_module_clocks.h"
 #include "freescale_sdma_bus.h"
+#include "freescale_sdma_channel_zero.h"
 #include "freescale_sdma_regs.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
 
@@ -39,6 +40,7 @@ public:
         return bd && bd->GetSocId() == kSoc;
     }
     void OnReady() override {
+        channel_zero_  = emu_.TryGet<FreescaleSdmaChannelZero>();
         module_clocks_ = &emu_.Get<FreescaleModuleClocks>();
         sdma_clocked_  = module_clocks_->Running(FreescaleModule::kSdma);
         auto& clock = emu_.Get<GuestCycleClock>();
@@ -48,9 +50,17 @@ public:
         ResetCore();
         /* MCIMX31RM §40.8.3, §40.14.1; MCIMX51RM Table 54-10 system_rst_b. */
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            if (channel_zero_ && emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) return;
             std::lock_guard<std::recursive_mutex> lk(state_mu_);
             ResetCore();
         });
+        if (channel_zero_) {
+            emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
+                if (!emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) return;
+                std::lock_guard<std::recursive_mutex> lk(state_mu_);
+                RefreshIrq();
+            });
+        }
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -159,6 +169,7 @@ public:
         w.Write("he", he_);
         w.WriteBytes("ctx_watermark", ctx_watermark_, sizeof(ctx_watermark_));
         w.Write("ctx_loaded", ctx_loaded_);
+        if (channel_zero_) channel_zero_->SaveState(w);
         w.Write("pending_start", pending_start_);
         for (auto* s : sinks_) s->SaveSinkState(w);
     }
@@ -175,6 +186,7 @@ public:
         r.Read("he", he_);
         r.ReadBytes("ctx_watermark", ctx_watermark_, sizeof(ctx_watermark_));
         r.Read("ctx_loaded", ctx_loaded_);
+        if (channel_zero_) channel_zero_->RestoreState(r);
         r.Read("pending_start", pending_start_);
         for (auto* s : sinks_) s->RestoreSinkState(r);
     }
@@ -189,6 +201,7 @@ public:
     }
 
     bool ChannelWatermark(uint32_t channel, uint32_t& value) const override {
+        if (channel_zero_) return channel_zero_->ContextWatermark(channel, value);
         if (channel >= kChannelCount || (ctx_loaded_ & (1u << channel)) == 0u) return false;
         value = ctx_watermark_[channel];
         return true;
@@ -310,6 +323,7 @@ private:
             uint8_t* ccb = mem.TryTranslateWrite(mc0ptr_ + n * kCcbStride + kCcbBaseBdOff);
             if (ccb == nullptr) continue;
             uint32_t bd_pa = *reinterpret_cast<uint32_t*>(ccb);
+            bool completed_any = false;
             for (uint32_t i = 0; i < kMaxBdWalk; ++i) {
                 uint8_t* bd = mem.TryTranslateWrite(bd_pa);
                 if (bd == nullptr) break;
@@ -318,14 +332,19 @@ private:
                 const uint32_t stride = BdStride(*word);
                 const bool want_irq = (*word & kBdIntr) != 0;
                 const bool wrap     = (*word & kBdWrap) != 0;
-                RunChannelZeroCommand(*word, word[1]);
+                if (channel_zero_)
+                    channel_zero_->Run(bd, he_, kBase);
+                else
+                    RunChannelZeroCommand(*word, word[1]);
                 *word &= ~(kBdDone | kBdError);
+                completed_any = true;
                 if (want_irq) intr_ |= (1u << n);
                 /* W marks the ring's last BD (MCIMX51RM Table 52-96); the BD after
                    it is the base, whose Done this walk already cleared. */
                 if (wrap) break;
                 bd_pa += stride;
             }
+            if (completed_any && n == 0u && channel_zero_) intr_ |= 1u;
         }
         RefreshIrq();
     }
@@ -417,6 +436,7 @@ private:
         for (uint32_t i = 0; i < kMaxDmaEvents; ++i) chnenbl_[i] = 0;
         for (uint32_t i = 0; i < kChannelCount; ++i) ctx_watermark_[i] = 0;
         ctx_loaded_    = 0;
+        if (channel_zero_) channel_zero_->Reset();
         pending_start_ = 0;
     }
 
@@ -455,6 +475,7 @@ private:
     FreescaleModuleClocks* module_clocks_ = nullptr;
 
     mutable std::recursive_mutex state_mu_;
+    FreescaleSdmaChannelZero* channel_zero_ = nullptr;
 };
 
 }  /* namespace cerf_freescale_sdma_detail */

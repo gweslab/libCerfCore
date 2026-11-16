@@ -39,13 +39,33 @@ void TraceManager::OnReady() {
     bundle_crc32_ = ComputeBundleCrc32();
     LOG(Trace, "bundle CRC32 = 0x%08X (awaiting hook registrations)\n",
         bundle_crc32_);
+    if (auto* rom = emu_.TryGet<RomParserService>())
+        rom->RegisterReplaceListener([this] { RebindBundles(); });
+}
+
+void TraceManager::RebindBundles() {
+    for (uint32_t va : bundle_pcs_) {
+        pc_traces_.erase(va);
+        traced_pcs_.erase(std::lower_bound(traced_pcs_.begin(), traced_pcs_.end(), va));
+    }
+    bundle_pcs_.clear();
+#if CERF_DEV_MODE
+    bundle_iter_handlers_ = {};
+#endif
+    bundles_matched_ = 0;
+    bundles_skipped_ = 0;
+    bundle_crc32_ = ComputeBundleCrc32();
+    LOG(Trace, "bundle CRC32 = 0x%08X after the ROM was replaced\n", bundle_crc32_);
+    for (const auto& r : registrations_) Bind(r.expected_crc32, r.register_fn);
 }
 
 uint32_t TraceManager::ComputeBundleCrc32() const {
     uint32_t crc = 0;
     if (auto* rom = emu_.TryGet<RomParserService>()) {
-        for (const auto& r : rom->Loaded())
-            crc = Crc32::Update(crc, r.raw.data(), r.raw.size());
+        for (const auto& r : rom->Loaded()) {
+            const std::span<const uint8_t> image = r.is_fwf ? r.flat : std::span<const uint8_t>(r.raw);
+            crc = Crc32::Update(crc, image.data(), image.size());
+        }
     }
     return crc;
 }
@@ -53,6 +73,11 @@ uint32_t TraceManager::ComputeBundleCrc32() const {
 void TraceManager::RegisterForBundle(
         uint32_t expected_crc32,
         const std::function<void()>& register_fn) {
+    registrations_.push_back({expected_crc32, register_fn});
+    Bind(expected_crc32, register_fn);
+}
+
+void TraceManager::Bind(uint32_t expected_crc32, const std::function<void()>& register_fn) {
     if (expected_crc32 != bundle_crc32_) {
         ++bundles_skipped_;
         LOG(Trace, "skipping hook file (expected CRC 0x%08X, bundle is 0x%08X)\n",
@@ -60,7 +85,9 @@ void TraceManager::RegisterForBundle(
         return;
     }
     ++bundles_matched_;
+    binding_bundle_ = true;
     register_fn();
+    binding_bundle_ = false;
 }
 
 void TraceManager::GuardUnique(uint32_t runtime_va) {
@@ -72,6 +99,7 @@ void TraceManager::GuardUnique(uint32_t runtime_va) {
 }
 
 void TraceManager::NoteTracedPc(uint32_t runtime_va) {
+    if (binding_bundle_) bundle_pcs_.push_back(runtime_va);
     traced_pcs_.insert(std::lower_bound(traced_pcs_.begin(), traced_pcs_.end(), runtime_va),
                        runtime_va);
 }
@@ -130,27 +158,28 @@ void TraceManager::DispatchPcSh(uint32_t pc, const cerfengine::ShCpuState* st) {
 #if CERF_DEV_MODE
 
 void TraceManager::OnRunLoopIter(TraceHandler handler) {
-    iter_handlers_.Add(std::move(handler));
+    (binding_bundle_ ? bundle_iter_handlers_ : iter_handlers_).Add(std::move(handler));
 }
 
 void TraceManager::DispatchIterContext(const TraceContext& ctx) {
     iter_handlers_.Call(ctx);
+    bundle_iter_handlers_.Call(ctx);
 }
 
 void TraceManager::DispatchRunLoopIter(const uint32_t* regs, uint32_t cpsr) {
-    if (iter_handlers_.Empty()) return;
+    if (iter_handlers_.Empty() && bundle_iter_handlers_.Empty()) return;
     TraceContext ctx{regs, cpsr, regs[15], emu_};
     DispatchIterContext(ctx);
 }
 
 void TraceManager::DispatchRunLoopIterMips(const cerfengine::MipsCpuState* st) {
-    if (iter_handlers_.Empty()) return;
+    if (iter_handlers_.Empty() && bundle_iter_handlers_.Empty()) return;
     TraceContext ctx{nullptr, 0u, st->pc, emu_, st};
     DispatchIterContext(ctx);
 }
 
 void TraceManager::DispatchRunLoopIterSh(const cerfengine::ShCpuState* st) {
-    if (iter_handlers_.Empty()) return;
+    if (iter_handlers_.Empty() && bundle_iter_handlers_.Empty()) return;
     TraceContext ctx{nullptr, 0u, st->pc, emu_, nullptr, st};
     DispatchIterContext(ctx);
 }

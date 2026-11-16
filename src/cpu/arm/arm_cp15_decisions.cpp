@@ -3,6 +3,7 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include "../arm_processor_config.h"
+#include "arm_address_translation.h"
 #include "arm_cp15_registers.h"
 
 namespace cerfcore {
@@ -23,8 +24,9 @@ bool ArmCp15Decisions::ShouldRegister() {
 }
 
 void ArmCp15Decisions::OnReady() {
-    regs_   = &emu_.Get<ArmCp15Registers>();
-    config_ = &emu_.Get<ArmProcessorConfig>();
+    regs_        = &emu_.Get<ArmCp15Registers>();
+    translation_ = &emu_.Get<ArmAddressTranslation>();
+    config_      = &emu_.Get<ArmProcessorConfig>();
 }
 
 ArmCoprocDecision ArmCp15Decisions::Decide(const ArmCoprocAccess& a) const {
@@ -171,10 +173,23 @@ ArmCoprocDecision ArmCp15Decisions::CacheOperation(const ArmCoprocAccess& a) con
     const bool v7 = config_->HasCp15V7();
     const bool v6 = config_->HasCp15V6();
     if (a.opc1 != 0u) return {.action = A::kUndefined};
+    if (v7 && a.crm == 4u && a.opc2 == 0u) return {.action = A::kRegister, .reg = &regs_->File().par};
+    if (v7 && !a.read && a.crm == 8u && a.opc2 <= 3u) {
+        return {.action      = A::kWriteCallbackKeyed,
+                .context     = translation_,
+                .key         = a.opc2,
+                .write_keyed = &ArmAddressTranslation::Translate};
+    }
     if (a.read) return CacheRead(a);
 
     const uint32_t op2 = a.opc2;
     switch (a.crm) {
+    case 1:
+        if (v7 && config_->HasMultiprocessingExtensions()) {
+            if (op2 == 0u) return {.action = A::kInvalidateCode};
+            if (op2 == 6u) return {.action = A::kNoOp};
+        }
+        break;
     case 0:
         if (op2 == 4u && !v7) return {.action = A::kWaitForInterrupt};
         if (op2 == 0u && !v6 && !v7) return {.action = A::kInvalidateCode};
@@ -226,6 +241,10 @@ ArmCoprocDecision ArmCp15Decisions::TlbOperation(const ArmCoprocAccess& a) const
     case 5:  target = ArmTlbTarget::kInstruction; break;
     case 6:  target = ArmTlbTarget::kData;        break;
     case 7:  target = ArmTlbTarget::kUnified;     break;
+    case 3:
+        if (!config_->HasMultiprocessingExtensions()) return {.action = A::kUndefined};
+        target = ArmTlbTarget::kUnified;
+        break;
     default: return {.action = A::kUndefined};
     }
 
@@ -233,6 +252,9 @@ ArmCoprocDecision ArmCp15Decisions::TlbOperation(const ArmCoprocAccess& a) const
         return {.action = A::kInvalidateTlbAll, .tlb_target = target};
     }
     if (a.opc2 == 1u) return {.action = A::kInvalidateTlbByMva, .tlb_target = target};
+    if (a.opc2 == 3u && config_->HasMultiprocessingExtensions() && (a.crm == 7u || a.crm == 3u)) {
+        return {.action = A::kInvalidateTlbByMva, .tlb_target = target};
+    }
     return {.action = A::kUndefined};
 }
 

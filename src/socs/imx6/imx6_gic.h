@@ -1,0 +1,30 @@
+#pragma once
+
+#include <cerfcore/core/service.h>
+
+#include <cstdint>
+
+namespace cerfcore {
+
+class StateReader;
+class StateWriter;
+
+class Imx6Gic : public Service {
+public:
+    using Service::Service;
+
+    virtual void AssertSpi(int spi) = 0;
+    virtual void DeAssertSpi(int spi) = 0;
+
+    static constexpr uint32_t kMmioBase = 0x00A00000u;
+    static constexpr uint32_t kMmioSize = 0x2000u;
+
+    virtual uint32_t ReadMmio(uint32_t offset) = 0;
+    virtual void WriteMmio(uint32_t offset, uint32_t value) = 0;
+    virtual void SaveGicState(StateWriter& writer) = 0;
+    virtual void RestoreGicState(StateReader& reader) = 0;
+    virtual void PostRestoreGicState() = 0;
+    virtual void SetLowPowerMode(uint32_t mode) = 0;
+};
+
+}

@@ -57,6 +57,7 @@ cerfengine::ArmResetResult ArmCp15Registers::Reset() {
     /* ARM DDI 0406C.c B4.1.153 (p. B4-1724): TTBCR is "A 32-bit RW register
        that resets to zero". */
     file_.ttbcr = 0;
+    file_.cortex_a9_diagnostic_control = kCortexA9DiagnosticControlResetStub;
 
     cerfengine::ArmResetResult result;
     if (pending_mmu_) {

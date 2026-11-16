@@ -1,6 +1,7 @@
 #include "cerf_injection_region.h"
 
 #include <cerfcore/boards/board_context.h>
+#include <cerfcore/boot/rom_parser_service.h>
 #include "../boards/page_table_builder.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
@@ -16,6 +17,10 @@ REGISTER_SERVICE(CerfInjectionRegion);
 
 bool CerfInjectionRegion::ShouldRegister() {
     return emu_.Get<DeviceConfig>().guest_additions;
+}
+
+void CerfInjectionRegion::OnReady() {
+    emu_.Get<RomParserService>().RegisterReplaceListener([this] { va_base_ = 0; });
 }
 
 uint32_t CerfInjectionRegion::BandPaBase() const {
@@ -39,9 +44,10 @@ uint32_t CerfInjectionRegion::BandVaBase() {
                               CerfVirt::kInjectionBandSize);
     }
 
-    emu_.Get<EmulatedMemory>().AddRegion(BandPaBase(),
-                                         CerfVirt::kInjectionBandSize,
-                                         MemoryKind::kRam);
+    if (!region_added_) {
+        emu_.Get<EmulatedMemory>().AddRegion(BandPaBase(), CerfVirt::kInjectionBandSize, MemoryKind::kRam);
+        region_added_ = true;
+    }
     emu_.Get<EngineBridge>().MapInjectionBand(va, BandPaBase(), CerfVirt::kInjectionBandSize);
     va_base_ = va;
     LOG(GuestAdditions, "injection band: VA 0x%08X -> PA 0x%08X size 0x%X\n",

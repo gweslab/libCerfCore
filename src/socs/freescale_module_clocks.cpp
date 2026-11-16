@@ -45,6 +45,10 @@ const char* ModuleName(FreescaleModule module) {
         case FreescaleModule::kSsi1Ipg:     return "SSI1 ipg";
         case FreescaleModule::kSsi2Ipg:     return "SSI2 ipg";
         case FreescaleModule::kSsi3Ipg:     return "SSI3 ipg";
+        case FreescaleModule::kPwm1:        return "PWM1";
+        case FreescaleModule::kPwm2:        return "PWM2";
+        case FreescaleModule::kPwm3:        return "PWM3";
+        case FreescaleModule::kPwm4:        return "PWM4";
     }
     return "";
 }

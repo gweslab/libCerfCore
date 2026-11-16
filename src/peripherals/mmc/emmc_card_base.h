@@ -32,7 +32,9 @@ constexpr uint8_t kCmdAppCmd           = 55u;
 
 constexpr uint32_t kBlockBytes = 512u;
 
-constexpr uint32_t kGoIdleArgument = 0u;
+constexpr uint16_t kDefaultRca             = 0x0001u;
+constexpr uint32_t kGoPreIdleArgument      = 0xF0F0F0F0u;
+constexpr uint32_t kBootInitiationArgument = 0xFFFFFFFAu;
 constexpr uint32_t kStopHpi        = 1u << 0;
 
 enum class MmcState : uint32_t {
@@ -70,6 +72,9 @@ constexpr uint32_t kBusWidth4BitDdr   = 5u;
 constexpr uint32_t kBusWidth8BitDdr   = 6u;
 constexpr uint32_t kExtCsdHsTiming    = 185u;
 constexpr uint32_t kHsTimingHighSpeed = 1u;
+
+constexpr uint32_t kExtCsdPartitionConfig = 179u;
+constexpr uint8_t  kBootPartitionEnableMask = 0x38u;
 
 constexpr uint32_t kExtCsdErasedMemCont = 181u;
 constexpr uint8_t  kErasedMemContZeros  = 0u;
@@ -125,10 +130,12 @@ private:
     void     SetWriteProtect(uint32_t sector);
     void     RequireWritable(uint32_t sector) const;
     uint32_t WpGroupCount() const;
+    bool     BootPartitionEnabled() const;
     [[noreturn]] void HaltUnmodelledCommand(uint8_t index, uint32_t argument);
 
     cerf_mmc::MmcState   state_       = cerf_mmc::MmcState::Idle;
-    uint16_t             rca_         = 0u;
+    bool                 pre_boot_    = false;
+    uint16_t             rca_         = cerf_mmc::kDefaultRca;
     uint8_t              hs_timing_   = 0u;
     uint8_t              user_wp_     = 0u;
     bool                 multi_read_  = false;

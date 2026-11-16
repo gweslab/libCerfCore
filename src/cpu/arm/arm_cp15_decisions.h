@@ -5,6 +5,7 @@
 
 namespace cerfcore {
 
+class ArmAddressTranslation;
 class ArmCp15Registers;
 class ArmProcessorConfig;
 
@@ -29,8 +30,9 @@ private:
     cerfengine::ArmCoprocDecision CacheRead(const cerfengine::ArmCoprocAccess& a) const;
     cerfengine::ArmCoprocDecision TlbOperation(const cerfengine::ArmCoprocAccess& a) const;
 
-    ArmCp15Registers*   regs_   = nullptr;
-    ArmProcessorConfig* config_ = nullptr;
+    ArmCp15Registers*      regs_        = nullptr;
+    ArmAddressTranslation* translation_ = nullptr;
+    ArmProcessorConfig*    config_      = nullptr;
 };
 
 }

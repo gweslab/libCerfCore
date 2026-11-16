@@ -9,6 +9,8 @@
 
 namespace cerfcore {
 
+inline constexpr uint32_t kCortexA9DiagnosticControlResetStub = 0u; /* Undocumented. */
+
 class ArmProcessorConfig;
 
 union ArmDfsr {
@@ -57,6 +59,8 @@ struct ArmCp15File {
     uint32_t tpidruro       = 0;
     uint32_t tpidrprw       = 0;
     uint32_t l2_aux_control = 0;
+    uint32_t par            = 0;
+    uint32_t cortex_a9_diagnostic_control = kCortexA9DiagnosticControlResetStub;
 };
 
 class ArmCp15Registers : public Service {
@@ -83,6 +87,7 @@ public:
         field("domain_access_control", s.dacr);
         field("fault_status", s.dfsr);
         field("fault_address", s.dfar);
+        field("par", s.par);
         field("ifsr", s.ifsr);
         field("ifar", s.ifar);
     }
@@ -102,6 +107,7 @@ public:
         field("tpidruro", s.tpidruro);
         field("tpidrprw", s.tpidrprw);
         field("l2_aux_control", s.l2_aux_control);
+        field("cortex_a9_diagnostic_control", s.cortex_a9_diagnostic_control);
     }
 
 private:

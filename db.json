@@ -217,6 +217,11 @@
       "arch": "MIPS"
     },
     {
+      "id": "cortex_a9",
+      "name": "Cortex-A9",
+      "arch": "ARM"
+    },
+    {
       "id": "sh3",
       "name": "SH-3",
       "arch": "SH"
@@ -319,6 +324,16 @@
       "family_id": "mips1"
     },
     {
+      "id": "imx6dq",
+      "name": "Freescale i.MX6 Dual/Quad",
+      "family_id": "cortex_a9"
+    },
+    {
+      "id": "imx6sdl",
+      "name": "Freescale i.MX6 Solo/DualLite",
+      "family_id": "cortex_a9"
+    },
+    {
       "id": "sh7709",
       "name": "Hitachi SH7709",
       "family_id": "sh3"
@@ -363,6 +378,114 @@
     {
       "id": "ccsidr_l2",
       "name": "L2 cache size ID (CCSIDR)",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_pfr0",
+      "name": "ID Processor Feature Register 0",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_pfr1",
+      "name": "ID Processor Feature Register 1",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_dfr0",
+      "name": "ID Debug Feature Register 0",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_afr0",
+      "name": "ID Auxiliary Feature Register 0",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_mmfr0",
+      "name": "ID Memory Model Feature Register 0",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_mmfr1",
+      "name": "ID Memory Model Feature Register 1",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_mmfr2",
+      "name": "ID Memory Model Feature Register 2",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_mmfr3",
+      "name": "ID Memory Model Feature Register 3",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_isar0",
+      "name": "ID Instruction Set Attribute Register 0",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_isar1",
+      "name": "ID Instruction Set Attribute Register 1",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_isar2",
+      "name": "ID Instruction Set Attribute Register 2",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_isar3",
+      "name": "ID Instruction Set Attribute Register 3",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_isar4",
+      "name": "ID Instruction Set Attribute Register 4",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "id_isar5",
+      "name": "ID Instruction Set Attribute Register 5",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "tlbtr",
+      "name": "TLB Type Register",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "mpidr",
+      "name": "Multiprocessor Affinity Register",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "tcmtr",
+      "name": "TCM Type Register",
+      "arch": "ARM",
+      "type": "hex"
+    },
+    {
+      "id": "periphbase",
+      "name": "Cortex-A9 Peripheral Base Address",
       "arch": "ARM",
       "type": "hex"
     },
@@ -547,6 +670,12 @@
     {
       "id": "security_extensions",
       "name": "Security Extensions",
+      "arch": "ARM",
+      "type": "boolean"
+    },
+    {
+      "id": "multiprocessing_extensions",
+      "name": "Multiprocessing Extensions",
       "arch": "ARM",
       "type": "boolean"
     },
@@ -757,6 +886,24 @@
         "ccsidr_l1i": "0x00000000",
         "ccsidr_l1d": "0x00000000",
         "ccsidr_l2": "0x00000000",
+        "id_pfr0": "0x00000000",
+        "id_pfr1": "0x00000000",
+        "id_dfr0": "0x00000000",
+        "id_afr0": "0x00000000",
+        "id_mmfr0": "0x00000000",
+        "id_mmfr1": "0x00000000",
+        "id_mmfr2": "0x00000000",
+        "id_mmfr3": "0x00000000",
+        "id_isar0": "0x00000000",
+        "id_isar1": "0x00000000",
+        "id_isar2": "0x00000000",
+        "id_isar3": "0x00000000",
+        "id_isar4": "0x00000000",
+        "id_isar5": "0x00000000",
+        "tlbtr": "0x00000000",
+        "mpidr": "0x00000000",
+        "tcmtr": "0x00000000",
+        "periphbase": "0x00000000",
         "supersection_format": "none",
         "thumb": true,
         "thumb2": false,
@@ -779,6 +926,7 @@
         "cp15_v6": false,
         "cp15_v7": false,
         "security_extensions": false,
+        "multiprocessing_extensions": false,
         "aux_control_register": false,
         "l2_cache_aux_control": false,
         "l1_system_array_debug": false,
@@ -957,6 +1105,38 @@
       }
     },
     {
+      "id": "cortex_a9",
+      "inherits_cpu_config_id": "armv7a",
+      "values": {
+        "ctr": "0x83338003",
+        "id_pfr0": "0x00001231",
+        "id_pfr1": "0x00000011",
+        "id_dfr0": "0x00010444",
+        "id_afr0": "0x00000000",
+        "id_mmfr0": "0x00100103",
+        "id_mmfr1": "0x20000000",
+        "id_mmfr2": "0x01230000",
+        "id_mmfr3": "0x00102111",
+        "id_isar0": "0x00101111",
+        "id_isar1": "0x13112111",
+        "id_isar2": "0x21232041",
+        "id_isar3": "0x11112131",
+        "id_isar4": "0x00011142",
+        "id_isar5": "0x00000000",
+        "tcmtr": "0x00000000",
+        "supersection_format": "none",
+        "security_extensions": true,
+        "multiprocessing_extensions": true,
+        "aux_control_register": true,
+        "l2_cache_aux_control": true,
+        "vfp": true,
+        "neon": true,
+        "fpsid": "0x41033090",
+        "mvfr0": "0x11110222",
+        "mvfr1": "0x01111111"
+      }
+    },
+    {
       "soc_id": "imx51",
       "inherits_cpu_config_id": "cortex_a8",
       "values": {
@@ -965,6 +1145,34 @@
         "ccsidr_l1i": "0x200FE01A",
         "ccsidr_l1d": "0xE00FE01A",
         "ccsidr_l2": "0xF03FE03A"
+      }
+    },
+    {
+      "soc_id": "imx6dq",
+      "inherits_cpu_config_id": "cortex_a9",
+      "values": {
+        "periphbase": "0x00A00000",
+        "midr": "0x412FC09A",
+        "clidr": "0x09000003",
+        "ccsidr_l1i": "0x201FE019",
+        "ccsidr_l1d": "0x701FE019",
+        "ccsidr_l2": "0x00000000",
+        "tlbtr": "0x00000402",
+        "mpidr": "0x80000000"
+      }
+    },
+    {
+      "soc_id": "imx6sdl",
+      "inherits_cpu_config_id": "cortex_a9",
+      "values": {
+        "periphbase": "0x00A00000",
+        "midr": "0x412FC09A",
+        "clidr": "0x09000003",
+        "ccsidr_l1i": "0x201FE019",
+        "ccsidr_l1d": "0x701FE019",
+        "ccsidr_l2": "0x00000000",
+        "tlbtr": "0x00000402",
+        "mpidr": "0x80000000"
       }
     },
     {
@@ -2632,6 +2840,31 @@
       },
       "ga_color_depth": 24,
       "rom_placing_mode": "flat_container"
+    },
+    {
+      "id": "siemens_simatic_mobile_panels_gen2",
+      "name": "Siemens SIMATIC HMI Mobile Panels 2nd Generation",
+      "soc_id": "imx6dq",
+      "device_features": [
+        {
+          "feature_id": "touch",
+          "supported": true
+        },
+        {
+          "feature_id": "guest_additions",
+          "supported": true
+        },
+        {
+          "feature_id": "network",
+          "supported": true
+        }
+      ],
+      "notes": [],
+      "lcd_panel_size": {
+        "width": 800,
+        "height": 480
+      },
+      "rom_placing_mode": "flat_container"
     }
   ],
   "boards": [
@@ -3780,6 +4013,90 @@
       "board_family_id": "nokia_sea_ray",
       "support_level": "no_support",
       "internal__spec_divergences": "HSDPA 850/900/1900/2100"
+    },
+    {
+      "id": "hmi_ktp400f_mobile",
+      "name": "SIMATIC HMI KTP400F Mobile",
+      "short_name": "KTP400F Mobile",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "soc_id": "imx6sdl",
+      "support_level": "bootable_full",
+      "internal__spec_divergences": "4.3\" 480x272 display; F-module",
+      "lcd_panel_size": {
+        "width": 480,
+        "height": 272
+      }
+    },
+    {
+      "id": "hmi_ktp700_mobile",
+      "name": "SIMATIC HMI KTP700 Mobile",
+      "short_name": "KTP700 Mobile",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "support_level": "bootable_full"
+    },
+    {
+      "id": "hmi_ktp700f_mobile",
+      "name": "SIMATIC HMI KTP700F Mobile",
+      "short_name": "KTP700F Mobile",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "support_level": "bootable_full",
+      "internal__spec_divergences": "F-module"
+    },
+    {
+      "id": "hmi_ktp900_mobile",
+      "name": "SIMATIC HMI KTP900 Mobile",
+      "short_name": "KTP900 Mobile",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "support_level": "bootable_full",
+      "internal__spec_divergences": "9\" display"
+    },
+    {
+      "id": "hmi_ktp900f_mobile",
+      "name": "SIMATIC HMI KTP900F Mobile",
+      "short_name": "KTP900F Mobile",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "support_level": "bootable_full",
+      "internal__spec_divergences": "9\" display; F-module"
+    },
+    {
+      "id": "hmi_tp1000f_mobile",
+      "name": "SIMATIC HMI TP1000F Mobile",
+      "short_name": "TP1000F Mobile",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "support_level": "bootable_full",
+      "internal__spec_divergences": "10.1\" 1280x800 display; F-module",
+      "lcd_panel_size": {
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "id": "hmi_tp1000f_ro_mobile",
+      "name": "SIMATIC HMI TP1000F Mobile RO",
+      "short_name": "TP1000F Mobile RO",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "support_level": "bootable_full",
+      "internal__spec_divergences": "10.1\" 1280x800 display; F-module; emergency stop with Remote Operate, no key switch",
+      "lcd_panel_size": {
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "id": "hmi_ktp700f_hw_mobile",
+      "name": "SIMATIC HMI KTP700F Mobile with hand wheel",
+      "short_name": "KTP700F Mobile HW",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "support_level": "bootable_full",
+      "internal__spec_divergences": "F-module; hand wheel"
+    },
+    {
+      "id": "hmi_ktp700f_arctic_mobile",
+      "name": "SIMATIC HMI KTP700F Mobile Arctic",
+      "short_name": "KTP700F Mobile Arctic",
+      "board_family_id": "siemens_simatic_mobile_panels_gen2",
+      "support_level": "bootable_full",
+      "internal__spec_divergences": "F-module; extended temperature range"
     }
   ],
   "rom_types": [

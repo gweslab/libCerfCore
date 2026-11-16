@@ -11,6 +11,7 @@ public:
     using Service::Service;
 
     bool ShouldRegister() override;
+    void OnReady() override;
 
     /* Band VA base; reserves the PA region + installs the overlay on first
        call. Lazy so a GA board that injects no victim never reserves it, and a
@@ -22,6 +23,7 @@ public:
 
 private:
     uint32_t va_base_ = 0;
+    bool region_added_ = false;
 };
 
 }

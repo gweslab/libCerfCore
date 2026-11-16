@@ -80,6 +80,27 @@ public:
     bool HasCp15V7()             const { return cp15_v7_; }
     bool HasSecurityExtensions() const { return security_extensions_; }
 
+    bool HasMultiprocessingExtensions() const { return multiprocessing_extensions_; }
+
+    uint32_t IdPfr0()     const { return id_pfr0_; }
+    uint32_t IdPfr1()     const { return id_pfr1_; }
+    uint32_t IdDfr0()     const { return id_dfr0_; }
+    uint32_t IdAfr0()     const { return id_afr0_; }
+    uint32_t IdMmfr0()    const { return id_mmfr0_; }
+    uint32_t IdMmfr1()    const { return id_mmfr1_; }
+    uint32_t IdMmfr2()    const { return id_mmfr2_; }
+    uint32_t IdMmfr3()    const { return id_mmfr3_; }
+    uint32_t IdIsar0()    const { return id_isar0_; }
+    uint32_t IdIsar1()    const { return id_isar1_; }
+    uint32_t IdIsar2()    const { return id_isar2_; }
+    uint32_t IdIsar3()    const { return id_isar3_; }
+    uint32_t IdIsar4()    const { return id_isar4_; }
+    uint32_t IdIsar5()    const { return id_isar5_; }
+    uint32_t Tlbtr()      const { return tlbtr_; }
+    uint32_t Mpidr()      const { return mpidr_; }
+    uint32_t Tcmtr()      const { return tcmtr_; }
+    uint32_t Periphbase() const { return periphbase_; }
+
     ArmSupersectionFormat SupersectionFormat() const { return supersection_format_; }
 
     bool HasL2CacheAuxControl()  const { return l2_cache_aux_control_; }
@@ -132,6 +153,25 @@ private:
     bool cp15_v6_                      = false;
     bool cp15_v7_                      = false;
     bool security_extensions_          = false;
+    bool multiprocessing_extensions_   = false;
+    uint32_t id_pfr0_                  = 0;
+    uint32_t id_pfr1_                  = 0;
+    uint32_t id_dfr0_                  = 0;
+    uint32_t id_afr0_                  = 0;
+    uint32_t id_mmfr0_                 = 0;
+    uint32_t id_mmfr1_                 = 0;
+    uint32_t id_mmfr2_                 = 0;
+    uint32_t id_mmfr3_                 = 0;
+    uint32_t id_isar0_                 = 0;
+    uint32_t id_isar1_                 = 0;
+    uint32_t id_isar2_                 = 0;
+    uint32_t id_isar3_                 = 0;
+    uint32_t id_isar4_                 = 0;
+    uint32_t id_isar5_                 = 0;
+    uint32_t tlbtr_                    = 0;
+    uint32_t mpidr_                    = 0;
+    uint32_t tcmtr_                    = 0;
+    uint32_t periphbase_               = 0;
     bool aux_control_register_         = false;
     bool l2_cache_aux_control_         = false;
     bool l1_system_array_debug_        = false;

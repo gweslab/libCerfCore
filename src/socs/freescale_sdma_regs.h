@@ -61,6 +61,15 @@ constexpr uint32_t kBdExtd       = 1u << 23;
 constexpr uint32_t kCcbStride    = 16u;
 constexpr uint32_t kCcbBaseBdOff = 4u;
 constexpr uint32_t kMaxBdWalk    = 256u;
+constexpr uint32_t kC0SetDm = 0x01u;
+constexpr uint32_t kC0SetPm = 0x04u;
+constexpr uint32_t kC0SetCtx = 0x07u;
+constexpr uint32_t kSdmaProgramWords = 0x2000u;
+constexpr uint32_t kSdmaDataRamFirstWord = 0x0800u;
+constexpr uint32_t kSdmaDataRamEndWord = 0x1000u;
+constexpr uint32_t kSdmaContextBase = 0x0800u;
+constexpr uint32_t kSdmaContextWords = 32u;
+constexpr uint32_t kContextGr7Word = 9u;
 
 }  /* namespace cerf_freescale_sdma_detail */
 

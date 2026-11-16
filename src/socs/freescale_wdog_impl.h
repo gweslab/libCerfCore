@@ -61,6 +61,7 @@ public:
         clock_->RegisterIdleListener([this] { OnIdle(); });
         clock_->RegisterIdleExitListener([this] { OnIdleExit(); });
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
+            if (emu_.Get<GuestCpuReset>().DeliveredResetWasResume() && KeepStateOnResume()) return;
             OnSystemReset(kind);
         });
         emu_.Get<PeripheralDispatcher>().Register(this);
@@ -148,6 +149,9 @@ protected:
     virtual void     ResetRegisters(ResetLineKind kind, WdogResetSource source,
                                     uint64_t now) = 0;
 
+    virtual bool ResetBySiblingUnit() const { return false; }
+    virtual bool KeepStateOnResume() const { return false; }
+    virtual void BeforeRaiseReset(WdogResetSource) {}
     virtual bool ReadExtra(uint32_t, uint16_t&) { return false; }
     virtual bool WriteExtra(uint32_t, uint16_t) { return false; }
     virtual void OnLoad(uint64_t) {}
@@ -158,6 +162,7 @@ protected:
 
     void RaiseReset(WdogResetSource source) {
         pending_source_ = source;
+        BeforeRaiseReset(source);
         emu_.Get<GuestCpuReset>().WatchdogReset();
     }
 
@@ -281,7 +286,8 @@ private:
     void OnSystemReset(ResetLineKind kind) {
         const WdogResetSource source = pending_source_;
         pending_source_ = WdogResetSource::kNone;
-        if (kind == ResetLineKind::Watchdog && source == WdogResetSource::kNone) {
+        if (kind == ResetLineKind::Watchdog && source == WdogResetSource::kNone &&
+            !ResetBySiblingUnit()) {
             emu_.Get<Fatal>().Die("FreescaleWdog %08X: a watchdog reset this unit did not "
                                   "raise", kBase);
         }

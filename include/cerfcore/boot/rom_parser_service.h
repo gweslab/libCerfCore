@@ -1,8 +1,10 @@
 #pragma once
 
+#include "../core/callback_list.h"
 #include "../core/service.h"
 
 #include <cstdint>
+#include <functional>
 #include <span>
 #include <string>
 #include <vector>
@@ -112,6 +114,7 @@ struct ParsedRom {
     uint32_t                     flat_base_va = 0;
     uint32_t                     entry_va     = 0;
     bool                         is_b000ff    = false;
+    bool                         is_fwf       = false;
     bool                         is_nosaj     = false;
     bool                         is_arnold    = false;
     bool                         is_nbf       = false;
@@ -156,6 +159,12 @@ public:
     /* Shortcut for the primary partition's entry kernel-VA. */
     uint32_t EntryVa() const { return loaded_[0].entry_va; }
 
+    void ReleasePrimaryImage();
+    bool ReparsePrimary(ParsedRom& out);
+    void ReplacePrimary(ParsedRom&& rom);
+    uint32_t Generation() const { return generation_; }
+    void RegisterReplaceListener(std::function<void()> fn);
+
 private:
     bool ParseOne(ParsedRom& rom);
 
@@ -163,6 +172,8 @@ private:
 
     bool                   ok_ = false;
     std::vector<ParsedRom> loaded_;
+    uint32_t               generation_ = 0;
+    CallbackList<>                     replace_listeners_;
 };
 
 }

@@ -66,9 +66,14 @@ public:
 #endif
 
 private:
-    /* Computes CRC32 over concatenated RomParserService::Loaded()[i].raw
-       bytes in load order. Empty when no ROMs loaded. */
+    struct BundleRegistration {
+        uint32_t              expected_crc32;
+        std::function<void()> register_fn;
+    };
+
     uint32_t ComputeBundleCrc32() const;
+    void Bind(uint32_t expected_crc32, const std::function<void()>& register_fn);
+    void RebindBundles();
 
     void DispatchContext(uint32_t pc, const TraceContext& ctx);
 
@@ -80,6 +85,9 @@ private:
     uint32_t bundle_crc32_   = 0;
     uint32_t bundles_matched_ = 0;
     uint32_t bundles_skipped_ = 0;
+    bool     binding_bundle_  = false;
+    std::vector<BundleRegistration> registrations_;
+    std::vector<uint32_t>           bundle_pcs_;
 
     struct PcEntry {
         std::optional<TracePredicate> predicate;
@@ -91,6 +99,7 @@ private:
 #if CERF_DEV_MODE
     void DispatchIterContext(const TraceContext& ctx);
     CallbackList<const TraceContext&> iter_handlers_;
+    CallbackList<const TraceContext&> bundle_iter_handlers_;
 #endif
 };
 

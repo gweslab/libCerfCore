@@ -28,11 +28,14 @@ private:
         uint32_t phys_page_idx;
     };
 
+    void Anchor();
+
     uint32_t flash_pa_base_  = 0;
     bool     flash_anchored_ = false;
     uint32_t ce_major_       = 5;
     std::vector<FreeFtlSlot> free_ftl_slots_;
     uint32_t                 next_new_ls_   = 0;
+    bool                     stale_         = false;
 };
 
 }

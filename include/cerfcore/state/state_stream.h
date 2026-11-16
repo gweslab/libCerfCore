@@ -56,6 +56,7 @@ class CerfEmulator;
 class StateWriter {
 public:
     StateWriter(CerfEmulator& emu, const std::string& path);
+    StateWriter(CerfEmulator& emu, std::vector<uint8_t>& memory);
     ~StateWriter();
 
     StateWriter(const StateWriter&)            = delete;
@@ -96,6 +97,7 @@ private:
     void Fail(const char* what, uint32_t gle);
 
     CerfEmulator&           emu_;
+    std::vector<uint8_t>*   memory_ = nullptr;
     std::string             final_path_;
     std::string             temp_path_;
     host_platform::HostFile file_;
@@ -109,6 +111,7 @@ private:
 class StateReader {
 public:
     StateReader(CerfEmulator& emu, const std::string& path);
+    StateReader(CerfEmulator& emu, const std::vector<uint8_t>& memory);
 
     StateReader(const StateReader&)            = delete;
     StateReader& operator=(const StateReader&) = delete;
@@ -158,8 +161,9 @@ private:
     void RequireRemaining(size_t n);
     void SeekTo(uint64_t offset);
 
-    CerfEmulator&           emu_;
-    host_platform::HostFile file_;
+    CerfEmulator&               emu_;
+    const std::vector<uint8_t>* memory_ = nullptr;
+    host_platform::HostFile     file_;
     uint64_t           pos_        = 0;
     uint64_t           file_size_  = 0;
     std::vector<Frame> frames_;

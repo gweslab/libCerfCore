@@ -50,6 +50,8 @@ public:
        (PeripheralDispatcher) or unmapped (faults). */
     virtual std::vector<BackedRegion> BackedMemoryRegions() const = 0;
 
+    virtual uint32_t DramChipSelectBytes() const { return 0u; }
+
     /* Every VA span the OAT maps - DRAM, flash AND peripheral. MUST include
        MMIO spans (unlike BackedMemoryRegions): StaticWindowHole picks a band
        VA outside these, and a band VA inside an omitted MMIO span gets shadowed

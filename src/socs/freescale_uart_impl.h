@@ -20,6 +20,7 @@
 #include "freescale_uart_transmitter.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "imx51/imx51_id.h"
+#include "imx6/imx6_id.h"
 #include "uart_endpoint.h"
 
 #include <cstddef>
@@ -52,7 +53,15 @@ public:
         module_clocks_->RegisterGateListener([this] { ApplyBaud(); });
         uart_clocks_->RegisterRateListener([this] { ApplyBaud(); });
         clock_->RegisterRateListener([this] { escape_.Rescale(); });
-        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) { HardReset(); });
+        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+            if (SocId::IsImx6(kSoc) && emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) return;
+            HardReset();
+        });
+        if (SocId::IsImx6(kSoc)) {
+            emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
+                if (emu_.Get<GuestCpuReset>().DeliveredResetWasResume()) DriveIrq(line_);
+            });
+        }
         emu_.Get<PeripheralDispatcher>().Register(this);
         escape_.Attach();
         HardReset();
@@ -152,7 +161,7 @@ private:
     /* ONEMS (0xB0) is 24-bit only on i.MX51 (MCIMX51RM §59.3.1); on i.MX31 every
        UART register including ONEMS is 16 LSB (MCIMX31RM §31.3.2). */
     static constexpr uint32_t kOnemsMask =
-        (kSoc == SocId::Imx51) ? 0xFFFFFFu : 0xFFFFu;
+        (kSoc == SocId::Imx51 || kSoc == SocId::Imx6dq) ? 0xFFFFFFu : 0xFFFFu;
 
     uint32_t& C(uint32_t off) { return ctrl_[(off - cerf_freescale_uart::kCtrlLo) / 4u]; }
     uint32_t  C(uint32_t off) const { return ctrl_[(off - cerf_freescale_uart::kCtrlLo) / 4u]; }
