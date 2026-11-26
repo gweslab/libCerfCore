@@ -1,12 +1,17 @@
 #include "serial_cradle.h"
 
 #include "host_serial_forward.h"
+#include "host_tcp_serial.h"
 #include "modem_personality.h"
 #include "serial_endpoint.h"
 #include "serial_forward_commands.h"
 #include "serial_line.h"
+#include "serial_tcp_address.h"
+#include "serial_tcp_commands.h"
+#include "serial_tcp_startup.h"
 
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/execution/jit_runner.h>
 #include "../../core/deferred_jobs.h"
 #include <cerfcore/core/utf16.h>
 #include <cerfcore/state/emulation_freeze.h>
@@ -21,11 +26,17 @@ namespace {
 
 constexpr char kModemName[]   = "Serial Modem";
 constexpr char kForwardName[] = "Serial Port Forwarder";
+constexpr char kTcpName[]     = "TCP Serial Port";
 
 }
 
 SerialCradle::SerialCradle(CerfEmulator& emu, SerialLine& line, ObjectIdentity identity)
-    : emu_(emu), line_(line), identity_(std::move(identity)) {}
+    : emu_(emu), line_(line), identity_(std::move(identity)) {
+    const std::optional<SerialTcpAddress> startup = emu_.Get<SerialTcpStartup>().Claim(identity_.id);
+    if (!startup) return;
+    startup_tcp_ = startup->Binding();
+    emu_.Get<JitRunner>().RegisterPreStartHook([this, binding = *startup_tcp_] { Replug(Plugged::Tcp, binding); });
+}
 
 SerialCradle::~SerialCradle() = default;
 
@@ -62,7 +73,8 @@ void SerialCradle::RestoreCradleState(StateReader& r) {
         std::u16string port(n, u'\0');
         if (n) r.ReadBytes("host_port", port.data(), n * sizeof(char16_t));
         before = plugged_;
-        SetPluggedLocked(static_cast<Plugged>(k), Utf16ToUtf8(port), false);
+        if (startup_tcp_ && !emu_.Get<JitRunner>().Started()) SetPluggedLocked(Plugged::Tcp, *startup_tcp_, false);
+        else                                                   SetPluggedLocked(static_cast<Plugged>(k), Utf16ToUtf8(port), false);
         after = plugged_;
     }
     Announce(before, after);
@@ -81,15 +93,20 @@ void SerialCradle::SetPluggedLocked(Plugged plugged, std::string host_port, bool
 
     if (plugged == Plugged::None) return;
 
+    const uint64_t gen     = generation_;
+    DeferredJobs&  jobs    = emu_.Get<DeferredJobs>();
+    const auto     on_dead = [this, gen, &jobs](const char* reason, uint32_t code) {
+        jobs.Post([this, gen, reason, code] { ReportFailure(gen, reason, code); });
+    };
     if (plugged == Plugged::Modem) {
         endpoint_ = std::make_unique<ModemPersonality>(emu_, "ppp:" + identity_.id);
+    } else if (plugged == Plugged::Tcp) {
+        auto tcp = std::make_unique<HostTcpSerial>(*SerialTcpAddress::Parse(host_port_), emu_);
+        tcp->SetOnBridgeDead(on_dead);
+        endpoint_ = std::move(tcp);
     } else {
-        auto           fwd  = std::make_unique<HostSerialForward>(host_port_, emu_);
-        const uint64_t gen  = generation_;
-        DeferredJobs&  jobs = emu_.Get<DeferredJobs>();
-        fwd->SetOnBridgeDead([this, gen, &jobs](const char* reason, uint32_t code) {
-            jobs.Post([this, gen, reason, code] { ReportFailure(gen, reason, code); });
-        });
+        auto fwd = std::make_unique<HostSerialForward>(host_port_, emu_);
+        fwd->SetOnBridgeDead(on_dead);
         endpoint_ = std::move(fwd);
     }
 
@@ -157,6 +174,7 @@ std::optional<InsertedItem> SerialCradle::Inserted() const {
     switch (plugged_) {
         case Plugged::Modem:   return InsertedItem{kModemId, kModemName, NoCardFacts{}};
         case Plugged::Forward: return InsertedItem{kForwardId, kForwardName, SerialLinkFacts{host_port_}};
+        case Plugged::Tcp:     return InsertedItem{kTcpId, kTcpName, SerialLinkFacts{host_port_}};
         case Plugged::None:    return std::nullopt;
     }
     return std::nullopt;
@@ -166,12 +184,21 @@ std::vector<InsertableType> SerialCradle::Accepted() const {
     return {
         InsertableType{kModemId, kModemName, {InsertCommand{"insert", {}}}},
         InsertableType{kForwardId, kForwardName, emu_.Get<SerialForwardCommands>().Commands()},
+        InsertableType{kTcpId, kTcpName, emu_.Get<SerialTcpCommands>().Commands()},
     };
 }
 
 void SerialCradle::InsertAccepted(const std::string& type_id, const std::string&, const std::string& argument) {
-    if (type_id == kModemId) Replug(Plugged::Modem, {});
-    else                     Replug(Plugged::Forward, argument);
+    if (type_id == kModemId) {
+        Replug(Plugged::Modem, {});
+        return;
+    }
+    if (type_id == kTcpId) {
+        emu_.Get<SerialTcpCommands>().Run(
+            *this, [this](const SerialTcpAddress& address) { Replug(Plugged::Tcp, address.Binding()); });
+        return;
+    }
+    Replug(Plugged::Forward, argument);
 }
 
 void SerialCradle::Eject() { Replug(Plugged::None, {}); }

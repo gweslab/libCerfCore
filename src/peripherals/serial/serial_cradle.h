@@ -40,10 +40,11 @@ protected:
                         const std::string& argument) override;
 
 private:
-    enum class Plugged { None, Modem, Forward };
+    enum class Plugged { None, Modem, Forward, Tcp };
 
     static constexpr const char* kModemId   = "modem";
     static constexpr const char* kForwardId = "forward";
+    static constexpr const char* kTcpId     = "tcp";
 
     void Replug(Plugged plugged, std::string host_port);
     void UnplugAt(uint64_t gen);
@@ -61,6 +62,7 @@ private:
     std::unique_ptr<SerialEndpoint> endpoint_;
     uint64_t                        generation_ = 0;
     bool                            shut_down_  = false;
+    std::optional<std::string>      startup_tcp_;
 };
 
 }

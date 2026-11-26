@@ -3,6 +3,7 @@
 #include "../pcmcia/pcmcia_card.h"
 #include "../serial/serial_16550.h"
 #include "../serial/serial_line_timer.h"
+#include "../serial/serial_tcp_address.h"
 
 #include <cstdint>
 #include <memory>
@@ -16,12 +17,16 @@ class SerialPcCard : public PcmciaCard, public SerialLineTimer {
 public:
     static constexpr const char* kDisplayName        = "Serial Modem PC Card";
     static constexpr const char* kForwardDisplayName = "Serial Port Forwarder";
+    static constexpr const char* kTcpDisplayName     = "TCP Serial Port";
+    static constexpr const char* kTcpSaveId          = "serial_tcp";
 
     explicit SerialPcCard(CerfEmulator& emu);
     SerialPcCard(CerfEmulator& emu, std::string host_com_port);
+    SerialPcCard(CerfEmulator& emu, const SerialTcpAddress& tcp_address);
     ~SerialPcCard() override;
 
     std::string DisplayName() const override {
+        if (mode_ == Mode::HostTcp) return kTcpDisplayName;
         return mode_ == Mode::HostForward ? kForwardDisplayName : kDisplayName;
     }
     PcmciaVoltageSense VoltageSense() const override { return { false, false, false }; }
@@ -31,10 +36,11 @@ public:
     void OnInserted() override;
 
     const char* SaveId() const override {
+        if (mode_ == Mode::HostTcp) return kTcpSaveId;
         return mode_ == Mode::HostForward ? "serial_fwd" : "serial";
     }
     std::string SaveBinding() const override {
-        return mode_ == Mode::HostForward ? host_port_ : std::string();
+        return mode_ == Mode::Modem ? std::string() : host_port_;
     }
     void SaveState(StateWriter& w) override;
     void RestoreState(StateReader& r) override;
@@ -81,9 +87,10 @@ private:
     bool    uart_irq_ = false;
     bool    powered_  = false;   /* no Vcc -> the card drives no pin, IRQ included */
 
-    enum class Mode { Modem, HostForward };
+    enum class Mode { Modem, HostForward, HostTcp };
     Mode         mode_ = Mode::Modem;
     std::string  host_port_;
+    SerialTcpAddress tcp_address_;
     std::vector<uint8_t> cis_;   /* attribute-memory CIS, built per mode */
 
     /* The endpoint detaches through a raw SerialLine* at the UART in its dtor, so the

@@ -10,3 +10,4 @@ function(cerfcore_test name)
 endfunction()
 
 cerfcore_test(utf16_test)
+cerfcore_test(serial_tcp_address_test)

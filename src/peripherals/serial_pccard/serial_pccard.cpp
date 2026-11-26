@@ -3,6 +3,7 @@
 #include "../serial/serial_endpoint.h"
 #include "../serial/modem_personality.h"
 #include "../serial/host_serial_forward.h"
+#include "../serial/host_tcp_serial.h"
 
 #include "../pcmcia/pcmcia_slot.h"
 #include <cerfcore/core/cerf_emulator.h>
@@ -23,11 +24,15 @@ SerialPcCard::SerialPcCard(CerfEmulator& emu) : PcmciaCard(emu) { BuildCis(); }
 SerialPcCard::SerialPcCard(CerfEmulator& emu, std::string host_com_port)
     : PcmciaCard(emu), mode_(Mode::HostForward),
       host_port_(std::move(host_com_port)) { BuildCis(); }
+SerialPcCard::SerialPcCard(CerfEmulator& emu, const SerialTcpAddress& tcp_address)
+    : PcmciaCard(emu), mode_(Mode::HostTcp), host_port_(tcp_address.Binding()), tcp_address_(tcp_address) {
+    BuildCis();
+}
 SerialPcCard::~SerialPcCard() = default;
 
 CardFacts SerialPcCard::Facts() const {
-    if (mode_ == Mode::HostForward) return SerialLinkFacts{host_port_};
-    return NoCardFacts{};
+    if (mode_ == Mode::Modem) return NoCardFacts{};
+    return SerialLinkFacts{host_port_};
 }
 
 void SerialPcCard::BuildCis() {
@@ -57,15 +62,20 @@ void SerialPcCard::BuildCis() {
 }
 
 void SerialPcCard::OnInserted() {
+    PcmciaSlot*    slot    = slot_;
+    const uint64_t id      = card_id_;
+    DeferredJobs&  jobs    = emu_.Get<DeferredJobs>();
+    const auto     on_dead = [slot, id, &jobs](const char* reason, uint32_t code) {
+        jobs.Post([slot, id, reason, code] { slot->ReportCardFailure(id, reason, code); });
+    };
     if (mode_ == Mode::HostForward) {
         auto fwd = std::make_unique<HostSerialForward>(host_port_, emu_);
-        PcmciaSlot*    slot = slot_;
-        const uint64_t id   = card_id_;
-        DeferredJobs&  jobs = emu_.Get<DeferredJobs>();
-        fwd->SetOnBridgeDead([slot, id, &jobs](const char* reason, uint32_t code) {
-            jobs.Post([slot, id, reason, code] { slot->ReportCardFailure(id, reason, code); });
-        });
+        fwd->SetOnBridgeDead(on_dead);
         endpoint_ = std::move(fwd);
+    } else if (mode_ == Mode::HostTcp) {
+        auto tcp = std::make_unique<HostTcpSerial>(tcp_address_, emu_);
+        tcp->SetOnBridgeDead(on_dead);
+        endpoint_ = std::move(tcp);
     } else {
         endpoint_ = std::make_unique<ModemPersonality>(
             emu_, "ppp:" + slot_->ObjectId());

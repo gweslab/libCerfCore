@@ -7,6 +7,8 @@
 #include "../hp_f1252a/hp_f1252a_card.h"
 #include "../realtek_rtl8019/rtl8019.h"
 #include "../serial/serial_forward_commands.h"
+#include "../serial/serial_tcp_address.h"
+#include "../serial/serial_tcp_commands.h"
 #include "../serial_pccard/serial_pccard.h"
 
 #include <utility>
@@ -43,6 +45,17 @@ void PcmciaCardCatalog::OnReady() {
     AddInsertOnly(kIdSerialFwd, SerialPcCard::kForwardDisplayName,
                   [this] { return emu_.Get<SerialForwardCommands>().Commands(); },
                   [this](const std::string& port) { return std::make_unique<SerialPcCard>(emu_, port); });
+    entries_.push_back(Entry{
+        SerialPcCard::kTcpSaveId, SerialPcCard::kTcpDisplayName,
+        [this] { return emu_.Get<SerialTcpCommands>().Commands(); },
+        [this](MachineObject& socket, const std::string&, const std::string&, CardInserter inserter) {
+            emu_.Get<SerialTcpCommands>().Run(socket, [this, inserter](const SerialTcpAddress& address) {
+                inserter.insert(std::make_unique<SerialPcCard>(emu_, address));
+            });
+        },
+        [this](const std::string& binding) {
+            return std::make_unique<SerialPcCard>(emu_, *SerialTcpAddress::Parse(binding));
+        }});
 }
 
 void PcmciaCardCatalog::AddInsertOnly(std::string id, std::string display_name, CommandList commands,

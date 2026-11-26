@@ -13,10 +13,12 @@
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/host/device_selection.h>
 #include "../net/mac_address.h"
+#include "../peripherals/serial/serial_tcp_address.h"
 #include <nlohmann/json.hpp>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
 #include <string>
 
 namespace cerfcore {
@@ -41,6 +43,35 @@ void SplitCommaList(const std::string& v, std::vector<std::string>& out) {
         if (comma == std::string::npos) break;
         start = comma + 1;
     }
+}
+
+constexpr char kSerialTcpDefaultSocket[] = "serial_port";
+
+bool ParseSerialTcpArgument(const std::string& value, std::string& socket, std::string& binding) {
+    std::vector<std::string> parts;
+    size_t                   start = 0;
+    for (;;) {
+        const size_t colon = value.find(':', start);
+        parts.push_back(value.substr(start, colon - start));
+        if (colon == std::string::npos) break;
+        start = colon + 1;
+    }
+    if (parts.size() > 3) return false;
+    const std::optional<uint16_t> port = SerialTcpAddress::ParsePort(parts.back());
+    if (!port) return false;
+    SerialTcpAddress target;
+    target.port = *port;
+    socket      = kSerialTcpDefaultSocket;
+    if (parts.size() == 3) {
+        socket         = parts[0];
+        target.address = parts[1];
+    } else if (parts.size() == 2) {
+        if (SerialTcpAddress::IsIpv4Literal(parts[0])) target.address = parts[0];
+        else                                           socket         = parts[0];
+    }
+    if (socket.empty() || !SerialTcpAddress::IsIpv4Literal(target.address)) return false;
+    binding = target.Binding();
+    return true;
 }
 
 }
@@ -387,6 +418,11 @@ void ConfigLoader::LoadInto(DeviceConfig& config) {
         } else if (ReadCliOption(a, kArgStatePath, v)) {
             if (!v[0]) Reader().Fail("(command line)", std::string(CliOptionName(kArgStatePath)) + " needs a path");
             config.state_path = v;
+        } else if (ReadCliOption(a, kArgSerialTcp, v)) {
+            if (!ParseSerialTcpArgument(v, config.serial_tcp_socket, config.serial_tcp_binding))
+                Reader().Fail("(command line)", std::string(CliOptionName(kArgSerialTcp)) +
+                                                    " must be [SOCKET:][ADDRESS:]PORT with an IPv4 ADDRESS and a PORT "
+                                                    "in 1..65535");
         } else if (ReadCliOption(a, kArgTab, v)) {
             if      (strcmp(v, kTabBoot)        == 0) config.start_tab = CanvasTab::Boot;
             else if (strcmp(v, kTabHw)          == 0) config.start_tab = CanvasTab::Hw;

@@ -116,6 +116,9 @@ struct DeviceConfig : public Service {
     std::string network_forward_tcp;
     std::string network_forward_udp;
 
+    std::string serial_tcp_socket;
+    std::string serial_tcp_binding;
+
     std::string              rom_primary;
     std::vector<std::string> rom_extensions;
     std::string              rom_recovery;

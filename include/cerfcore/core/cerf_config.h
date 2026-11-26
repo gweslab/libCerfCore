@@ -30,6 +30,7 @@ inline constexpr char kArgGaShareFolder[]  = "--ga-share-folder=";
 inline constexpr char kArgBoot[]           = "--boot=";
 inline constexpr char kArgStatePath[]      = "--state-path=";
 inline constexpr char kArgTab[]            = "--tab=";
+inline constexpr char kArgSerialTcp[]      = "--serial-tcp=";
 
 inline constexpr char kBootResume[]     = "resume";
 inline constexpr char kBootWarm[]       = "warm";

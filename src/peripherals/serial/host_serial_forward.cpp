@@ -4,7 +4,6 @@
 #include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
 #include "../../platform/host_clock.h"
-#include <cerfcore/state/emulation_freeze.h>
 #include "uart_frame.h"
 
 #include <utility>
@@ -40,27 +39,11 @@ host_platform::SerialPortSettings ToPortSettings(const SerialLine::LineConfig& c
 }
 
 HostSerialForward::HostSerialForward(std::string host_port, CerfEmulator& emu)
-    : emu_(emu), port_name_(std::move(host_port)) {}
+    : HostIoEndpoint(emu), port_name_(std::move(host_port)) {}
 
 HostSerialForward::~HostSerialForward() { OnClose(); }
 
-void HostSerialForward::ReportDead(const char* reason, uint32_t code) {
-    if (dead_.exchange(true)) return;
-    on_dead_(reason, code);
-}
-
-bool HostSerialForward::WithGuestAccess(const std::function<void()>& touch) {
-    auto& freeze = emu_.Get<EmulationFreeze>();
-    while (running_.load()) {
-        auto frozen = freeze.TryWorkerSection();
-        if (frozen.owns_lock()) {
-            touch();
-            return true;
-        }
-        if (port_.WaitStopped(1)) return false;
-    }
-    return false;
-}
+bool HostSerialForward::WaitStopped(uint32_t timeout_ms) { return port_.WaitStopped(timeout_ms); }
 
 void HostSerialForward::OnOpen() {
     uint32_t err = 0;
