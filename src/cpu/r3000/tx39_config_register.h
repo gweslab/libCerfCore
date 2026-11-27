@@ -13,6 +13,7 @@ namespace cerfengine { class Engine; }
 namespace cerfcore {
 
 class MipsProcessorConfig;
+class MipsCp0FieldLimits;
 
 class Tx39ConfigRegister : public Service {
 public:
@@ -32,6 +33,7 @@ private:
     cerfengine::Engine*                engine_    = nullptr;
     cerfengine::MipsCpuState*                      cpu_state_ = nullptr;
     const MipsProcessorConfig*         config_    = nullptr;
+    const MipsCp0FieldLimits*          limits_    = nullptr;
     CallbackList<>                     rf_listeners_;
 };
 

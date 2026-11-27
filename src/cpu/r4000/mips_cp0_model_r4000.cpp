@@ -15,6 +15,7 @@
 #include <cerfengine/mips/mips_cpu_state.h>
 #include "../../execution/mips_engine_bridge.h"
 #include "../mips/mips_core_clock.h"
+#include "../mips/mips_cp0_field_limits.h"
 #include "../mips/mips_cp0_ops.h"
 #include "../mips_processor_config.h"
 
@@ -67,6 +68,7 @@ public:
 
     void OnReady() override {
         config_ = &emu_.Get<MipsProcessorConfig>();
+        limits_ = &emu_.Get<MipsCp0FieldLimits>();
         ops_    = &emu_.Get<MipsCp0Ops>();
         MipsEngineBridge& bridge = emu_.Get<MipsEngineBridge>();
         cpu_state_ = bridge.Engine().Get<cerfengine::MipsCpu>().State();
@@ -105,13 +107,13 @@ public:
         }
         if (rd == cerfengine::MipsCp0::kStatus) {
             d.write_mask  = config_->StatusWritable();
-            d.fixed_mask  = config_->StatusFixed().mask;
-            d.fixed_value = config_->StatusFixed().value;
+            d.fixed_mask  = limits_->Status().mask;
+            d.fixed_value = limits_->Status().value;
         }
         if (rd == cerfengine::MipsCp0::kConfig) {
             d.write_mask  = config_->ConfigWritable();
-            d.fixed_mask  = config_->ConfigFixed().mask;
-            d.fixed_value = config_->ConfigFixed().value;
+            d.fixed_mask  = limits_->Config().mask;
+            d.fixed_value = limits_->Config().value;
         }
         if (rd == cerfengine::MipsCp0::kCause) {
             d.write_mask = kMipsCauseSoftwareIp;
@@ -126,6 +128,7 @@ private:
     }
 
     MipsProcessorConfig*      config_          = nullptr;
+    MipsCp0FieldLimits*       limits_          = nullptr;
     MipsCp0Ops*               ops_             = nullptr;
     cerfengine::MipsCpuState* cpu_state_       = nullptr;
     uint32_t                  config_at_reset_ = 0;

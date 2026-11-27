@@ -17,11 +17,7 @@
     "madd16_dmadd16": false,
     "cop1_cop2_unusable": true,
     "config_writable": "0x00000007",
-    "config_fixed_mask": "0x0F800000",
-    "config_fixed_value": "0x00000000",
     "status_reset": "0x00400004",
-    "status_writable": "0x1057FFFF",
-    "status_fixed_mask": "0x02000000",
-    "status_fixed_value": "0x00000000"
+    "status_writable": "0x1057FFFF"
   }
 }

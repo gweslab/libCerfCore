@@ -18,11 +18,7 @@
     "cop1_cop2_unusable": false,
     "config_reset": "0x00100030",
     "config_writable": "0x00000FFF",
-    "config_fixed_mask": "0x00000000",
-    "config_fixed_value": "0x00000000",
     "status_reset": "0x00600000",
-    "status_writable": "0xF040FF3F",
-    "status_fixed_mask": "0x02000000",
-    "status_fixed_value": "0x00000000"
+    "status_writable": "0xF040FF3F"
   }
 }

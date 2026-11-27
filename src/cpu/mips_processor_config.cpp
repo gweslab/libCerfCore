@@ -53,10 +53,8 @@ void MipsProcessorConfig::OnReady() {
 
     config_reset_    = c.Number("config_reset");
     config_writable_ = c.Number("config_writable");
-    config_fixed_    = {c.Number("config_fixed_mask"), c.Number("config_fixed_value")};
     status_reset_    = c.Number("status_reset");
     status_writable_ = c.Number("status_writable");
-    status_fixed_    = {c.Number("status_fixed_mask"), c.Number("status_fixed_value")};
 
     if (tlb_size_ == 0u || tlb_size_ > cerfengine::kMipsTlbMax)
         emu_.Get<ConfigReader>().Fail(c.Origin(kTlbSize), "'" + CfgKeyPath({config_key::kCpuConfig, kTlbSize}) +

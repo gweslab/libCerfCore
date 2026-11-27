@@ -8,13 +8,6 @@
 
 namespace cerfcore {
 
-struct MipsFixedFields {
-    uint32_t mask  = 0;
-    uint32_t value = 0;
-
-    bool Accepts(uint32_t written) const { return (written & mask) == value; }
-};
-
 class MipsProcessorConfig : public Service {
 public:
     using Service::Service;
@@ -29,12 +22,10 @@ public:
     cerfengine::MipsIsaLevel IsaLevel() const { return isa_level_; }
     uint32_t     DeviceIpMask() const { return device_ip_mask_; }
 
-    uint32_t        ConfigReset()    const { return config_reset_; }
-    uint32_t        ConfigWritable() const { return config_writable_; }
-    MipsFixedFields ConfigFixed()    const { return config_fixed_; }
-    uint32_t        StatusReset()    const { return status_reset_; }
-    uint32_t        StatusWritable() const { return status_writable_; }
-    MipsFixedFields StatusFixed()    const { return status_fixed_; }
+    uint32_t ConfigReset()    const { return config_reset_; }
+    uint32_t ConfigWritable() const { return config_writable_; }
+    uint32_t StatusReset()    const { return status_reset_; }
+    uint32_t StatusWritable() const { return status_writable_; }
 
     bool HasFpu()              const { return fpu_; }
     bool HasLlsc()             const { return llsc_; }
@@ -60,12 +51,10 @@ private:
     uint32_t     min_page_shift_ = 0;
     uint32_t     phys_addr_mask_ = 0;
     uint32_t     device_ip_mask_ = 0;
-    uint32_t        config_reset_    = 0;
-    uint32_t        config_writable_ = 0;
-    MipsFixedFields config_fixed_;
-    uint32_t        status_reset_    = 0;
-    uint32_t        status_writable_ = 0;
-    MipsFixedFields status_fixed_;
+    uint32_t     config_reset_    = 0;
+    uint32_t     config_writable_ = 0;
+    uint32_t     status_reset_    = 0;
+    uint32_t     status_writable_ = 0;
     cerfengine::MipsIsaLevel isa_level_ = cerfengine::MipsIsaLevel::kMips1;
 
     bool fpu_                = false;

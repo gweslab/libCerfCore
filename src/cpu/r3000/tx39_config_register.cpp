@@ -6,6 +6,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include "../../execution/mips_engine_bridge.h"
+#include "../mips/mips_cp0_field_limits.h"
 #include "../mips_processor_config.h"
 #include <cerfengine/mips/mips_cpu.h>
 #include <cerfengine/mips/mips_cpu_state.h>
@@ -40,6 +41,7 @@ void Tx39ConfigRegister::OnReady() {
     engine_    = &bridge.Engine();
     cpu_state_ = engine_->Get<cerfengine::MipsCpu>().State();
     config_    = &emu_.Get<MipsProcessorConfig>();
+    limits_    = &emu_.Get<MipsCp0FieldLimits>();
     bridge.RegisterResetListener([this] { ApplyReset(); });
     ApplyReset();
 }
@@ -66,7 +68,7 @@ void CERFENGINE_FASTCALL Tx39ConfigRegister::WriteConfig(void* context, uint32_t
         reg->emu_.Get<Fatal>().Die("Tx39ConfigRegister: Config write 0x%08X sets Doze and Halt",
                                    value);
     }
-    const MipsFixedFields fixed = reg->config_->ConfigFixed();
+    const MipsFixedFields fixed = reg->limits_->Config();
     if (!fixed.Accepts(value)) {
         reg->emu_.Get<Fatal>().Die("Tx39ConfigRegister: Config write 0x%08X sets fields 0x%08X to 0x%08X; CERF "
                                    "supports 0x%08X only", value, fixed.mask, value & fixed.mask, fixed.value);

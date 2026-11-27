@@ -6,8 +6,6 @@
     "device_ip_mask": "0x00000C00",
     "madd16_dmadd16": true,
     "config_reset": "0x00024000",
-    "config_writable": "0x0F000007",
-    "config_fixed_mask": "0x0F800000",
-    "config_fixed_value": "0x03000000"
+    "config_writable": "0x0F000007"
   }
 }
