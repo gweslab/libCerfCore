@@ -3,5 +3,6 @@
   "short_name": "Lumia 800",
   "board_family_id": "nokia_sea_ray",
   "support_level": "bootable_partial",
-  "internal__spec_divergences": "HSDPA 850/900/1900/2100"
+  "internal__spec_divergences": "HSDPA 850/900/1900/2100",
+  "dynamic_scale_factor": -1
 }
