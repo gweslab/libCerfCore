@@ -109,7 +109,6 @@ struct DbBoard {
     bool                          configurable_screen;
     uint32_t                      device_year;
     std::optional<std::array<uint8_t, 3>> led_color;
-    std::optional<uint32_t>               hw_revision;
     std::vector<std::string>              notes;
     std::vector<DbFeature>            features;
     std::vector<const DbPart*>        connected_parts;

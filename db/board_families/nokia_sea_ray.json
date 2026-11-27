@@ -5,11 +5,14 @@
   "notes": [],
   "ga_color_depth": 24,
   "rom_placing_mode": "lumia800_emmc",
-  "hw_revision": 4,
   "board_config": {
     "camera_sensor": {
       "default": "toshiba_jt8ew9",
       "values": ["toshiba_jt8ew9", "sony_imx125"]
+    },
+    "hw_revision": {
+      "default": "4",
+      "values": ["2", "3", "4"]
     }
   }
 }

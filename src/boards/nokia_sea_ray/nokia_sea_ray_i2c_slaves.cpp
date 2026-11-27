@@ -9,11 +9,11 @@
 #include "../../socs/msm8255/msm8255_i2c_slaves.h"
 
 #include <cerfcore/boards/board_context.h>
-#include <cerfcore/core/board_database.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "nokia_sea_ray_family_id.h"
+#include "nokia_sea_ray_hw_revision_straps.h"
 #include "nokia_sea_ray_lens_driver.h"
 
 #include <array>
@@ -48,10 +48,9 @@ public:
         auto& accel   = emu_.Get<KionixKxtf9>();
         i2c1_bus_     = {&gauge, &sensor, &compass, &touch, &accel};
         qup_bus_      = {&emu_.Get<SmiaCameraSensor>(), &emu_.Get<NokiaSeaRayLensDriver>()};
-        const DbBoard& board =
-            *emu_.Get<BoardDatabase>().FindBoard(emu_.Get<BoardContext>().GetBoardId());
-        const uint32_t chg_pin =
-            *board.hw_revision < kTouchChgRevision ? kTouchChgPinEarly : kTouchChgPin;
+        const uint32_t chg_pin = emu_.Get<NokiaSeaRayHwRevisionStraps>().Revision() < kTouchChgRevision
+                                     ? kTouchChgPinEarly
+                                     : kTouchChgPin;
         touch.AddChgListener([this, chg_pin](bool level) {
             emu_.Get<Msm8255GpioBus>().SetInputPin(chg_pin, level);
         });

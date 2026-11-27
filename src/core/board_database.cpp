@@ -46,7 +46,6 @@ constexpr char kRomPlacingMode[]           = "rom_placing_mode";
 constexpr char kConfigurableScreen[]       = "configurable_screen";
 constexpr char kDeviceYear[]               = "device_year";
 constexpr char kLedColor[]                 = "led_color";
-constexpr char kHwRevision[]               = "hw_revision";
 constexpr char kNotes[]                    = "notes";
 constexpr char kGenericPartId[]            = "generic_part_id";
 constexpr char kSupported[]                = "supported";
@@ -250,7 +249,6 @@ void BoardDatabase::OnReady() {
         row.configurable_screen = v.ValueOr(kConfigurableScreen, false);
         row.device_year         = v.ValueOr(kDeviceYear, 0u);
         if (v.Owner(kLedColor).contains(kLedColor)) row.led_color = v.Value<std::array<uint8_t, 3>>(kLedColor);
-        if (v.Owner(kHwRevision).contains(kHwRevision)) row.hw_revision = v.Value<uint32_t>(kHwRevision);
         row.notes = family.value(kNotes, std::vector<std::string>());
         for (std::string& note : b.value(kNotes, std::vector<std::string>())) row.notes.push_back(std::move(note));
         MergeBoardConfig(family, row.config);
