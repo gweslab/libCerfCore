@@ -7,8 +7,11 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/log.h>
 #include <cerfcore/host/keyboard_input.h>
 #include <cerfcore/host/keyboard_router.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -20,6 +23,10 @@ bool CerfVirtKeyboard::ShouldRegister() {
 }
 
 void CerfVirtKeyboard::OnReady() {
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        if (!emu_.Get<GuestCpuReset>().DeliveredResetWasResume())
+            no_injector_.store(false, std::memory_order_release);
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 
@@ -35,10 +42,17 @@ uint32_t CerfVirtKeyboard::ReadWord(uint32_t addr) {
         off < CerfVirt::kKbRingBase + CerfVirt::kKbRingCount * 4u) {
         return ring_[(off - CerfVirt::kKbRingBase) / 4u].load();
     }
-    return 0u;
+    emu_.Get<Fatal>().Die("[CerfVirtKeyboard] read +0x%X", off);
 }
 
-void CerfVirtKeyboard::WriteWord(uint32_t, uint32_t) {}
+void CerfVirtKeyboard::WriteWord(uint32_t addr, uint32_t value) {
+    if (addr - MmioBase() != CerfVirt::kKbNoInjector)
+        emu_.Get<Fatal>().Die("[CerfVirtKeyboard] write +0x%X = 0x%08X", addr - MmioBase(), value);
+    no_injector_.store(value != 0u, std::memory_order_release);
+    LOG(GuestAdditions, "guest additions: the guest %s keyboard input\n",
+        value != 0u ? "cannot inject" : "injects");
+    emu_.Get<KeyboardRouter>().ReevaluateAuto();
+}
 
 void CerfVirtKeyboard::PushKey(uint8_t vk, bool key_up) {
     uint32_t seq = write_seq_.load();
@@ -52,6 +66,7 @@ void CerfVirtKeyboard::SaveState(StateWriter& w) {
     w.Write<uint32_t>("write_seq", write_seq_.load());
     for (uint32_t i = 0; i < CerfVirt::kKbRingCount; ++i)
         w.Write<uint32_t>("ring", ring_[i].load());
+    w.Write<uint8_t>("no_injector", no_injector_.load(std::memory_order_acquire) ? 1u : 0u);
 }
 
 void CerfVirtKeyboard::RestoreState(StateReader& r) {
@@ -60,6 +75,9 @@ void CerfVirtKeyboard::RestoreState(StateReader& r) {
     for (uint32_t i = 0; i < CerfVirt::kKbRingCount; ++i) {
         r.Read("ring", v); ring_[i].store(v);
     }
+    uint8_t no_injector = 0;
+    r.Read("no_injector", no_injector);
+    no_injector_.store(no_injector != 0u, std::memory_order_release);
 }
 
 namespace {
@@ -83,7 +101,7 @@ public:
     int            SourcePriority() const override { return 100; }
 
     bool SourceReady() const override {
-        return emu_.Get<CerfGuestLiveness>().IsAlive();
+        return emu_.Get<CerfGuestLiveness>().IsAlive() && emu_.Get<CerfVirtKeyboard>().GuestInjects();
     }
 
     void OnHostKey(uint8_t vk, bool key_up) override {

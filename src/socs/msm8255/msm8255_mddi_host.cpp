@@ -355,10 +355,14 @@ private:
                 SetReg(kRegCmd, value);
                 EnterLinkActive();
                 return;
+            case kCmdReset:
+                SetReg(kRegCmd, value);
+                rev_cursor_.store(0u, std::memory_order_release);
+                EnterHibernation();
+                return;
             case kCmdPowerdown:
             case kCmdHibernate:
             case kCmdHibernateAfterSf:
-            case kCmdReset:
                 SetReg(kRegCmd, value);
                 EnterHibernation();
                 return;

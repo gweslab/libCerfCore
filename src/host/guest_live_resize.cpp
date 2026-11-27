@@ -17,6 +17,7 @@ REGISTER_SERVICE(GuestLiveResize);
 bool GuestLiveResize::ShouldRegister() { return emu_.Get<DeviceConfig>().guest_additions; }
 
 bool GuestLiveResize::Supported() const {
+    if (emu_.Get<CerfVirtResize>().GuestFixedSize()) return false;
     uint16_t major = 0, minor = 0;
     auto*    image = emu_.TryGet<GuestXipImage>();
     if (!image || !image->KernelSubsystemVersion(major, minor)) return true;

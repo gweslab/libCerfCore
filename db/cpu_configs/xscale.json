@@ -11,6 +11,8 @@
     "blx_reg": true,
     "armv5_unconditional_space": true,
     "load_to_pc_interworking": true,
-    "aux_control_register": true
+    "aux_control_register": true,
+    "sctlr_read_only_mask": "0xFFFFC478",
+    "sctlr_read_only_value": "0x00000078"
   }
 }

@@ -115,14 +115,10 @@ struct ParsedRom {
     bool                         is_nosaj     = false;
     bool                         is_arnold    = false;
     bool                         is_nbf       = false;
-    bool                         is_wmstore   = false;
-    size_t                       wmstore_payload_off   = 0;
-    size_t                       wmstore_payload_bytes = 0;
     bool                         is_ce1       = false;
     bool                         has_imgfs        = false;
     bool                         imgfs_is_ftl     = false;
     uint32_t                     imgfs_file_off   = 0;
-    uint32_t                     imgfs_bytes_per_block = 0;
     std::vector<ParsedXipRegion> xips;
     std::vector<ParsedImgfsModule> imgfs_modules;
 

@@ -1,0 +1,7 @@
+{
+  "id": "touch_controller",
+  "name": "Touch controller NVM",
+  "picker_type": "existing_or_point",
+  "board_family_ids": ["nokia_sea_ray"],
+  "formats": ["img"]
+}

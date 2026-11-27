@@ -12,6 +12,8 @@ class UsbHub : public UsbDevice, public UsbHostPortHost {
 public:
     explicit UsbHub(int num_ports);
 
+    static constexpr bool kAttachesHighSpeed = true;
+
     /* USB 2.0 Spec 11.24 Table 11-16 (p421): Hub Class Request Codes. */
     static constexpr uint8_t kHubReqGetStatus     = 0u;
     static constexpr uint8_t kHubReqClearFeature  = 1u;
@@ -37,6 +39,7 @@ public:
 
     bool GetDescriptor(uint8_t type, uint8_t index, uint16_t lang_id,
                        std::vector<uint8_t>& out) override;
+    bool HighSpeed() const override;
     bool HandleClassRequest(const SetupPacket& setup,
                             std::vector<uint8_t>& data_stage) override;
     uint32_t OnBulkIn(uint8_t ep, uint8_t* dst, uint32_t max) override;
@@ -62,7 +65,7 @@ private:
     static constexpr uint16_t kPortChangeReset      = 1u << 4;
 
     std::vector<uint8_t>  BuildDeviceDescriptor() const;
-    std::vector<uint8_t>  BuildConfigurationDescriptor() const;
+    std::vector<uint8_t>  BuildConfigurationDescriptor(uint8_t type, uint8_t status_interval) const;
     std::vector<uint8_t>  BuildHubDescriptor() const;
 
     std::vector<UsbHostPort> ports_;

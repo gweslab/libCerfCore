@@ -14,6 +14,8 @@ public:
     bool ShouldRegister() override;
     void OnReady() override;
 
+    void LiveResizeChanged();
+
     std::string       ObjectId() const override { return "guest_additions"; }
     static constexpr char kObjectName[] = "Guest Additions";
     std::string       ObjectName() const override { return kObjectName; }

@@ -73,9 +73,10 @@ CERF_FORCEINLINE cerfengine::ArmTranslation ArmPageWalker::Walk(uint32_t p, bool
     l1_pte.word = cerf::le::U32(l1_host);
 
     struct {
-        uint32_t span_bytes    = 0x1000u;
-        bool     global        = false;
-        bool     fast_fillable = true;
+        uint32_t span_bytes     = 0x1000u;
+        bool     global         = false;
+        bool     fast_fillable  = true;
+        uint8_t  subpage_access = 0;
     } new_slot{};
 
     switch (l1_pte.fault.type) {
@@ -156,6 +157,11 @@ CERF_FORCEINLINE cerfengine::ArmTranslation ArmPageWalker::Walk(uint32_t p, bool
                    index is VA[11:10]. */
                 const uint32_t ap = ArmL2SubpageAp(l2_pte, (p >> 10) & 3u);
                 ap_ok = ApPermits<kAccess>(ap, is_user_mode, sctlr_s, sctlr_r);
+                if (dom_field == 1u) {
+                    new_slot.subpage_access = SubpageAccess((l2_pte.word >> 4) & 0xFFu, is_user_mode,
+                                                            sctlr_s, sctlr_r);
+                    new_slot.fast_fillable = SubpageAccessCoversPage<kAccess>(new_slot.subpage_access);
+                }
             }
             if (dom_field == 1u && !ap_ok) {
                 self.cp15_->RaiseAbort(p, ArmFaultStatus::kPermissionPage, domain, kAccess);
@@ -312,6 +318,11 @@ CERF_FORCEINLINE cerfengine::ArmTranslation ArmPageWalker::Walk(uint32_t p, bool
                 self.cp15_->RaiseAbort(p, ArmFaultStatus::kPermissionPage, domain, kAccess);
                 return {};
             }
+            if (dom_field == 1u) {
+                new_slot.subpage_access = SubpageAccess((l2_pte.word >> 4) & 0xFFu, is_user_mode,
+                                                        sctlr_s, sctlr_r);
+                new_slot.fast_fillable = SubpageAccessCoversPage<kAccess>(new_slot.subpage_access);
+            }
             new_slot.global   = true;
             effective_address = ArmTranslateSmallPage(l2_pte, p).physical_address;
             break;
@@ -348,6 +359,7 @@ CERF_FORCEINLINE cerfengine::ArmTranslation ArmPageWalker::Walk(uint32_t p, bool
     result.span_bytes = new_slot.span_bytes;
     result.global     = new_slot.global;
     result.cacheable  = new_slot.fast_fillable;
+    result.subpage_access = new_slot.fast_fillable ? 0u : new_slot.subpage_access;
     return result;
 }
 

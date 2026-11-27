@@ -69,8 +69,7 @@ uint16_t Vr41xxPiuScanTiming::Take() {
 
 void Vr41xxPiuScanTiming::Retime(uint64_t now) {
     if (kind_ == kIdle || ready_cycle_ <= now) return;
-    const int64_t left = ready_ns_ - clock_->NowNs();
-    ready_cycle_ = now + (left > 0 ? clock_->NsToCycles(left) : uint64_t{0});
+    ready_cycle_ = clock_->CycleAtNs(ready_ns_);
 }
 
 void Vr41xxPiuScanTiming::Save(StateWriter& w, uint64_t now) const {
@@ -81,12 +80,12 @@ void Vr41xxPiuScanTiming::Save(StateWriter& w, uint64_t now) const {
                                  : uint64_t{0});
 }
 
-void Vr41xxPiuScanTiming::Restore(StateReader& r, uint64_t now) {
+void Vr41xxPiuScanTiming::Restore(StateReader& r) {
     uint64_t ready_in = 0;
     r.Read("scan_kind", kind_);
     r.Read("scan_ready_ns", ready_in);
     ready_ns_    = clock_->NowNs() + static_cast<int64_t>(ready_in);
-    ready_cycle_ = now + clock_->NsToCycles(static_cast<int64_t>(ready_in));
+    ready_cycle_ = clock_->CycleAfterNs(static_cast<int64_t>(ready_in));
 }
 
 }

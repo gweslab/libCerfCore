@@ -398,12 +398,16 @@ bool CerfVirtBlitter::BlendAAText(const CerfBltDescriptor& d, Surface& dst,
     if (!ResolveSurface(d.mask, 1u, &mask)) FatalSurface("AA-text mask", d.mask);
     AATextContext aa;
     const bool clear_type = d.mask.format == kCerfFmt8Bpp;
-    aa.Build(d_masks, d.solid_color);
+    aa_gamma_.Select(d.text_gamma_aa ? d.text_gamma_aa / kGammaMilli : kAaDefaultGamma);
+    aa.Build(d_masks, d.solid_color, aa_gamma_);
     const uint32_t on_color = d.solid_color & cerf::ByteWidthMask(d_bpp);
     uint32_t full_cov = 15u;
     if (clear_type) {
         switch (d.cleartype_indices) {
-        case kCerfClearTypeLevelIndices:       aa.UseClearType();                    break;
+        case kCerfClearTypeLevelIndices:
+            aa.UseClearType();
+            if (d.text_gamma_cleartype) aa.UseClearTypeGamma(d.text_gamma_cleartype);
+            break;
         case kCerfClearTypeSampleCountIndices: aa.UseClearTypeSampleCount(on_color); break;
         default:
             emu_.Get<Fatal>().Die("[CerfVirtBlitter] ClearType mask with undeclared index set %u: "

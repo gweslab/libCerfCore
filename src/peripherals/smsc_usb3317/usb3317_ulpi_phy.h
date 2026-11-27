@@ -1,25 +1,18 @@
 #pragma once
 
+#include "../usb/ulpi_phy.h"
+
 #include <cstdint>
 
 namespace cerfcore {
 
-class StateReader;
-class StateWriter;
-
-class Usb3317UlpiPhy {
+class Usb3317UlpiPhy : public UlpiPhy {
 public:
     void PowerOn();
-    bool Read(uint8_t addr, uint8_t& value) const;
-    bool Write(uint8_t addr, uint8_t value);
-
-    void SaveState(StateWriter& w) const;
-    void RestoreState(StateReader& r);
 
 private:
-    static constexpr uint8_t kRegisterCount = 0x40u;
-
-    uint8_t regs_[kRegisterCount] = {};
+    bool ReadVendor(uint8_t addr, uint8_t& value) const override;
+    bool WriteVendor(uint8_t addr, uint8_t value) override;
 };
 
 }

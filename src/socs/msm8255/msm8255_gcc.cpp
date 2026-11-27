@@ -8,7 +8,9 @@
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "msm8255_dal_remote_server.h"
+#include "msm8255_dem_master.h"
 #include "msm8255_modem_peer.h"
+#include "msm8255_qmux_peer.h"
 #include "msm8255_rpc_router_peer.h"
 #include "msm8255_rpc_server.h"
 #include "msm8255_rpc_server_registry.h"
@@ -33,6 +35,13 @@ constexpr uint32_t kReg04Reset    = 0u;
    MSM_GCC_BASE + 0x8. */
 constexpr uint32_t kRegA2mInt = 0x08u;
 
+constexpr uint32_t kRegAppsClkSleepEn = 0x20u;
+constexpr uint32_t kNoClockSleeps     = 0u;
+
+constexpr uint32_t kReg18           = 0x18u;
+constexpr uint32_t kReg1C           = 0x1Cu;
+constexpr uint32_t kSavedPairValue  = 0u;
+
 class Msm8255Gcc : public Peripheral {
 public:
     using Peripheral::Peripheral;
@@ -51,12 +60,20 @@ public:
     uint32_t MmioBase() const override { return kGccBase; }
     uint32_t MmioSize() const override { return kGccSize; }
 
+    uint32_t ReadWord(uint32_t addr) override {
+        const uint32_t off = addr - MmioBase();
+        if (off == kReg18 || off == kReg1C) return kSavedPairValue;
+        HaltUnsupportedAccess("ReadWord", addr, 0u);
+    }
+
     void WriteWord(uint32_t addr, uint32_t value) override {
         const uint32_t off = addr - MmioBase();
+        if ((off == kReg18 || off == kReg1C) && value == kSavedPairValue) return;
         if (off == kRegA2mInt) {
             emu_.Get<Msm8255ModemPeer>().RingDoorbell(value);
             return;
         }
+        if (off == kRegAppsClkSleepEn && value == kNoClockSleeps) return;
         if (off != kReg04 || value != kReg04Accepted) {
             HaltUnsupportedAccess("WriteWord", addr, value);
         }
@@ -70,6 +87,8 @@ public:
             server->SaveState(w);
         }
         emu_.Get<Msm8255DalRemoteServer>().SaveState(w);
+        emu_.Get<Msm8255QmuxPeer>().SaveState(w);
+        emu_.Get<Msm8255DemMaster>().SaveState(w);
     }
 
     void RestoreState(StateReader& r) override {
@@ -86,6 +105,8 @@ public:
             server->RestoreState(r);
         }
         emu_.Get<Msm8255DalRemoteServer>().RestoreState(r);
+        emu_.Get<Msm8255QmuxPeer>().RestoreState(r);
+        emu_.Get<Msm8255DemMaster>().RestoreState(r);
     }
 
 private:

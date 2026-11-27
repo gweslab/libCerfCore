@@ -14,9 +14,6 @@ public:
     bool ShouldRegister() override;
 
     void Apply(GuestReset reset, uint32_t prev_w, uint32_t prev_h);
-
-private:
-    void ShowResolution(uint32_t w, uint32_t h);
 };
 
 }

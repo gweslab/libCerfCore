@@ -1,6 +1,7 @@
 #include <cerfcore/core/device_file_types.h>
 
 #include <cerfcore/core/board_database.h>
+#include "../boot/flat_container_placing_mode_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/config_json.h>
@@ -74,7 +75,7 @@ void DeviceFileTypes::OnReady() {
 std::vector<DeviceFileType> DeviceFileTypes::ForBoard(std::string_view board_id) const {
     const DbBoard*   board     = emu_.Get<BoardDatabase>().FindBoard(board_id);
     std::string_view family_id = board ? std::string_view(board->family_id) : std::string_view();
-    const bool flat_container = !board || board->rom_placing_mode == RomPlacingMode::FlatContainer;
+    const bool flat_container = !board || board->rom_placing_mode == RomPlacingModeId::FlatContainer;
     std::vector<DeviceFileType> out;
     PickForBoard(rom_types_, board_id, family_id, flat_container, out);
     PickForBoard(storage_types_, board_id, family_id, true, out);

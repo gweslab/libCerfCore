@@ -24,6 +24,7 @@ public:
 
     bool GetDescriptor(uint8_t type, uint8_t index, uint16_t lang_id,
                        std::vector<uint8_t>& out) override;
+    bool HighSpeed() const override;
     bool HandleClassRequest(const SetupPacket& setup,
                             std::vector<uint8_t>& data_stage) override;
     void     OnBulkOut(uint8_t ep, const uint8_t* data, uint32_t len) override;
@@ -46,7 +47,7 @@ private:
     enum class Phase { AwaitingCbw, DataOut, DataIn, ReplyReady, ResetRecovery };
 
     std::vector<uint8_t> BuildDeviceDescriptor() const;
-    std::vector<uint8_t> BuildConfigurationDescriptor() const;
+    std::vector<uint8_t> BuildConfigurationDescriptor(uint8_t type, bool high_speed) const;
 
     void HandleCbw(const uint8_t* data, uint32_t len);
     void RejectCbw(uint32_t len);

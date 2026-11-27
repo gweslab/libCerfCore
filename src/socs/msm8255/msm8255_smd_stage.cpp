@@ -30,6 +30,7 @@ void Msm8255SmdStage::OnReady() {
     uint32_t top = 0u;
     for (uint32_t i = 0; i < parts.PartitionCount(); ++i) {
         const Msm8255RamPartition part = parts.Partition(i);
+        if (!Msm8255PartitionIsKernelRam(part)) continue;
         const uint32_t end = part.start + part.size;
         if (end > top) top = end;
     }

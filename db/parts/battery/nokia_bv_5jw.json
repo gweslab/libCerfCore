@@ -1,0 +1,1 @@
+{ "name": "Nokia BV-5JW", "supported": true, "chemistry": "li_ion", "connections": [{ "board_family_ids": ["nokia_sea_ray"] }] }

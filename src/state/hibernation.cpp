@@ -11,6 +11,7 @@
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/instance_threads.h>
 #include <cerfcore/core/log.h>
+#include "../cpu/emulated_memory_image.h"
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/execution/jit_runner.h>
 #include <cerfcore/host/emulation_pause.h>
@@ -186,8 +187,8 @@ void Hibernation::SaveSection(StateWriter& w, StateSection section) {
     switch (section) {
         case StateSection::Cpu:   emu_.Get<EngineBridge>().SaveCpuState(w); break;
         case StateSection::Mmu:   emu_.Get<EngineBridge>().SaveMmuState(w); break;
-        case StateSection::Ram:   emu_.Get<EmulatedMemory>().SaveState(w); break;
-        case StateSection::Flash: emu_.Get<EmulatedMemory>().SaveFlashRegions(w); break;
+        case StateSection::Ram:   emu_.Get<EmulatedMemoryImage>().SaveState(w); break;
+        case StateSection::Flash: emu_.Get<EmulatedMemoryImage>().SaveFlashRegions(w); break;
         case StateSection::Periph: {
             const auto periphs = emu_.Get<PeripheralDispatcher>().RegisteredPeripherals();
             w.Write<uint32_t>("periph_count", static_cast<uint32_t>(periphs.size()));
@@ -328,24 +329,15 @@ void Hibernation::FillMemory(const std::string& path, bool with_flash) {
 void Hibernation::ApplyMemory(const std::string& path, bool write, bool with_flash) {
     StateReader r(emu_, path);
     ReadHeader(r);
-    auto& memory = emu_.Get<EmulatedMemory>();
-    while (r.Remaining() != 0) {
-        const auto section = static_cast<StateSection>(r.EnterFrame());
-        if (section != StateSection::Ram && (section != StateSection::Flash || !with_flash)) {
-            r.SkipFrame();
-            continue;
-        }
-        memory.RestoreRegions(r, section == StateSection::Flash, write);
-        r.LeaveFrame();
-    }
+    emu_.Get<EmulatedMemoryImage>().RestoreSections(r, write, with_flash);
 }
 
 void Hibernation::RestoreSection(StateReader& r, StateSection section) {
     switch (section) {
         case StateSection::Cpu:    emu_.Get<EngineBridge>().RestoreCpuState(r); break;
         case StateSection::Mmu:    emu_.Get<EngineBridge>().RestoreMmuState(r); break;
-        case StateSection::Ram:    emu_.Get<EmulatedMemory>().RestoreState(r); break;
-        case StateSection::Flash:  emu_.Get<EmulatedMemory>().RestoreFlashRegions(r); break;
+        case StateSection::Ram:    emu_.Get<EmulatedMemoryImage>().RestoreState(r); break;
+        case StateSection::Flash:  emu_.Get<EmulatedMemoryImage>().RestoreFlashRegions(r); break;
         case StateSection::Periph: RestorePeripherals(r); break;
         case StateSection::Presentation: RestorePresentation(r); break;
         case StateSection::Objects: emu_.Get<MachineObjectTree>().RestoreState(r); break;

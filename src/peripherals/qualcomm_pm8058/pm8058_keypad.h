@@ -43,10 +43,11 @@ private:
     uint32_t DriveLines() const;
     uint32_t SenseLines() const;
 
-    uint8_t ReadDataPort(uint8_t (&set)[kMaxDrive], uint32_t& index);
+    uint8_t ReadDataPort(uint8_t (&set)[kMaxDrive], uint32_t& index, bool delivers_events);
     void    CaptureScan();
     void    PublishIrq();
     void    Reset();
+    void    ReleaseHeldKeys();
 
     mutable std::mutex mtx_;
 

@@ -1,5 +1,7 @@
 #include <cerfcore/peripherals/cerf_virt/guest_color_schemes.h>
 
+#include <cerfcore/peripherals/cerf_virt/cerf_virt_addr_map.h>
+
 namespace cerfcore {
 
 namespace {
@@ -126,6 +128,13 @@ constexpr GuestColorScheme kSchemes[] = {
     {"wm6_guava", "Windows Mobile 6 Guava Bubbles", kWm6Guava, 29},
     {"wm65", "Windows Mobile 6.5", kWm65, 29},
 };
+
+constexpr bool EverySchemeFitsTheRegisters() {
+    for (const GuestColorScheme& scheme : kSchemes)
+        if (scheme.count > CerfVirt::kColorSchemeMax) return false;
+    return true;
+}
+static_assert(EverySchemeFitsTheRegisters(), "a colour scheme has more entries than the scheme registers hold");
 
 }
 

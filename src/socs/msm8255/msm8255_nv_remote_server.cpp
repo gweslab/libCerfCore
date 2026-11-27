@@ -9,7 +9,6 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
-#include <cerfcore/cpu/emulated_memory.h>
 
 #include <cstdint>
 
@@ -91,35 +90,28 @@ public:
     uint32_t ServerProg() const override { return kNvProg; }
     uint32_t ServerVers() const override { return kNvVers; }
     uint32_t ServerCid() const override { return kNvCid; }
+    void ReleaseClient(const Msm8255RpcEndpoint&) override {}
 
-    uint32_t AnswerCall(uint32_t in_pa, uint32_t size, uint32_t out_pa,
+    uint32_t AnswerCall(const uint8_t* payload, uint32_t size, uint32_t out_pa,
                         uint32_t out_cap, uint32_t self_pid, uint32_t peer_pid,
                         uint32_t peer_cid) override;
 
 private:
-    struct Reply {
-        uint32_t out_pa;
-        uint32_t out_cap;
-        uint32_t self_pid;
-        uint32_t peer_pid;
-        uint32_t peer_cid;
-        uint32_t xid;
-    };
-
-    uint32_t AnswerPrlVersion(const Msm8255OncrpcCall& call, uint32_t size, const Reply& reply);
-    uint32_t AnswerNvCmd(const Msm8255OncrpcCall& call, uint32_t size, const Reply& reply);
-    uint32_t AnswerRead(uint32_t item, const NvItemLayout* layout, const Reply& reply);
+    uint32_t AnswerPrlVersion(const Msm8255OncrpcCall& call, uint32_t size,
+                              const Msm8255OncrpcRoute& reply);
+    uint32_t AnswerNvCmd(const Msm8255OncrpcCall& call, uint32_t size,
+                         const Msm8255OncrpcRoute& reply);
+    uint32_t AnswerRead(uint32_t item, const NvItemLayout* layout, const Msm8255OncrpcRoute& reply);
     uint32_t AnswerWrite(const Msm8255OncrpcCall& call, uint32_t item, const NvItemLayout* layout,
-                         uint32_t data_ptr, const Reply& reply);
-    uint32_t Send(const Reply& reply, const uint32_t* results, uint32_t words);
+                         uint32_t data_ptr, const Msm8255OncrpcRoute& reply);
 };
 
-uint32_t Msm8255NvRemoteServer::AnswerCall(uint32_t in_pa, uint32_t size,
+uint32_t Msm8255NvRemoteServer::AnswerCall(const uint8_t* payload, uint32_t size,
                                            uint32_t out_pa, uint32_t out_cap,
                                            uint32_t self_pid, uint32_t peer_pid,
                                            uint32_t peer_cid) {
-    const Msm8255OncrpcCall call = emu_.Get<Msm8255OncrpcCodec>().ParseCall(*this, in_pa, size);
-    const Reply reply{out_pa, out_cap, self_pid, peer_pid, peer_cid, call.xid};
+    const Msm8255OncrpcCall call = emu_.Get<Msm8255OncrpcCodec>().ParseCall(*this, payload, size);
+    const Msm8255OncrpcRoute reply{out_pa, out_cap, self_pid, kNvCid, peer_pid, peer_cid, call.xid};
     switch (call.proc) {
     case kProcPrlVersion:
         return AnswerPrlVersion(call, size, reply);
@@ -132,26 +124,20 @@ uint32_t Msm8255NvRemoteServer::AnswerCall(uint32_t in_pa, uint32_t size,
     }
 }
 
-uint32_t Msm8255NvRemoteServer::Send(const Reply& reply, const uint32_t* results, uint32_t words) {
-    return emu_.Get<Msm8255OncrpcCodec>().WriteAcceptedReply(
-        reply.out_pa, reply.out_cap, reply.self_pid, kNvCid, reply.peer_pid,
-        reply.peer_cid, reply.xid, results, words);
-}
-
 uint32_t Msm8255NvRemoteServer::AnswerPrlVersion(const Msm8255OncrpcCall& call, uint32_t size,
-                                                 const Reply& reply) {
-    emu_.Get<Msm8255OncrpcCodec>().RequireCallBytes(*this, call.proc, size, kPrlCallBytes);
-    const uint32_t nam = Be32(emu_.Get<EmulatedMemory>().ReadWord(call.body + kPrlNamOff));
+                                                 const Msm8255OncrpcRoute& reply) {
+    auto& codec = emu_.Get<Msm8255OncrpcCodec>();
+    codec.RequireCallBytes(*this, call.proc, size, kPrlCallBytes);
+    const uint32_t nam = codec.CallWord(call, kPrlNamOff);
     if (nam > kByteMax) {
         emu_.Get<Fatal>().Die("msm8255 nv remote server: prl version of nam word %u", nam);
     }
     const uint32_t results[1] = {kPrlVersionNone};
-    return Send(reply, results, 1u);
+    return codec.WriteAcceptedReply(reply, results, 1u);
 }
 
 uint32_t Msm8255NvRemoteServer::AnswerNvCmd(const Msm8255OncrpcCall& call, uint32_t size,
-                                            const Reply& reply) {
-    auto& mem   = emu_.Get<EmulatedMemory>();
+                                            const Msm8255OncrpcRoute& reply) {
     auto& codec = emu_.Get<Msm8255OncrpcCodec>();
 
     if (size < kPacmarkBytes + kArgUnionTagOff) {
@@ -160,20 +146,21 @@ uint32_t Msm8255NvRemoteServer::AnswerNvCmd(const Msm8255OncrpcCall& call, uint3
             "short of its %u-byte fixed arguments", call.proc, size,
             kPacmarkBytes + kArgUnionTagOff);
     }
-    const uint32_t cmd      = Be32(mem.ReadWord(call.body + kArgCmdOff));
-    const uint32_t item     = Be32(mem.ReadWord(call.body + kArgItemOff));
-    const uint32_t data_ptr = Be32(mem.ReadWord(call.body + kArgDataPtrOff));
+    const uint32_t cmd      = codec.CallWord(call, kArgCmdOff);
+    const uint32_t item     = codec.CallWord(call, kArgItemOff);
+    const uint32_t data_ptr = codec.CallWord(call, kArgDataPtrOff);
     const NvItemLayout* layout = FindLayout(item);
 
+    codec.RequireBoolean(*this, call.proc, data_ptr);
     if (data_ptr == kXdrFalse) {
         codec.RequireCallBytes(*this, call.proc, size, kPacmarkBytes + kArgUnionTagOff);
-    } else if (data_ptr == kXdrTrue) {
+    } else {
         if (size < kPacmarkBytes + kArgUnionOff) {
             emu_.Get<Fatal>().Die(
                 "msm8255 nv remote server: nv command %u on item %u carries %u "
                 "payload bytes and no union tag", cmd, item, size);
         }
-        const uint32_t tag         = Be32(mem.ReadWord(call.body + kArgUnionTagOff));
+        const uint32_t tag         = codec.CallWord(call, kArgUnionTagOff);
         const uint32_t union_bytes = size - (kPacmarkBytes + kArgUnionOff);
         if (tag != item || union_bytes % 4u != 0u ||
             (layout && union_bytes != 4u * UnionWords(layout->form))) {
@@ -181,10 +168,6 @@ uint32_t Msm8255NvRemoteServer::AnswerNvCmd(const Msm8255OncrpcCall& call, uint3
                 "msm8255 nv remote server: nv command %u on item %u carries union "
                 "tag %u and %u union bytes", cmd, item, tag, union_bytes);
         }
-    } else {
-        emu_.Get<Fatal>().Die(
-            "msm8255 nv remote server: nv command %u on item %u carries data "
-            "pointer flag %u", cmd, item, data_ptr);
     }
 
     switch (cmd) {
@@ -199,7 +182,8 @@ uint32_t Msm8255NvRemoteServer::AnswerNvCmd(const Msm8255OncrpcCall& call, uint3
 }
 
 uint32_t Msm8255NvRemoteServer::AnswerRead(uint32_t item, const NvItemLayout* layout,
-                                           const Reply& reply) {
+                                           const Msm8255OncrpcRoute& reply) {
+    auto& codec = emu_.Get<Msm8255OncrpcCodec>();
     uint8_t data[kModemNvItemDataBytes] = {};
     auto& store = emu_.Get<Msm8255ModemNvStore>();
     if (!store.Find(item, data)) {
@@ -209,7 +193,7 @@ uint32_t Msm8255NvRemoteServer::AnswerRead(uint32_t item, const NvItemLayout* la
                 "store holds only at another index, is not modeled", item);
         }
         const uint32_t results[2] = {kNvStatusInactive, kXdrFalse};
-        return Send(reply, results, 2u);
+        return codec.WriteAcceptedReply(reply, results, 2u);
     }
     if (!layout) {
         emu_.Get<Fatal>().Die(
@@ -222,23 +206,23 @@ uint32_t Msm8255NvRemoteServer::AnswerRead(uint32_t item, const NvItemLayout* la
         results[kResultHeadWords + i] =
             layout->form == NvUnion::kWords31 ? cerf::le::U32(data, 4u * i) : data[i];
     }
-    return Send(reply, results, kResultHeadWords + words);
+    return codec.WriteAcceptedReply(reply, results, kResultHeadWords + words);
 }
 
 uint32_t Msm8255NvRemoteServer::AnswerWrite(const Msm8255OncrpcCall& call, uint32_t item,
                                             const NvItemLayout* layout, uint32_t data_ptr,
-                                            const Reply& reply) {
+                                            const Msm8255OncrpcRoute& reply) {
     if (!layout || data_ptr != kXdrTrue) {
         emu_.Get<Fatal>().Die(
             "msm8255 nv remote server: write of nv item %u with data pointer flag "
             "%u is not modeled", item, data_ptr);
     }
-    auto& mem = emu_.Get<EmulatedMemory>();
+    auto& codec = emu_.Get<Msm8255OncrpcCodec>();
     uint8_t  data[kModemNvItemDataBytes] = {};
     uint32_t results[kResultMaxWords]    = {kNvStatusOk, kXdrTrue, item};
     const uint32_t words = UnionWords(layout->form);
     for (uint32_t i = 0; i < words; ++i) {
-        const uint32_t word = Be32(mem.ReadWord(call.body + kArgUnionOff + 4u * i));
+        const uint32_t word = codec.CallWord(call, kArgUnionOff + 4u * i);
         if (layout->form == NvUnion::kWords31) {
             cerf::le::Put32(data + 4u * i, word);
         } else {
@@ -252,7 +236,7 @@ uint32_t Msm8255NvRemoteServer::AnswerWrite(const Msm8255OncrpcCall& call, uint3
         results[kResultHeadWords + i] = word;
     }
     emu_.Get<Msm8255ModemNvStore>().Store(item, data);
-    return Send(reply, results, kResultHeadWords + words);
+    return codec.WriteAcceptedReply(reply, results, kResultHeadWords + words);
 }
 
 }

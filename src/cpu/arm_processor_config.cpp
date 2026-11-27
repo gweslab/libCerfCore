@@ -69,6 +69,9 @@ void ArmProcessorConfig::OnReady() {
     aux_control_register_  = c.Boolean("aux_control_register");
     l2_cache_aux_control_  = c.Boolean("l2_cache_aux_control");
     l1_system_array_debug_ = c.Boolean("l1_system_array_debug");
+    performance_monitors_  = c.Boolean("performance_monitors");
+    pmcr_identification_   = c.Number("pmcr_identification");
+    pmu_interrupt_         = c.Number("pmu_interrupt");
 
     vfp_   = c.Boolean("vfp");
     neon_  = c.Boolean("neon");
@@ -79,6 +82,9 @@ void ArmProcessorConfig::OnReady() {
     xscale_accumulator_ = c.Boolean("xscale_accumulator");
     iwmmxt_             = c.Boolean("iwmmxt");
     wcid_               = c.Number("wcid");
+
+    sctlr_read_only_mask_  = c.Number("sctlr_read_only_mask");
+    sctlr_read_only_value_ = c.Number("sctlr_read_only_value");
 }
 
 /* ARM DDI 0406C.c B4.1.41 (p. B4-1555) CSSELR: Level bits[3:1], InD bit[0]. */

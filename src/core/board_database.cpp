@@ -46,6 +46,7 @@ constexpr char kRomPlacingMode[]           = "rom_placing_mode";
 constexpr char kConfigurableScreen[]       = "configurable_screen";
 constexpr char kDeviceYear[]               = "device_year";
 constexpr char kLedColor[]                 = "led_color";
+constexpr char kHwRevision[]               = "hw_revision";
 constexpr char kNotes[]                    = "notes";
 constexpr char kGenericPartId[]            = "generic_part_id";
 constexpr char kSupported[]                = "supported";
@@ -76,12 +77,6 @@ constexpr std::pair<std::string_view, SupportLevel> kSupportLevels[] = {
     {CERF_SUPPORT_BOOTABLE_PARTIAL, SupportLevel::BootablePartial},
     {CERF_SUPPORT_UNKNOWN_PARTIAL, SupportLevel::UnknownPartial},
     {CERF_SUPPORT_NO_SUPPORT, SupportLevel::NoSupport},
-};
-
-constexpr std::pair<std::string_view, RomPlacingMode> kRomPlacingModes[] = {
-    {"flat_container", RomPlacingMode::FlatContainer},
-    {"imx51_nand", RomPlacingMode::Imx51Nand},
-    {"reset_vector", RomPlacingMode::ResetVector},
 };
 
 bool InWordList(std::string_view list, std::string_view word) {
@@ -251,10 +246,11 @@ void BoardDatabase::OnReady() {
         row.ga_color_depth      = v.ValueOr(kGaColorDepth, kDefaultGaColorDepth);
         row.ga_window_size      = v.ValueOr(kGaWindowSize, kDefaultGaWindowSize);
         row.dynamic_scale_factor = v.ValueOr(kDynamicScaleFactor, 0);
-        row.rom_placing_mode    = ValueByName(kRomPlacingModes, v.Value<std::string>(kRomPlacingMode));
+        row.rom_placing_mode    = v.Value<std::string>(kRomPlacingMode);
         row.configurable_screen = v.ValueOr(kConfigurableScreen, false);
         row.device_year         = v.ValueOr(kDeviceYear, 0u);
         if (v.Owner(kLedColor).contains(kLedColor)) row.led_color = v.Value<std::array<uint8_t, 3>>(kLedColor);
+        if (v.Owner(kHwRevision).contains(kHwRevision)) row.hw_revision = v.Value<uint32_t>(kHwRevision);
         row.notes = family.value(kNotes, std::vector<std::string>());
         for (std::string& note : b.value(kNotes, std::vector<std::string>())) row.notes.push_back(std::move(note));
         MergeBoardConfig(family, row.config);

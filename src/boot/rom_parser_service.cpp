@@ -5,9 +5,9 @@
 #include "ce1_rom_parse.h"
 #include "ce_imgfs_walker.h"
 #include "rom_image_parse.h"
-#include "rom_wmstore_parse.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "flat_container_placing_mode_id.h"
 #include "../core/ascii_case.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
@@ -41,8 +41,6 @@ using cerf::rom_image_parse::NosajLocateOsXip;
 using cerf::rom_image_parse::NosajOsXip;
 using cerf::rom_image_parse::ResolveNextStructuralXip;
 using cerf::rom_image_parse::ResolveRomhdrStructural;
-using cerf::rom_image_parse::WmstoreLocateOsXip;
-using cerf::rom_image_parse::WmstoreOsXip;
 using cerf::le::U32;
 using cerf::rom_image_parse::kArnoldSignature;
 using cerf::rom_image_parse::kB000FFSignature;
@@ -53,7 +51,7 @@ using cerf::rom_image_parse::kNosajSignature;
 
 bool RomParserService::ShouldRegister() {
     return emu_.Get<BoardContext>().GetRomPlacingMode()
-        == RomPlacingMode::FlatContainer;
+        == RomPlacingModeId::FlatContainer;
 }
 
 bool RomParserService::ParseCe1Xips(ParsedRom& rom) {
@@ -155,17 +153,6 @@ bool RomParserService::ParseOne(ParsedRom& rom) {
                   "span=%.1f MB\n",
             rom.filename.c_str(), os.data_off,
             double(os.flat_size) / 1024.0 / 1024.0);
-    } else if (WmstoreOsXip wm; WmstoreLocateOsXip(rom.raw, wm)) {
-        rom.flat         = std::span<const uint8_t>(rom.raw)
-                               .subspan(wm.data_off, wm.flat_size);
-        rom.flat_base_va = wm.base_va;
-        rom.is_wmstore   = true;
-        rom.wmstore_payload_off   = wm.payload_off;
-        rom.wmstore_payload_bytes = wm.payload_bytes;
-        LOG(Boot, "RomParser %s: _wmstore container - NK XIP @ file 0x%zX "
-                  "base=0x%08X span=%.1f MB\n",
-            rom.filename.c_str(), wm.data_off, wm.base_va,
-            double(wm.flat_size) / 1024.0 / 1024.0);
     } else {
         rom.flat = std::span<const uint8_t>(rom.raw);
         rom.flat_base_va = 0;
@@ -255,42 +242,29 @@ bool RomParserService::ParseOne(ParsedRom& rom) {
         }
     } else if (!rom.is_nosaj) {
         rom.flat_base_va = primary.load_offset;
-        rom.entry_va     = primary.toc.romhdr.physfirst;
-        /* Kernel entry is the e32 entry point. physfirst can be a zero
-           RomSignature pad the OS reuses for its sleep save block (SIMpad:
-           e32_entryrva=0x1000), so a reset entering at physfirst after a suspend
-           executes the save block. e32_entryrva=0 keeps entry_va == physfirst. */
-        for (const auto& m : primary.toc.modules) {
-            if (rom.is_ce1) break;
-            if (m.ulLoadOffset != rom.entry_va) continue;   /* kernel = module @ physfirst */
-            const size_t e32_off = size_t(m.ulE32Offset - rom.flat_base_va);
-            if (e32_off + kE32OffVbase + 4 > rom.flat.size()) break;
-            const uint32_t entryrva = U32(rom.flat.data(), e32_off + kE32OffEntryRva);
-            const uint32_t vbase    = U32(rom.flat.data(), e32_off + kE32OffVbase);
-            if (vbase == rom.entry_va && entryrva < 0x01000000u)
-                rom.entry_va = vbase + entryrva;
-            break;
-        }
+        rom.entry_va     = rom.is_ce1
+                             ? primary.toc.romhdr.physfirst
+                             : cerf::rom_image_parse::KernelEntryVa(rom.flat, rom.flat_base_va,
+                                                                    primary.toc);
     }
 
     if (!rom.is_b000ff && !rom.is_nosaj && !rom.is_arnold && !rom.is_nbf
         && !rom.is_ce1) {
         ImgfsSuperblock sb;
         if (FindImgfsBase(rom.raw, sb)) {
-            const size_t   off = sb.off;
-            const uint32_t bpb = sb.bytes_per_block;
-            rom.has_imgfs        = true;
-            rom.imgfs_file_off   = uint32_t(off);
-            rom.imgfs_bytes_per_block = bpb;
+            const size_t off = sb.off;
+            rom.has_imgfs      = true;
+            rom.imgfs_file_off = uint32_t(off);
             LOG(Boot, "RomParser %s: IMGFS superblock @ file offset 0x%zX "
-                      "(%.1f MB into image), bytes_per_block=0x%X\n",
-                rom.filename.c_str(), off,
-                double(off) / 1024.0 / 1024.0, bpb);
+                      "(%.1f MB into image), first directory block 0x%X, %u sector(s) "
+                      "per directory block\n",
+                rom.filename.c_str(), off, double(off) / 1024.0 / 1024.0,
+                sb.first_dir_block, sb.dir_block_sectors);
 
             auto tr = cerf::ce_imgfs_walker::Translator::Detect(rom.raw, off);
             rom.imgfs_is_ftl = tr.IsFtl();
             auto mods = cerf::ce_imgfs_walker::CollectModules(
-                rom.raw, tr, bpb);
+                rom.raw, tr, sb.first_dir_block, sb.dir_block_sectors);
             rom.imgfs_modules.reserve(mods.size());
             for (auto& m : mods) {
                 ParsedImgfsModule out;

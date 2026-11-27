@@ -21,6 +21,8 @@ public:
 
     virtual bool MatchesAddress(uint8_t slave_addr) const = 0;
 
+    virtual bool OwnsAddress(uint8_t slave_addr) const { return MatchesAddress(slave_addr); }
+
     virtual void TxnStart(uint8_t slave_addr) = 0;
 
     virtual bool TxnWriteByte(uint8_t slave_addr, uint8_t byte) = 0;

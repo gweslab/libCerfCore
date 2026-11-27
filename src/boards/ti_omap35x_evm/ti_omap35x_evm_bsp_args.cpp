@@ -1,6 +1,7 @@
 #include <cerfcore/boards/board_context.h>
 #include "ti_omap35x_evm_family_id.h"
 
+#include "../../boot/oal_args_header.h"
 #include <cerfcore/boot/guest_cold_boot.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
@@ -14,13 +15,9 @@ namespace cerfcore {
 namespace {
 
 constexpr uint32_t kBspArgsPa        = 0x80000000u;
-constexpr uint32_t kOalArgsSignature = 0x53475241u;   /* 'SGRA' */
 constexpr uint16_t kOalArgsVersion   = 1;
 constexpr uint16_t kBspArgsVersion   = 1;
 
-constexpr uint32_t kOffSignature   = 0x00u;
-constexpr uint32_t kOffOalVersion  = 0x04u;
-constexpr uint32_t kOffBspVersion  = 0x06u;
 constexpr uint32_t kOffUpdateMode  = 0x08u;
 constexpr uint32_t kOffColdBoot    = 0x0Cu;
 constexpr uint32_t kOffDeviceID    = 0x10u;
@@ -46,9 +43,7 @@ private:
     void WriteArgs() {
         auto& mem = emu_.Get<EmulatedMemory>();
 
-        mem.WriteWord(kBspArgsPa + kOffSignature,   kOalArgsSignature);
-        mem.WriteHalf(kBspArgsPa + kOffOalVersion,  kOalArgsVersion);
-        mem.WriteHalf(kBspArgsPa + kOffBspVersion,  kBspArgsVersion);
+        emu_.Get<OalArgsHeader>().Write(kBspArgsPa, kOalArgsVersion, kBspArgsVersion);
         mem.WriteWord(kBspArgsPa + kOffUpdateMode,  0u);
         /* If coldBoot is 0, OALIoCtlHalQueryFormatPartition returns
            FALSE → FATFS skips formatting the blank PART_DOS32
@@ -60,9 +55,7 @@ private:
             mem.WriteWord(kBspArgsPa + kOffKitl + i, 0u);
         }
 
-        LOG(Board, "TiOmap35xEvmBspArgs: BSP_ARGS at PA 0x%08X "
-                   "signature=0x%08X coldBoot=1\n",
-            kBspArgsPa, kOalArgsSignature);
+        LOG(Board, "TiOmap35xEvmBspArgs: BSP_ARGS at PA 0x%08X coldBoot=1\n", kBspArgsPa);
     }
 };
 

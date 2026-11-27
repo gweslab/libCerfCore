@@ -43,8 +43,8 @@ CpuArch BoardContext::GetCpuArch() const {
     return soc_family_ ? soc_family_->arch : CpuArch::kArm;
 }
 
-RomPlacingMode BoardContext::GetRomPlacingMode() const {
-    return board_ ? board_->rom_placing_mode : RomPlacingMode::Unknown;
+std::string_view BoardContext::GetRomPlacingMode() const {
+    return board_ ? std::string_view(board_->rom_placing_mode) : std::string_view();
 }
 
 const char* BoardContext::BoardName() const {

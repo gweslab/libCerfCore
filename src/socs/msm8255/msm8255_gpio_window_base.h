@@ -42,12 +42,14 @@ public:
     }
 
     void OnReady() override {
-        emu_.Get<Msm8255GpioBus>().RegisterWindow(this);
+        bus_ = &emu_.Get<Msm8255GpioBus>();
+        bus_->RegisterWindow(this);
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
             banks_.Reset();
             mux_.Reset();
-            emu_.Get<Msm8255GpioBus>().RedriveOwnedPins(this);
+            bus_->RedriveOwnedPins(this);
             UpdateIrqLine();
+            PublishAllOutputs();
         });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
@@ -55,6 +57,8 @@ public:
     bool OwnsGpioPin(uint32_t pin) const override {
         return banks_.OwnsPin(pin);
     }
+
+    uint32_t GpioPinFunction(uint32_t pin) const override { return mux_.Function(pin); }
 
     void SetGpioInputPin(uint32_t pin, bool high) override {
         std::lock_guard<std::mutex> lk(irq_mtx_);
@@ -66,12 +70,41 @@ public:
         UpdateIrqLineLocked();
     }
 
+    void ApplyModemPinConfig(uint32_t pin, uint32_t mux_config, bool output) override {
+        uint32_t bad = 0;
+        if (mux_.SetPinConfig(pin, mux_config, bad) != Msm8255GpioMuxAccess::Served) {
+            emu_.Get<Fatal>().Die(
+                "Peripheral '%s': the modem configured gpio %u with pin-mux word "
+                "0x%08X, which this window does not take", typeid(*this).name(),
+                pin, mux_config);
+        }
+        {
+            std::lock_guard<std::mutex> lk(irq_mtx_);
+            if (!banks_.SetOutputEnable(pin, output)) {
+                emu_.Get<Fatal>().Die(
+                    "Peripheral '%s': the modem set the direction of gpio %u, which "
+                    "no bank of this window carries", typeid(*this).name(), pin);
+            }
+        }
+        uint32_t bank = 0;
+        if (banks_.LocatePin(pin, bank)) PublishOutputs(bank);
+    }
+
     uint32_t MmioBase() const override { return kBase; }
     uint32_t MmioSize() const override { return kSize; }
 
-    void PostRestore() override { UpdateIrqLine(); }
+    void PostRestore() override {
+        UpdateIrqLine();
+        PublishAllOutputs();
+    }
 
     uint32_t ReadWord(uint32_t addr) override {
+        uint32_t bank = 0;
+        if (banks_.LocateInput(addr - kBase, bank)) {
+            const Msm8255GpioBank& b = banks_.Bank(bank);
+            return banks_.InputLevels(bank, mux_.PinsWithPull(b.lo, b.Span(), MuxType::kPullUp),
+                                      mux_.PinsWithPull(b.lo, b.Span(), MuxType::kPullKeeper));
+        }
         uint32_t value = 0;
         if (banks_.Read(addr - kBase, value)) return value;
         HaltUnsupportedAccess("ReadWord", addr, 0u);
@@ -85,10 +118,12 @@ public:
         {
             std::lock_guard<std::mutex> lk(irq_mtx_);
             bank = banks_.Write(off, value, pins);
-            if (bank == Msm8255GpioAccess::Served) {
-                UpdateIrqLineLocked();
-                return;
-            }
+            if (bank == Msm8255GpioAccess::Served) UpdateIrqLineLocked();
+        }
+        if (bank == Msm8255GpioAccess::Served) {
+            uint32_t output_bank = 0;
+            if (banks_.LocateOutput(off, output_bank)) PublishOutputs(output_bank);
+            return;
         }
         if (bank == Msm8255GpioAccess::PinsAbsent) {
             emu_.Get<Fatal>().Die(
@@ -187,7 +222,17 @@ private:
         }
     }
 
-    std::mutex irq_mtx_;
+    void PublishOutputs(uint32_t bank) {
+        const Msm8255GpioBank& b = banks_.Bank(bank);
+        bus_->PublishOutputs(b.lo, b.Span(), banks_.OutputEnables(bank), banks_.OutputLevels(bank));
+    }
+
+    void PublishAllOutputs() {
+        for (uint32_t bank = 0; bank < kBankCount; ++bank) PublishOutputs(bank);
+    }
+
+    std::mutex      irq_mtx_;
+    Msm8255GpioBus* bus_ = nullptr;
 
     using MuxType = Msm8255GpioPinMux<kMuxSelectOff, kMuxConfigOff, kBankCount>;
 

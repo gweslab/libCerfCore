@@ -1,0 +1,1 @@
+{ "name": "TI bq27520", "supported": true, "connections": [{ "board_family_ids": ["nokia_sea_ray"] }] }

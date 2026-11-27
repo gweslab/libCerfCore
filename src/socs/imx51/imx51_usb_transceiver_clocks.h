@@ -22,9 +22,9 @@ public:
 
     bool CoreClockRuns(uint32_t core, uint32_t portsc, uint32_t phy_ctrl0, uint32_t usb_ctrl1,
                        FreescaleLowPowerMode mode) const;
+    bool UtmiPhyClockOn(uint32_t portsc, uint32_t phy_ctrl0, FreescaleLowPowerMode mode) const;
 
 private:
-    bool UtmiPhyClockRuns(uint32_t portsc, uint32_t phy_ctrl0, FreescaleLowPowerMode mode) const;
     void Notify(FreescaleLowPowerMode mode);
 
     FreescaleModuleClocks* modules_      = nullptr;

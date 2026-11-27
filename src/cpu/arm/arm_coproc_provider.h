@@ -8,6 +8,8 @@
 namespace cerfcore {
 
 class ArmCp15Decisions;
+class StateReader;
+class StateWriter;
 
 class ArmCoprocProvider : public Service {
 public:
@@ -16,6 +18,9 @@ public:
     void OnReady() override;
 
     cerfengine::ArmCoprocDecision Decide(const cerfengine::ArmCoprocAccess& a);
+
+    virtual void SaveState(StateWriter& w) const;
+    virtual void RestoreState(StateReader& r);
 
 protected:
     virtual cerfengine::ArmCoprocDecision RegisterTransfer(

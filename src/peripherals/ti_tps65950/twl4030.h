@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../socs/i2c_register_pointer.h"
 #include "../../socs/i2c_slave.h"
 
 #include <array>
@@ -42,12 +43,12 @@ private:
     void       AudioWillChange(bool timing, bool uplink);
     void       AudioChanged(bool timing, bool uplink, bool downlink);
     bool       ApplyMsecure(uint8_t sub, uint8_t& byte);
+    uint8_t    AdvanceSubLocked(int idx);
 
     static constexpr int kAddrCount = 4;
     mutable std::mutex state_mutex_;
     std::array<std::array<uint8_t, 256>, kAddrCount> regs_{};
-    std::array<uint8_t, kAddrCount>                  sub_addr_{};
-    std::array<bool,    kAddrCount>                  sub_addr_pending_{};
+    std::array<I2cRegisterPointer, kAddrCount>       sub_addr_{};
     bool                                             audio_reset_ = false;
 };
 

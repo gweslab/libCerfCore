@@ -121,6 +121,8 @@ private:
                                                                         uint32_t pa);
     friend void CERFENGINE_FASTCALL cerfengine::host::MmioWriteDword(void* context, uint32_t pa,
                                                                      uint64_t value);
+    friend uint64_t CERFENGINE_FASTCALL cerfengine::host::MmioReadStableUntil(
+        void* context, uint32_t pa, cerfengine::MmioWidth width);
     friend uint32_t CERFENGINE_FASTCALL cerfengine::host::MmioReadSlow(
         void* context, uint32_t pa, cerfengine::MmioWidth width, cerfengine::MmioRoute& route);
     friend void CERFENGINE_FASTCALL cerfengine::host::MmioWriteSlow(
@@ -130,6 +132,7 @@ private:
     CERF_FORCEINLINE bool     FindRoute(uint32_t addr, cerfengine::MmioRoute& route) const;
     CERF_FORCEINLINE uint64_t ReadDwordRouted(uint32_t addr);
     CERF_FORCEINLINE void     WriteDwordRouted(uint32_t addr, uint64_t value);
+    uint64_t ReadStableUntil(uint32_t addr, MmioWidth width) const;
 
     template <bool kFillRoute, MmioWidth kWidth>
     CERF_FORCEINLINE uint32_t ReadSlowAt(uint32_t addr, cerfengine::MmioRoute* route);

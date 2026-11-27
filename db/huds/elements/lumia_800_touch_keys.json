@@ -1,0 +1,7 @@
+{
+  "row": [
+    { "button": { "action": ["back"], "icon": "arrow_back" } },
+    { "button": { "action": ["start"], "icon": "home" } },
+    { "button": { "action": ["search"], "icon": "search" } }
+  ]
+}

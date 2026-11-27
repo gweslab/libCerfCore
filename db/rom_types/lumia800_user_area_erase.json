@@ -2,5 +2,6 @@
   "id": "lumia800_user_area_erase",
   "name": "User Area Erase Image",
   "board_family_ids": ["nokia_sea_ray"],
-  "formats": ["esco"]
+  "formats": ["esco"],
+  "optional_for_storage_ids": ["emmc"]
 }

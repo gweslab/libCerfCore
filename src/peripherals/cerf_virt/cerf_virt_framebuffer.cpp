@@ -125,12 +125,60 @@ void CerfVirtFramebuffer::SetScanoutOffset(uint32_t offset) {
     scanout_.store(offset, std::memory_order_release);
 }
 
+void CerfVirtFramebuffer::SetLayer(const CerfVirtLayer& layer) {
+    if (layer.pa != 0u) {
+        if (layer.bpp != 16u && layer.bpp != 24u && layer.bpp != 32u)
+            emu_.Get<Fatal>().Die("[CerfVirtFramebuffer] layer at 0x%08X has %u bpp", layer.pa, layer.bpp);
+        const uint64_t row_bytes = (uint64_t{layer.width} * layer.bpp + 7u) >> 3u;
+        const uint64_t bytes     = uint64_t{layer.stride} * layer.height;
+        if (layer.width == 0u || layer.height == 0u || layer.stride < row_bytes ||
+            !emu_.Get<EmulatedMemory>().TryTranslateRange(layer.pa, bytes))
+            emu_.Get<Fatal>().Die("[CerfVirtFramebuffer] layer %ux%u, stride %u, at 0x%08X is not "
+                                  "backed guest memory", layer.width, layer.height, layer.stride,
+                                  layer.pa);
+    }
+    {
+        std::lock_guard<std::mutex> lock(mode_mu_);
+        layer_ = layer;
+    }
+    if (layer.pa != 0u) visible_written_.store(true, std::memory_order_release);
+}
+
+void CerfVirtFramebuffer::SetOverlay(const CerfVirtOverlay& overlay) {
+    {
+        std::lock_guard<std::mutex> lock(mode_mu_);
+        overlay_ = overlay;
+    }
+    if (overlay.layers != CerfVirt::kFbOverlayLayersBase) visible_written_.store(true, std::memory_order_release);
+}
+
+CerfVirtOverlay CerfVirtFramebuffer::Overlay() const {
+    std::lock_guard<std::mutex> lock(mode_mu_);
+    return overlay_;
+}
+
+bool CerfVirtFramebuffer::InRegion(uint32_t pa, uint64_t bytes) const {
+    const uint64_t base = MemBasePa();
+    return pa >= base && uint64_t{pa} + bytes <= base + region_bytes_;
+}
+
 CerfVirtScanout CerfVirtFramebuffer::Scanout() const {
     std::lock_guard<std::mutex> lock(mode_mu_);
     CerfVirtScanout s;
+    if (layer_.pa != 0u) {
+        s.width    = layer_.width;
+        s.height   = layer_.height;
+        s.bpp      = layer_.bpp;
+        s.offset   = 0u;
+        s.stride   = layer_.stride;
+        s.guest_pa = layer_.pa;
+        return s;
+    }
     Geometry(s.width, s.height);
-    s.bpp    = Bpp();
-    s.offset = ScanoutOffset();
+    s.bpp      = Bpp();
+    s.offset   = ScanoutOffset();
+    s.stride   = CerfVirt::FbRowBytes(s.width, s.bpp);
+    s.guest_pa = 0u;
     return s;
 }
 
@@ -193,7 +241,11 @@ void CerfVirtFramebuffer::OnReady() {
         {
             std::lock_guard<std::mutex> lock(mode_mu_);
             scanout_.store(0u, std::memory_order_release);
+            layer_   = CerfVirtLayer{};
+            overlay_ = CerfVirtOverlay{};
         }
+        backlight_percent_.store(0u, std::memory_order_release);
+        ReapplyConfiguredSize();
         ReapplyConfiguredDepth();
         LoadConfiguredPalette();
         ClearContent();
@@ -206,12 +258,19 @@ void CerfVirtFramebuffer::OnReady() {
 }
 
 void CerfVirtFramebuffer::SaveState(StateWriter& w) {
+    static_assert(StateVisitCoversAllBytes<CerfVirtOverlay>(
+                      [](CerfVirtOverlay& s, StateFieldBytes& f) { CerfVirtOverlay::Visit(s, f); }),
+                  "CerfVirtOverlay::Visit must name every field of CerfVirtOverlay");
     uint32_t gw = 0, gh = 0, bpp = 0, scanout = 0;
+    CerfVirtLayer   layer{};
+    CerfVirtOverlay overlay{};
     {
         std::lock_guard<std::mutex> lock(mode_mu_);
         Geometry(gw, gh);
         bpp     = Bpp();
         scanout = ScanoutOffset();
+        layer   = layer_;
+        overlay = overlay_;
     }
     w.Write("bpp", bpp);
     w.Write("width", gw);
@@ -219,6 +278,14 @@ void CerfVirtFramebuffer::SaveState(StateWriter& w) {
     w.Write("quarter", Quarter());
     w.Write("primary_reserve", PrimaryReserveBytes());
     w.Write("scanout_offset", scanout);
+    w.Write("layer_pa", layer.pa);
+    w.Write("layer_width", layer.width);
+    w.Write("layer_height", layer.height);
+    w.Write("layer_stride", layer.stride);
+    w.Write("layer_bpp", layer.bpp);
+    StateWriteField overlay_field(w);
+    CerfVirtOverlay::Visit(overlay, overlay_field);
+    w.Write("backlight_percent", BacklightPercent());
     w.Write<uint8_t>("visible_written", HasContent() ? 1u : 0u);
     for (uint32_t i = 0; i < 256u; ++i) w.Write("palette", palette_[i]);
     std::vector<uint8_t> pages;
@@ -244,10 +311,24 @@ void CerfVirtFramebuffer::RestoreState(StateReader& r) {
     primary_reserve_.store(reserve, std::memory_order_release);
     uint32_t scanout = 0;
     r.Read("scanout_offset", scanout);
+    CerfVirtLayer layer{};
+    r.Read("layer_pa", layer.pa);
+    r.Read("layer_width", layer.width);
+    r.Read("layer_height", layer.height);
+    r.Read("layer_stride", layer.stride);
+    r.Read("layer_bpp", layer.bpp);
+    CerfVirtOverlay overlay{};
+    StateReadField  overlay_field(r);
+    CerfVirtOverlay::Visit(overlay, overlay_field);
+    uint32_t backlight = 0;
+    r.Read("backlight_percent", backlight);
+    backlight_percent_.store(backlight, std::memory_order_release);
     {
         std::lock_guard<std::mutex> lock(mode_mu_);
         StoreGeometry(w, h);
         scanout_.store(scanout, std::memory_order_release);
+        layer_   = layer;
+        overlay_ = overlay;
     }
     uint8_t written = 0;
     r.Read("visible_written", written);
@@ -283,6 +364,25 @@ void CerfVirtFramebuffer::ClearContent() {
     TouchedPages(pages);
     ZeroPages(pages);
     visible_written_.store(false, std::memory_order_release);
+}
+
+void CerfVirtFramebuffer::ReapplyConfiguredSize() {
+    const DeviceConfig& config = emu_.Get<DeviceConfig>();
+    if (config.adopt_guest_additions_resolution_for_host_screen) return;
+    const auto     live   = config.Live();
+    const uint32_t want_w = live->board_configurable_screen_width;
+    const uint32_t want_h = live->board_configurable_screen_height;
+    uint32_t       was_w = 0, was_h = 0;
+    {
+        std::lock_guard<std::mutex> lock(mode_mu_);
+        Geometry(was_w, was_h);
+        if (want_w == was_w && want_h == was_h) return;
+        StoreGeometry(want_w, want_h);
+    }
+    ReservePrimary();
+    LOG(Periph, "[CerfVirtFramebuffer] reset to the configured %ux%u from %ux%u primary reserve=%u bytes\n",
+        want_w, want_h, was_w, was_h, PrimaryReserveBytes());
+    ShowHostMode(want_w, want_h);
 }
 
 void CerfVirtFramebuffer::ReapplyConfiguredDepth() {
@@ -354,6 +454,10 @@ bool CerfVirtFramebuffer::SetHostMode(uint32_t w, uint32_t h) {
     LOG(Periph, "[CerfVirtFramebuffer] host mode %ux%u stride=%u\n", w, h, Stride());
     emu_.Get<HostPresentation>().GuestRemoded(w, h);
     return true;
+}
+
+void CerfVirtFramebuffer::ShowHostMode(uint32_t w, uint32_t h) {
+    if (SetHostMode(w, h)) emu_.Get<HostPresentation>().HostModeSet(w, h);
 }
 
 void CerfVirtFramebuffer::TurnBackForReset() {

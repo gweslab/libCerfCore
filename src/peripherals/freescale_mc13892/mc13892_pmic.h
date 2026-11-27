@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../socs/i2c_register_pointer.h"
 #include "../../socs/i2c_slave.h"
 
 #include "../../core/board_parts.h"
@@ -33,16 +34,18 @@ public:
 
     void SaveState(StateWriter& w) override {
         for (uint32_t v : regs_) w.Write("regs", v);
-        w.Write("sub_addr", sub_addr_);
-        w.Write<uint8_t>("sub_addr_pending", sub_addr_pending_ ? 1 : 0);
+        w.Write<uint8_t>("sub_addr", static_cast<uint8_t>(sub_addr_.Register()));
+        w.Write<uint8_t>("sub_addr_pending", sub_addr_.Pending() ? 1 : 0);
         w.Write<uint8_t>("wr_idx", wr_idx_);
         w.Write<uint8_t>("rd_idx", rd_idx_);
     }
     void RestoreState(StateReader& r) override {
         for (uint32_t& v : regs_) r.Read("regs", v);
-        r.Read("sub_addr", sub_addr_);
+        uint8_t sub_addr = 0;
+        r.Read("sub_addr", sub_addr);
         uint8_t b = 0;
-        r.Read("sub_addr_pending", b); sub_addr_pending_ = b != 0;
+        r.Read("sub_addr_pending", b);
+        sub_addr_.Restore(sub_addr, true, b != 0);
         r.Read("wr_idx", b); wr_idx_ = b;
         r.Read("rd_idx", b); rd_idx_ = b;
     }
@@ -52,10 +55,9 @@ private:
     static constexpr uint8_t kRegCount = 64u;
 
     std::array<uint32_t, kRegCount> regs_{};
-    uint8_t sub_addr_         = 0;
-    bool    sub_addr_pending_ = true;
-    uint8_t wr_idx_           = 0;
-    uint8_t rd_idx_           = 0;
+    I2cRegisterPointer sub_addr_;
+    uint8_t            wr_idx_ = 0;
+    uint8_t            rd_idx_ = 0;
 };
 
 }

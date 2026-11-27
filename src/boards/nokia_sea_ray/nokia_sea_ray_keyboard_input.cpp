@@ -3,8 +3,10 @@
 #include <cerfcore/host/keyboard_map.h>
 #include <cerfcore/host/keyboard_router.h>
 #include "../../peripherals/qualcomm_pm8058/pm8058_keypad.h"
+#include "../../peripherals/qualcomm_pm8058/pm8058_power_key.h"
 #include <cerfcore/boards/board_context.h>
 #include "nokia_sea_ray_family_id.h"
+#include "nokia_sea_ray_power_key_code.h"
 
 #include <cstdint>
 
@@ -29,6 +31,10 @@ public:
     void OnHostKey(uint8_t vk, bool key_up) override {
         uint32_t code = 0;
         if (!emu_.Get<KeyboardMap>().BaseDeviceCode(vk, code)) return;
+        if (code == kNokiaSeaRayPowerKeyCode) {
+            emu_.Get<Pm8058PowerKey>().SetPressed(!key_up);
+            return;
+        }
         emu_.Get<Pm8058Keypad>().SetKeyPressed(code >> kRowShift,
                                                code & kColMask, !key_up);
     }

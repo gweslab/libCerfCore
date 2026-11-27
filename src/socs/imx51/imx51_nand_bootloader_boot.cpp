@@ -5,6 +5,7 @@
 #include "imx51_nand_store.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "imx51_nand_placing_mode_id.h"
 #include <cerfcore/boot/guest_cold_boot.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
@@ -49,7 +50,7 @@ public:
 
     bool ShouldRegister() override {
         return emu_.Get<BoardContext>().GetRomPlacingMode()
-            == RomPlacingMode::Imx51Nand;
+            == RomPlacingModeId::Imx51Nand;
     }
 
     void OnReady() override {

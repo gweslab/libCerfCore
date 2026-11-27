@@ -22,16 +22,15 @@ public:
     std::vector<ButtonSpec> BoardButtons() override {
         static constexpr uint16_t     kStripAdcX = 945u;
         static constexpr RawTapButton kStrip[]   = {
-            { "top_menu",  "Top Menu",   73u },
-            { "get_mail",  "Get Mail",  220u },
-            { "internet",  "Internet",  367u },
-            { "mic",       "Mic",       514u },
-            { "tools",     "Tools",     660u },
-            { "set_up",    "Set Up",    807u },
-            { "text_edit", "Text Edit", 953u },
+            { "top_menu",  "Top Menu",  kStripAdcX,  73u },
+            { "get_mail",  "Get Mail",  kStripAdcX, 220u },
+            { "internet",  "Internet",  kStripAdcX, 367u },
+            { "mic",       "Mic",       kStripAdcX, 514u },
+            { "tools",     "Tools",     kStripAdcX, 660u },
+            { "set_up",    "Set Up",    kStripAdcX, 807u },
+            { "text_edit", "Text Edit", kStripAdcX, 953u },
         };
-        return RawTapColumn(kStrip, kStripAdcX,
-                            [this](uint16_t x, uint16_t y) { emu_.Get<Vr41xxPiu>().SyntheticTap(x, y); });
+        return RawTapButtons(kStrip, [this](uint16_t x, uint16_t y) { emu_.Get<Vr41xxPiu>().SyntheticTap(x, y); });
     }
 };
 

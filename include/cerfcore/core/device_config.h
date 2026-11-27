@@ -142,6 +142,8 @@ struct DeviceConfig : public Service {
     std::string storage_nor    = DefaultStorageFileName(config_key::kStorageNor);
     std::string storage_eeprom = DefaultStorageFileName(config_key::kStorageEeprom);
     std::string storage_modem_nv = DefaultStorageFileName(config_key::kStorageModemNv);
+    std::string storage_fuel_gauge = DefaultStorageFileName(config_key::kStorageFuelGauge);
+    std::string storage_touch_controller = DefaultStorageFileName(config_key::kStorageTouchController);
 
     /* Optional CF images bundled with the ROM (cerf.json
        "additional_packages.compact_flash_cards"); the CF insert menu offers

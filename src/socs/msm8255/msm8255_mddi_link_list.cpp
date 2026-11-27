@@ -9,6 +9,7 @@
 #include <cerfcore/cpu/emulated_memory.h>
 
 #include <cstdint>
+#include <vector>
 
 namespace cerfcore {
 
@@ -47,7 +48,6 @@ constexpr uint32_t kTypeRegisterAccess = 146u;
 constexpr uint32_t kTypeVideoStream    =  16u;
 
 constexpr uint32_t kRegisterAccessHeaderBytes = 14u;
-constexpr uint32_t kVideoStreamHeaderBytes    = 26u;
 
 constexpr uint32_t kClientIdBroadcast = 0u;
 
@@ -118,7 +118,7 @@ void Msm8255MddiLinkList::ExecuteItem(uint32_t item_pa,
     if (type == kTypeRegisterAccess) {
         RequireHeaderBytes(item_pa, header_bytes, kRegisterAccessHeaderBytes);
     } else if (type == kTypeVideoStream) {
-        RequireHeaderBytes(item_pa, header_bytes, kVideoStreamHeaderBytes);
+        RequireHeaderBytes(item_pa, header_bytes, kMsm8255MddiVideoStreamHeaderBytes);
     } else {
         emu_.Get<Fatal>().Die(
             "msm8255 mddi link list: the item at 0x%08X sends packet type %u",
@@ -226,7 +226,9 @@ void Msm8255MddiLinkList::ExecuteVideoStream(uint32_t item_pa,
         static_cast<uint16_t>(mem.ReadHalf(packet_pa + kVidPixelCountOff));
 
     const uint32_t data_pa = ReadUnalignedWord(item_pa + kItemDataPtrOff);
-    emu_.Get<Msm8255MddiClient>().WriteVideoStream(video, data_pa, data_bytes);
+    std::vector<uint8_t> data(data_bytes);
+    mem.CopyOut(data_pa, data.data(), data_bytes);
+    emu_.Get<Msm8255MddiClient>().WriteVideoStream(video, data.data(), data_bytes);
 }
 
 REGISTER_SERVICE(Msm8255MddiLinkList);

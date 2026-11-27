@@ -8,17 +8,24 @@
 #include "../irq_controller.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
 
+#include "msm8255_mdp_frame_timing.h"
+#include "msm8255_mdp_histogram.h"
+#include "msm8255_mdp_output.h"
+#include "msm8255_mdp_regs.h"
+
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <iterator>
+#include <span>
 
 namespace cerfcore {
 
 namespace {
 
-constexpr uint32_t kMdpBase = 0xA3F00000u;
-constexpr uint32_t kMdpSize = 0x00100000u;
+using namespace msm8255_mdp;
 
-constexpr uint32_t kWordCount = kMdpSize / 4u;
+constexpr uint32_t kWordCount = kSize / 4u;
 
 /* Linux arch/arm/mach-msm video-msm mdp.c mdp_probe reads the word at the MDP
    base as mdp_version and tests it against the packed 0x04030303, one byte per
@@ -40,18 +47,6 @@ constexpr uint32_t kRegIntrClear  = 0x00058u;
    MDP_DISPLAY_STATUS and keeps its low ten bits. */
 constexpr uint32_t kRegDispStatus = 0x00018u;
 
-/* Linux drivers/gpu/drm/msm registers display mdp4.xml: DISP_INTF_SEL, whose
-   PRIM and EXT fields mdp4_overlay.c reads back per mixer. */
-constexpr uint32_t kRegDispIntfSel = 0x00038u;
-
-/* Linux drivers/gpu/drm/msm registers display mdp4.xml: the DMA array's CONFIG
-   register, bit 24 of which it names DITHER_EN on DMA_P. */
-constexpr uint32_t kRegDmaPConfig = 0x90000u;
-
-/* Linux drivers/gpu/drm/msm registers display mdp4.xml: the DMA array's second
-   element, which its mdp4_dma index names DMA_S. */
-constexpr uint32_t kDmaSBase = 0xA0000u;
-
 /* Linux arch/arm/mach-msm video-msm mdp_vsync.c: MDP_VSYNC_SEL. */
 constexpr uint32_t kRegVsyncSel = 0x00124u;
 
@@ -66,70 +61,52 @@ constexpr uint32_t kRegSyncCfg0 = 0x00100u;
 constexpr uint32_t kRegSyncCfg1 = 0x00104u;
 
 constexpr uint32_t kReg020C = 0x0020Cu;
+constexpr uint32_t kReg0040 = 0x00040u;
+
+constexpr uint32_t kRegVsyncInit0   = 0x00128u;
+constexpr uint32_t kRegVsyncInit1   = 0x0012Cu;
+constexpr uint32_t kRegSyncThresh2  = 0x00208u;
+constexpr uint32_t kRegStartPos2    = 0x00218u;
+constexpr uint32_t kTearEnableBits  = 3u;
 
 /* Linux arch/arm/mach-msm irqs-7x30.h: INT_MDP. */
 constexpr uint32_t kVicLine = 80u;
 
-/* Linux arch/arm/mach-msm video-msm mdp4.h: MDP4_OVERLAYPROC0_BASE and
-   MDP4_OVERLAYPROC1_BASE. */
-constexpr uint32_t kOverlayProc0 = 0x10000u;
-constexpr uint32_t kOverlayProc1 = 0x18000u;
-
-/* Linux arch/arm/mach-msm video-msm mdp4_overlay.c reads the overlay
-   processor's word at +0x14 and writes it back with GC_LUT_EN set. */
-constexpr uint32_t kRegOverlayOp0 = kOverlayProc0 + 0x14u;
-constexpr uint32_t kRegOverlayOp1 = kOverlayProc1 + 0x14u;
-
-/* Linux drivers/gpu/drm/msm registers display mdp4.xml: the OVLP array names
-   the register at +0x04 CFG, and mdp4_overlay.c writes it 0x01 for direct
-   output. */
-constexpr uint32_t kRegOverlayCfg0 = kOverlayProc0 + 0x04u;
-
-/* Linux drivers/gpu/drm/msm registers display mdp4.xml: LAYERMIXER_IN_CFG, a
-   top-level register whose mdp4_layermixer_in_cfg type gives each pipe a
-   three-bit stage id and a mixer-one bit. */
-constexpr uint32_t kRegLayermixerInCfg = 0x10100u;
+constexpr uint32_t kRegOverlayOp0 = kOvlp0 + kOvlpOpMode;
+constexpr uint32_t kRegOverlayOp1 = kOvlp1 + kOvlpOpMode;
+constexpr uint32_t kRegOverlay0Stage0Op = kOvlp0 + kOvlpStage0;
+constexpr uint32_t kRegOverlay1Stage0Op = kOvlp1 + kOvlpStage0;
 
 /* Linux drivers/gpu/drm/msm registers display mdp4.xml: OVERLAY_FLUSH, one
    boolean per block in the order OVLP0, OVLP1, VG1, VG2, RGB1, RGB2. */
 constexpr uint32_t kRegOverlayFlush = 0x18000u;
 
-/* Linux drivers/gpu/drm/msm registers display mdp4.xml: OVLP0_KICK, the first
-   of the per-block kick registers. */
-constexpr uint32_t kRegOvlp0Kick = 0x00004u;
-
 /* Linux arch/arm/mach-msm video-msm mdp4.h: INTR_OVERLAY0_DONE, which
    mdp4_util.c mdp4_isr dispatches through its MDDI arm. */
 constexpr uint32_t kIntrOverlay0Done = 0x00000001u;
-
-/* Linux drivers/gpu/drm/msm registers display mdp4.xml: DMA_S_KICK. */
-constexpr uint32_t kRegDmaSKick = 0x00010u;
 
 /* Linux arch/arm/mach-msm video-msm mdp4.h: INTR_DMA_S_DONE, the bit
    mdp4_util.c mdp4_isr completes the DMA_S block on. */
 constexpr uint32_t kIntrDmaSDone = 0x00000004u;
 
-struct KickDone {
-    uint32_t kick;
-    uint32_t done;
-};
+constexpr uint32_t kIntrDmaPDone      = 1u << 4;
+constexpr uint32_t kIntrDmaPHistogram = 1u << 17;
 
-constexpr KickDone kKickDone[] = {
-    {kRegOvlp0Kick, kIntrOverlay0Done},
-    {kRegDmaSKick, kIntrDmaSDone},
-};
+constexpr uint32_t kDispStatusOverlay0Busy = 1u << 0;
+constexpr uint32_t kDispStatusDmaSBusy     = 1u << 3;
 
-/* Linux arch/arm/mach-msm video-msm mdp4.h: MDP4_RGB_BASE and MDP4_RGB_OFF. */
-constexpr uint32_t kRgbBase = 0x40000u;
-constexpr uint32_t kRgbOff  = 0x10000u;
+constexpr uint32_t kSyncRegisters[] = {0x00118u, 0x0011Cu, kRegVsyncSel, 0x00200u,
+                                       0x00204u, kReg020C, 0x00210u,     0x00214u};
 
-/* Linux arch/arm/mach-msm video-msm mdp4_overlay.c mdp4_overlay_rgb_setup
-   programs one pipe from rgb_base and reads MDP_RGB_OP_MODE back to carry the
-   bit its own write mask excludes. */
-constexpr uint32_t kRgbPipeBase  = kRgbBase + kRgbOff;
-constexpr uint32_t kRegRgbOpMode = kRgbPipeBase + 0x58u;
+constexpr uint32_t kSyncConfigRegisters[] = {0x00118u, 0x0011Cu,        kRegVsyncInit0,
+                                             kRegVsyncInit1, 0x00200u,  0x00204u,
+                                             kRegSyncThresh2, 0x00210u, 0x00214u,
+                                             kRegStartPos2};
 
 constexpr uint32_t kRegReset = 0u;
+
+constexpr uint32_t kRegSwReset  = 0x0001Cu;
+constexpr uint32_t kSwResetBits = 0x1Fu;
 
 constexpr uint32_t kStateChunkWords = 1024u;
 static_assert(kWordCount % kStateChunkWords == 0u,
@@ -142,41 +119,51 @@ struct Span {
 
 constexpr Span kWritableSpans[] = {
     {0x00028u, 0x00028u}, {0x00030u, 0x00030u},
-    {kRegDispIntfSel, kRegDispIntfSel}, {0x00048u, 0x00048u},
+    {kRegDispIntfSel, kRegDispIntfSel}, {kReg0040, kReg0040}, {0x00048u, 0x00048u},
     {0x00060u, 0x00060u}, {0x00068u, 0x00068u},
     {0x00070u, 0x00070u}, {0x00090u, 0x00090u}, {0x00094u, 0x00094u},
     {0x00098u, 0x00098u},
     {kRegSyncCfg0, kRegSyncCfg0}, {kRegSyncCfg1, kRegSyncCfg1},
     {0x00118u, 0x00118u}, {0x0011Cu, 0x0011Cu}, {kRegVsyncSel, kRegVsyncSel},
-    {0x00200u, 0x00200u}, {0x00204u, 0x00204u},
+    {kRegVsyncInit0, kRegVsyncInit1},
+    {0x00200u, 0x00200u}, {0x00204u, 0x00204u}, {kRegSyncThresh2, kRegSyncThresh2},
     {kReg020C, kReg020C}, {0x00210u, 0x00210u}, {0x00214u, 0x00214u},
+    {kRegStartPos2, kRegStartPos2},
     {0x0021Cu, 0x0021Cu}, {0x00220u, 0x00220u},
-    {kRegOverlayCfg0, kRegOverlayCfg0},
-    {kOverlayProc0 + 0x08u, kOverlayProc0 + 0x10u},
+    {kOvlp0 + kOvlpCfg, kOvlp0 + kOvlpStride},
     {kRegOverlayOp0, kRegOverlayOp0}, {kRegOverlayOp1, kRegOverlayOp1},
     {kRegLayermixerInCfg, kRegLayermixerInCfg},
+    {kRegOverlay0Stage0Op, kOvlp0 + kOvlpStageEnd},
+    {kRegOverlay1Stage0Op, kOvlp1 + kOvlpStageEnd},
     {kRegOverlayFlush, kRegOverlayFlush},
-    {kRgbPipeBase + 0x00u, kRgbPipeBase + 0x0Cu},
-    {kRgbPipeBase + 0x10u, kRgbPipeBase + 0x10u},
-    {kRgbPipeBase + 0x40u, kRgbPipeBase + 0x40u},
-    {kRgbPipeBase + 0x50u, kRgbPipeBase + 0x60u},
-    {0x11004u, 0x11004u}, {0x21004u, 0x21004u}, {0x31004u, 0x31004u},
-    {0x41004u, 0x41004u}, {0x51004u, 0x51004u}, {0x91004u, 0x91004u},
-    {0x24400u, 0x24420u}, {0x24500u, 0x24508u}, {0x24580u, 0x24588u},
-    {0x24600u, 0x24614u}, {0x24680u, 0x24694u},
-    {0x28100u, 0x2810Cu}, {0x28200u, 0x28204u}, {0x29000u, 0x2AFFCu},
-    {0x34400u, 0x34420u}, {0x34500u, 0x34508u}, {0x34580u, 0x34588u},
-    {0x34600u, 0x34614u}, {0x34680u, 0x34694u},
-    {0x38100u, 0x3810Cu}, {0x38200u, 0x38204u}, {0x39000u, 0x3AFFCu},
-    {0x90000u, 0x90010u}, {0x90018u, 0x90020u}, {0x90040u, 0x9004Cu},
-    {0x90060u, 0x90070u},
-    {kDmaSBase, kDmaSBase + 0x10u},
-    {kDmaSBase + 0x18u, kDmaSBase + 0x18u},
+    {kOvlp0 + kOvlpCo3, kOvlp0 + kOvlpCo3},
+    {kOvlp0 + kOvlpCo3 + kOvlpCo3Stride, kOvlp0 + kOvlpCo3 + kOvlpCo3Stride},
+    {kOvlp0 + kOvlpCo3 + 2u * kOvlpCo3Stride, kOvlp0 + kOvlpCo3 + 2u * kOvlpCo3Stride},
+    {0x91004u, 0x91004u},
+    {kDmaP, kDmaP + kDmaDstXy}, {0x90018u, 0x90020u}, {0x90040u, 0x9004Cu},
+    {0x90060u, kDmaPColor},
+    {kDmaS, kDmaS + kDmaDstXy},
+    {kDmaS + 0x18u, kDmaS + 0x18u},
     {0x93400u, 0x93420u}, {0x93500u, 0x93508u}, {0x93580u, 0x93588u},
     {0x93600u, 0x93614u}, {0x93680u, 0x93694u},
-    {0x94800u, 0x94FFCu},
-    {0x95004u, 0x95008u}, {0x95010u, 0x95010u}, {0x95018u, 0x9501Cu},
+    {kDmaPLut, kDmaPLutEnd},
     {0xC0000u, 0xC0038u}, {0xC2000u, 0xC2010u},
+};
+
+constexpr Span kPipeSpans[] = {
+    {kPipeSrcSize, kPipeDstXy}, {kPipeSrcp0, kPipeSrcp0}, {kPipeStrideA, kPipeStrideA},
+    {kPipeFormat, kPipePhaseY}, {kPipeFetchConfig, kPipeSolidColor},
+    {kPipeIgcC01, kPipeIgcC01 + kPipeIgcEnd}, {kPipeIgcC2, kPipeIgcC2 + kPipeIgcEnd},
+};
+
+constexpr Span kVgPipeSpans[] = {
+    {kPipeSrcp1, 0x001Cu}, {kPipeStrideB, kPipeFrameSize},
+    {0x2004u, 0x2004u}, {0x2010u, 0x2014u},
+    {kPipeCsc, kPipeCscEnd}, {kPipeCscPreBias, kPipeCscPreBias + 8u},
+    {kPipeCscPostBias, kPipeCscPostBias + 8u}, {kPipeCscPreClamp, kPipeCscPreClamp + 0x14u},
+    {kPipeCscPostClamp, kPipeCscPostClamp + 0x14u},
+    {kPipeQseedConfig, kPipeQseedConfig + 0xCu}, {kPipeQseedSelect, kPipeQseedSelect + 4u},
+    {kPipeQseedTable, kPipeQseedTableEnd},
 };
 
 class Msm8255Mdp : public Peripheral {
@@ -188,6 +175,10 @@ public:
     }
 
     void OnReady() override {
+        hist_   = &emu_.Get<Msm8255MdpHistogram>();
+        timing_ = &emu_.Get<Msm8255MdpFrameTiming>();
+        timing_->Attach([this](uint32_t off) { return Reg(off); },
+                        [this](uint32_t bits) { RaiseStatus(bits); });
         ResetState();
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
             ResetState();
@@ -196,22 +187,34 @@ public:
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
-    uint32_t MmioBase() const override { return kMdpBase; }
-    uint32_t MmioSize() const override { return kMdpSize; }
+    uint32_t MmioBase() const override { return kBase; }
+    uint32_t MmioSize() const override { return kSize; }
 
     uint32_t ReadWord(uint32_t addr) override {
         const uint32_t off = addr - MmioBase();
         if (off == kRegVersion) {
             return kVersionValue;
         }
-        if (off == kRegIntrEnable || off == kRegIntrStatus ||
-            off == kRegDispStatus || off == kRegDispIntfSel ||
-            off == kRegDmaPConfig || off == kDmaSBase ||
+        if (off == kRegSwReset) {
+            return 0u;
+        }
+        if (Msm8255MdpHistogram::Owns(off)) {
+            return hist_->Read(off);
+        }
+        if (off == kRegDispStatus) {
+            return DisplayStatus();
+        }
+        if (off == kRegIntrEnable || off == kRegIntrStatus || off == kReg0040 ||
+            off == kRegDispIntfSel ||
+            off == kDmaP || off == kDmaS || off == kDmaPColor ||
             off == kRegVsyncSel || off == kRegLcdcEnable ||
             off == kRegEbi2PortmapMode ||
             off == kRegSyncCfg0 || off == kRegSyncCfg1 || off == kReg020C ||
             off == kRegOverlayOp0 || off == kRegOverlayOp1 ||
-            off == kRegLayermixerInCfg || off == kRegRgbOpMode) {
+            off == kRegLayermixerInCfg || IsPipeOpMode(off) ||
+            off == kRegOverlay0Stage0Op || off == kRegOverlay1Stage0Op ||
+            std::find(std::begin(kSyncConfigRegisters), std::end(kSyncConfigRegisters), off) !=
+                std::end(kSyncConfigRegisters)) {
             return Reg(off);
         }
         HaltUnsupportedAccess("ReadWord", addr, 0);
@@ -224,6 +227,10 @@ public:
             PublishLine();
             return;
         }
+        if (off == kRegSwReset) {
+            if ((value & ~kSwResetBits) != 0u) HaltUnsupportedAccess("WriteWord", addr, value);
+            return;
+        }
         /* Linux arch/arm/mach-msm video-msm mdp4_util.c mdp4_isr writes the
            status word it has just read to MDP_INTR_CLEAR, so a set bit clears
            that source. */
@@ -232,16 +239,29 @@ public:
             PublishLine();
             return;
         }
-        for (const KickDone& k : kKickDone) {
-            if (off != k.kick) continue;
-            SetReg(kRegIntrStatus, Reg(kRegIntrStatus) | k.done);
-            PublishLine();
+        if (Msm8255MdpHistogram::Owns(off)) {
+            hist_->Write(off, value);
+            RaiseStatus(0u);
             return;
         }
-        if (!IsWritable(off)) {
+        if (off == kRegOvlp0Kick || off == kRegDmaSKick) {
+            Kick(off);
+            return;
+        }
+        if (!IsWritable(off) || (off == kReg020C && (value & ~kTearEnableBits) != 0u)) {
             HaltUnsupportedAccess("WriteWord", addr, value);
         }
+        const uint32_t old = Reg(off);
         SetReg(off, value);
+        if (off == kRegSyncCfg0 || off == kRegSyncCfg1) {
+            timing_->SyncConfigWritten(off == kRegSyncCfg0 ? kMsm8255MdpSyncPrimary
+                                                           : kMsm8255MdpSyncSecondary, old);
+            return;
+        }
+        if (std::find(std::begin(kSyncRegisters), std::end(kSyncRegisters), off) !=
+            std::end(kSyncRegisters)) {
+            timing_->SyncRegisterWritten();
+        }
     }
 
     void SaveState(StateWriter& w) override {
@@ -252,6 +272,8 @@ public:
             }
             w.WriteBytes("chunk", chunk, sizeof(chunk));
         }
+        hist_->SaveState(w);
+        timing_->SaveState(w);
     }
 
     void RestoreState(StateReader& r) override {
@@ -262,11 +284,38 @@ public:
                 regs_[base + i].store(chunk[i], std::memory_order_release);
             }
         }
+        hist_->RestoreState(r);
+        timing_->RestoreState(r);
     }
 
-    void PostRestore() override { PublishLine(); }
+    void PostRestore() override {
+        timing_->PostRestore();
+        PublishLine();
+    }
 
 private:
+    void Kick(uint32_t off) {
+        const auto reg   = [this](uint32_t r) { return Reg(r); };
+        auto&      output = emu_.Get<Msm8255MdpOutput>();
+        if (off == kRegDmaSKick) {
+            timing_->RequireIdle(kMsm8255MdpSyncSecondary);
+            timing_->Start(kMsm8255MdpSyncSecondary, output.PresentDmaS(reg), kIntrDmaSDone);
+            return;
+        }
+        timing_->RequireIdle(kMsm8255MdpSyncPrimary);
+        const uint32_t link_bytes = output.PresentOverlay0(reg);
+        if (link_bytes == 0u) {
+            RaiseStatus(kIntrOverlay0Done);
+            return;
+        }
+        timing_->Start(kMsm8255MdpSyncPrimary, link_bytes, kIntrOverlay0Done | kIntrDmaPDone);
+    }
+
+    uint32_t DisplayStatus() const {
+        return (timing_->Busy(kMsm8255MdpSyncPrimary) ? kDispStatusOverlay0Busy : 0u) |
+               (timing_->Busy(kMsm8255MdpSyncSecondary) ? kDispStatusDmaSBusy : 0u);
+    }
+
     uint32_t Reg(uint32_t off) const {
         return regs_[off / 4u].load(std::memory_order_acquire);
     }
@@ -287,20 +336,48 @@ private:
         regs_[off / 4u].store(value, std::memory_order_release);
     }
 
+    void RaiseStatus(uint32_t bits) {
+        if (hist_->TakeInterrupt()) bits |= kIntrDmaPHistogram;
+        if (bits == 0u) return;
+        SetReg(kRegIntrStatus, Reg(kRegIntrStatus) | bits);
+        PublishLine();
+    }
+
     void ResetState() {
         for (uint32_t i = 0; i < kWordCount; ++i) {
             regs_[i].store(kRegReset, std::memory_order_release);
         }
     }
 
-    static bool IsWritable(uint32_t off) {
-        for (const Span& s : kWritableSpans) {
+    static bool InSpans(uint32_t off, std::span<const Span> spans) {
+        for (const Span& s : spans) {
             if (off >= s.first && off <= s.last) return true;
         }
         return false;
     }
 
+    static bool InPipe(uint32_t off, uint32_t& pipe, uint32_t& pipe_off) {
+        if (off < kPipeBase || off - kPipeBase >= kPipeCount * kPipeStride) return false;
+        pipe     = (off - kPipeBase) / kPipeStride;
+        pipe_off = (off - kPipeBase) % kPipeStride;
+        return true;
+    }
+
+    static bool IsPipeOpMode(uint32_t off) {
+        uint32_t pipe = 0u, pipe_off = 0u;
+        return InPipe(off, pipe, pipe_off) && pipe_off == kPipeOpMode;
+    }
+
+    static bool IsWritable(uint32_t off) {
+        if (InSpans(off, kWritableSpans)) return true;
+        uint32_t pipe = 0u, pipe_off = 0u;
+        if (!InPipe(off, pipe, pipe_off)) return false;
+        return InSpans(pipe_off, kPipeSpans) || (pipe < kVgPipeCount && InSpans(pipe_off, kVgPipeSpans));
+    }
+
     std::atomic<uint32_t> regs_[kWordCount] = {};
+    Msm8255MdpHistogram* hist_ = nullptr;
+    Msm8255MdpFrameTiming* timing_ = nullptr;
 };
 
 }

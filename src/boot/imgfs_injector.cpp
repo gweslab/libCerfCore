@@ -11,6 +11,7 @@
 #include "rom_record_layout.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "flat_container_placing_mode_id.h"
 #include "../core/ascii_case.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
@@ -40,7 +41,7 @@ using cerf::le::U32;
 bool ImgfsInjector::ShouldRegister() {
     if (!emu_.Get<DeviceConfig>().guest_additions) return false;
     return emu_.Get<BoardContext>().GetRomPlacingMode()
-        == RomPlacingMode::FlatContainer;
+        == RomPlacingModeId::FlatContainer;
 }
 
 void ImgfsInjector::OnReady() {

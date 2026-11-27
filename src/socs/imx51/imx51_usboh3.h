@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cerfcore/peripherals/peripheral_base.h>
-#include "../../peripherals/smsc_usb3317/usb3317_ulpi_phy.h"
 #include "../../peripherals/usb/usb_host_port.h"
 #include "../../execution/guest_cycle_clock.h"
+#include "../chipidea_usb_core.h"
 #include "../freescale_usb_frame_index.h"
 
 #include <array>
@@ -15,6 +15,7 @@ namespace cerfcore {
 
 class Imx51UsbDeviceTransfers;
 class Imx51UsbTransceiverClocks;
+class UlpiPhy;
 class UsbDeviceHost;
 enum class FreescaleLowPowerMode : uint8_t;
 
@@ -57,9 +58,12 @@ private:
     static constexpr uint32_t kCoreSpan    = 0x00000200u;   /* per-core EHCI block */
     static constexpr uint32_t kNonCore     = 0x00000800u;   /* control block start */
     static constexpr uint32_t kCores       = kNonCore / kCoreSpan;
+    static constexpr uint32_t kCoreWords   = kCoreSpan / 4u;
+
+    static ChipIdeaUsbCoreKind CoreKind(uint32_t core);
 
     void     ResetController();
-    void     PowerOnPhys();
+    void     ResetCore(uint32_t core);
     void     RefreshTransceiverClocks(FreescaleLowPowerMode mode);
     bool     Core0IsDevice() const;
     uint32_t ReadLocked(uint32_t off);
@@ -68,16 +72,14 @@ private:
     void     ApplyFrameRole(uint32_t core);
     void     ArmFrameIrq();
     void     OnFrameIrqEvent();
-    void     ReflectScheduleStatus(uint32_t usbcmd_off, uint32_t usbcmd);
-    uint32_t UlpiTransfer(uint32_t core, uint32_t value);
 
     uint32_t DqhBase() const;
     void     ExecutePrime(uint32_t prime_bits);
 
-    void WriteOtgHostPortsc(uint32_t value);
+    void WritePortsc(uint32_t core, uint32_t value);
     void ExecuteAsyncSchedule();
     void ExecutePeriodicSchedule();
-    void ExecuteQueueHead(uint32_t qh_addr);
+    bool ExecuteQueueHead(uint32_t qh_addr);
     bool ExecuteQtd(uint32_t qtd_addr, UsbDevice* dev, uint32_t endpt);
     void UpdateScheduleTimer();
     void OnScheduleTimer();
@@ -91,7 +93,12 @@ private:
     UsbHostPort otg_host_root_port_{*this, 0};
 
     std::array<uint32_t, kSize / 4> regs_{};
-    std::array<Usb3317UlpiPhy, kCores> phys_{};
+    std::array<UlpiPhy*, kCores> phys_{};
+    std::array<ChipIdeaUsbCore, kCores> cores_{
+        ChipIdeaUsbCore(emu_, &regs_[0u * kCoreWords], CoreKind(0u), nullptr),
+        ChipIdeaUsbCore(emu_, &regs_[1u * kCoreWords], CoreKind(1u), nullptr),
+        ChipIdeaUsbCore(emu_, &regs_[2u * kCoreWords], CoreKind(2u), nullptr),
+        ChipIdeaUsbCore(emu_, &regs_[3u * kCoreWords], CoreKind(3u), nullptr)};
 
     std::mutex              async_schedule_mtx_;
     GuestCycleClock*        clock_ = nullptr;

@@ -395,6 +395,20 @@ bool ParseXipAtEcec(std::span<const uint8_t> flat,
     return true;
 }
 
+uint32_t KernelEntryVa(std::span<const uint8_t> flat, uint32_t flat_base_va, const ParsedTOC& toc) {
+    const uint32_t physfirst = toc.romhdr.physfirst;
+    for (const auto& m : toc.modules) {
+        if (m.ulLoadOffset != physfirst) continue;
+        const size_t e32_off = size_t(m.ulE32Offset - flat_base_va);
+        if (e32_off + kE32OffVbase + 4 > flat.size()) break;
+        const uint32_t entryrva = U32(flat.data(), e32_off + kE32OffEntryRva);
+        const uint32_t vbase    = U32(flat.data(), e32_off + kE32OffVbase);
+        if (vbase == physfirst && entryrva < 0x01000000u) return vbase + entryrva;
+        break;
+    }
+    return physfirst;
+}
+
 void ParseModulesAndFiles(std::span<const uint8_t> flat,
                           size_t                   romhdr_off,
                           uint32_t                 load_offset,
@@ -447,10 +461,24 @@ void ParseModulesAndFiles(std::span<const uint8_t> flat,
 
 bool ReadImgfsSuperblock(std::span<const uint8_t> bytes, size_t off, ImgfsSuperblock& out) {
     if (off + kImgfsSbSize > bytes.size()) return false;
-    if (std::memcmp(bytes.data() + off, kImgfsUuid, sizeof(kImgfsUuid)) != 0) return false;
-    out.off             = off;
-    out.dirent_size     = U32(bytes.data(), off + kImgfsSbOffDirentSize);
-    out.bytes_per_block = U32(bytes.data(), off + kImgfsSbOffBytesPerBlock);
+    const uint8_t* h = bytes.data() + off;
+    if (std::memcmp(h, kImgfsUuid, sizeof(kImgfsUuid)) != 0) return false;
+    const uint32_t runs   = U32(h, kImgfsSbOffRuns);
+    const uint32_t chunks = U32(h, kImgfsSbOffChunksPerSector);
+    const uint32_t first  = U32(h, kImgfsSbOffFirstDirBlock);
+    const uint32_t data   = U32(h, kImgfsSbOffDataBlockBytes);
+    const uint32_t dirent = U32(h, kImgfsSbOffDirentSize);
+    if (chunks == 0u || runs == 0u || first < chunks || U32(h, kImgfsSbOffVersion) != 1u ||
+        data == 0u || dirent < 8u * (runs - 1u) + 52u) {
+        return false;
+    }
+    out.off               = off;
+    out.dir_block_sectors = U32(h, kImgfsSbOffDirBlockSectors);
+    out.dirent_size       = dirent;
+    out.chunks_per_sector = chunks;
+    out.first_dir_block   = first;
+    out.data_block_bytes  = data;
+    out.compression       = U32(h, kImgfsSbOffCompression);
     return true;
 }
 
@@ -459,7 +487,6 @@ bool FindImgfsBase(std::span<const uint8_t> raw, ImgfsSuperblock& out) {
         ImgfsSuperblock sb;
         if (!ReadImgfsSuperblock(raw, pos, sb)) continue;
         if (sb.dirent_size != kImgfsDirentSize) continue;
-        if (sb.bytes_per_block < 0x200 || sb.bytes_per_block > 0x10000) continue;
         out = sb;
         return true;
     }

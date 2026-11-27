@@ -4,6 +4,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include "../arm_processor_config.h"
 #include "arm_cp15_registers.h"
+#include "arm_performance_monitors.h"
 
 namespace cerfcore {
 
@@ -25,6 +26,7 @@ bool ArmCp15Decisions::ShouldRegister() {
 void ArmCp15Decisions::OnReady() {
     regs_   = &emu_.Get<ArmCp15Registers>();
     config_ = &emu_.Get<ArmProcessorConfig>();
+    pmu_    = emu_.TryGet<ArmPerformanceMonitors>();
 }
 
 ArmCoprocDecision ArmCp15Decisions::Decide(const ArmCoprocAccess& a) const {
@@ -63,6 +65,7 @@ ArmCoprocDecision ArmCp15Decisions::Decide(const ArmCoprocAccess& a) const {
         if (config_->HasL2CacheAuxControl() && a.opc1 == 1u && a.crm == 0u && a.opc2 == 2u) {
             return {.action = A::kRegister, .reg = &f.l2_aux_control};
         }
+        if (pmu_ && a.crm >= 12u && a.crm <= 14u) return pmu_->Decide(a);
         return {.action = A::kUndefined};
 
     case 10:

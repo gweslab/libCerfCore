@@ -10,8 +10,11 @@ namespace cerfcore {
 
 namespace {
 
-/* USB 2.0 Spec Figure 9-4 (p254): D0 Self Powered, D1 Remote Wakeup. */
-uint16_t DeviceStatusBits() { return 0u; }
+constexpr uint8_t kDeviceQualifierSize = 10u;
+
+constexpr size_t kConfigOffAttributes = 7u;
+constexpr uint8_t kConfigSelfPowered  = 1u << 6;
+constexpr uint16_t kStatusSelfPowered = 1u << 0;
 
 constexpr size_t kSetupOffRequestType = 0u;
 constexpr size_t kSetupOffRequest     = 1u;
@@ -19,6 +22,12 @@ constexpr size_t kSetupOffValue       = 2u;
 constexpr size_t kSetupOffIndex       = 4u;
 constexpr size_t kSetupOffLength      = 6u;
 
+}
+
+bool UsbDevice::SelfPowered() {
+    std::vector<uint8_t> config;
+    if (!GetDescriptor(kDescConfiguration, 0u, 0u, config) || config.size() <= kConfigOffAttributes) return false;
+    return (config[kConfigOffAttributes] & kConfigSelfPowered) != 0u;
 }
 
 UsbDevice::SetupPacket UsbDevice::SetupPacket::Decode(const uint8_t* raw) {
@@ -46,7 +55,7 @@ std::vector<uint8_t> UsbDevice::StandardDeviceDescriptor(uint8_t device_class, u
         uint8_t(kDevDescSize), kDescDevice,
         0x00u, 0x02u,
         device_class, subclass, protocol,
-        64u,
+        kMaxPacketSize0,
         0u, 0u, 0u, 0u, 0u, 0u,
         0u, 0u, 0u,
         1u,
@@ -55,6 +64,11 @@ std::vector<uint8_t> UsbDevice::StandardDeviceDescriptor(uint8_t device_class, u
     cerf::le::Put16(d.data() + kDevDescOffIdProduct, id_product);
     cerf::le::Put16(d.data() + kDevDescOffBcdDevice, bcd_device);
     return d;
+}
+
+std::vector<uint8_t> UsbDevice::StandardDeviceQualifier(uint8_t device_class, uint8_t subclass, uint8_t protocol) {
+    return {kDeviceQualifierSize, kDescDeviceQualifier, 0x00u, 0x02u, device_class, subclass, protocol,
+            kMaxPacketSize0, 1u, 0u};
 }
 
 /* USB 2.0 5.3.2.2: one outstanding request per device's default control pipe. */
@@ -117,7 +131,7 @@ bool UsbDevice::HandleSetup(const SetupPacket& setup,
         if (!dev2host) return false;
         uint16_t status = 0u;
         if (recip == kReqRecipDevice) {
-            status = DeviceStatusBits();
+            status = SelfPowered() ? kStatusSelfPowered : 0u;
         } else if (recip == kReqRecipEndpoint) {
             const uint8_t ep = static_cast<uint8_t>(setup.wIndex & 0x0Fu);
             status = IsEndpointStalled(ep) ? 1u : 0u;

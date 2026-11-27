@@ -1,7 +1,5 @@
 #include "freescale_usb_frame_index.h"
 
-#include <cerfcore/core/cerf_emulator.h>
-#include <cerfcore/core/fatal.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -29,16 +27,7 @@ void FreescaleUsbFrameIndex::SetFrameListSize(uint32_t core, uint32_t fs) {
     fs_[core] = static_cast<uint8_t>(fs);
 }
 
-void FreescaleUsbFrameIndex::Attach() {
-    clock_ = &emu_.Get<GuestCycleClock>();
-    const GuestCycleClock::Rate core = clock_->ClockRate();
-    if (!uframes_.SetRate(core, GuestCycleClock::Rate{kMicroframesPerSecond, 1u})) {
-        emu_.Get<Fatal>().Die("FreescaleUsbFrameIndex: the CPU rate %llu/%llu Hz gives no "
-                              "micro-frame ratio", static_cast<unsigned long long>(core.num),
-                              static_cast<unsigned long long>(core.den));
-    }
-    uframes_.Anchor(clock_->Cycles(), 0u);
-}
+void FreescaleUsbFrameIndex::Attach() { uframes_.Attach(kMicroframesPerSecond, 1u); }
 
 void FreescaleUsbFrameIndex::SetClocked(uint32_t core, bool on) {
     if (clocked_[core] == on) return;
@@ -46,19 +35,7 @@ void FreescaleUsbFrameIndex::SetClocked(uint32_t core, bool on) {
     clocked_[core] = on;
 }
 
-void FreescaleUsbFrameIndex::Rescale() {
-    const GuestCycleClock::Rate core = clock_->ClockRate();
-    if (!uframes_.RescaleRate(clock_->Cycles(), core,
-                              GuestCycleClock::Rate{kMicroframesPerSecond, 1u})) {
-        emu_.Get<Fatal>().Die("FreescaleUsbFrameIndex: the CPU rate %llu/%llu Hz gives no "
-                              "micro-frame rescale", static_cast<unsigned long long>(core.num),
-                              static_cast<unsigned long long>(core.den));
-    }
-}
-
-uint32_t FreescaleUsbFrameIndex::Now() const {
-    return uframes_.CountAt(clock_->Cycles());
-}
+void FreescaleUsbFrameIndex::Rescale() { uframes_.Rescale(); }
 
 /* MCIMX51RM Table 60-41 SRI: in host mode "every 125us"; a device "initialized to FS before
    connect" sets it "at an interval of 1ms during the prelude to connect and chirp". FRI: "Only
@@ -148,21 +125,20 @@ void FreescaleUsbFrameIndex::ClearStatus(uint32_t core, uint32_t bits) {
 }
 
 uint64_t FreescaleUsbFrameIndex::NextFrameCycle(uint32_t core) {
-    const uint64_t now = clock_->Cycles();
-    const uint32_t to_frame = 8u - (Frindex(core) & 7u);
-    return uframes_.CycleOfTick(uframes_.TicksSince(now) + to_frame);
+    const uint64_t ticks    = uframes_.Now();
+    const uint32_t to_frame = 8u - (FrindexAt(core, static_cast<uint32_t>(ticks)) & 7u);
+    return uframes_.CycleOf(ticks + to_frame);
 }
 
 uint64_t FreescaleUsbFrameIndex::NextStatusCycle(uint32_t core, uint32_t bits) {
     if (!Counting(core)) return kNever;
-    const uint64_t cycles  = clock_->Cycles();
-    const uint64_t ticks   = uframes_.TicksSince(cycles);
-    const uint32_t now     = uframes_.CountAt(cycles);
+    const uint64_t ticks   = uframes_.Now();
+    const uint32_t now     = static_cast<uint32_t>(ticks);
     const uint32_t status  = StatusAt(core, now);
     if (role_[core] == Role::kDevicePrelude) {
         if ((bits & kStsSri) == 0u || (status & kStsSri) != 0u) return kNever;
         const uint32_t into = PreludeAgeAt(core, now) % kUframesPerFrame;
-        return uframes_.CycleOfTick(ticks + (kUframesPerFrame - into));
+        return uframes_.CycleOf(ticks + (kUframesPerFrame - into));
     }
     const uint32_t elapsed = now - mark_[core];
     uint64_t due = kNever;
@@ -172,12 +148,11 @@ uint64_t FreescaleUsbFrameIndex::NextStatusCycle(uint32_t core, uint32_t bits) {
         const uint32_t left = span - (frindex_[core] & (span - 1u)) - elapsed;
         if (ticks + left < due) due = ticks + left;
     }
-    return due == kNever ? kNever : uframes_.CycleOfTick(due);
+    return due == kNever ? kNever : uframes_.CycleOf(due);
 }
 
 void FreescaleUsbFrameIndex::Save(StateWriter& w) {
-    const uint64_t cycles = clock_->Cycles();
-    const uint32_t now    = uframes_.CountAt(cycles);
+    const uint32_t now = Now();
     std::array<uint8_t, kCores>  running{};
     std::array<uint8_t, kCores>  role{};
     std::array<uint32_t, kCores> frindex{};
@@ -196,9 +171,7 @@ void FreescaleUsbFrameIndex::Save(StateWriter& w) {
     w.WriteBytes("frindex", frindex.data(), sizeof(frindex));
     w.WriteBytes("uframe_status", status.data(), sizeof(status));
     w.WriteBytes("uframe_prelude_age", prelude_age.data(), sizeof(prelude_age));
-    w.Write<uint32_t>("uframe_count", now);
-    w.Write<uint64_t>("uframe_phase", uframes_.PhaseAt(cycles));
-    w.Write<uint64_t>("uframe_phase_den", uframes_.PhaseDenominator());
+    uframes_.Save(w, "uframe_");
 }
 
 void FreescaleUsbFrameIndex::Restore(StateReader& r) {
@@ -213,12 +186,7 @@ void FreescaleUsbFrameIndex::Restore(StateReader& r) {
     r.ReadBytes("frindex", frindex.data(), sizeof(frindex));
     r.ReadBytes("uframe_status", status.data(), sizeof(status));
     r.ReadBytes("uframe_prelude_age", prelude_age.data(), sizeof(prelude_age));
-    uint32_t count = 0u;
-    uint64_t phase = 0u, phase_den = 0u;
-    r.Read("uframe_count", count);
-    r.Read("uframe_phase", phase);
-    r.Read("uframe_phase_den", phase_den);
-    uframes_.AnchorAtPhase(clock_->Cycles(), count, phase, phase_den);
+    uframes_.Restore(r, "uframe_");
     const uint32_t now = Now();
     for (uint32_t c = 0; c < kCores; ++c) {
         running_[c] = running[c] != 0u;

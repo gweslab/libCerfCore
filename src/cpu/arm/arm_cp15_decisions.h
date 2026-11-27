@@ -6,6 +6,7 @@
 namespace cerfcore {
 
 class ArmCp15Registers;
+class ArmPerformanceMonitors;
 class ArmProcessorConfig;
 
 class ArmCp15Decisions : public Service {
@@ -29,8 +30,9 @@ private:
     cerfengine::ArmCoprocDecision CacheRead(const cerfengine::ArmCoprocAccess& a) const;
     cerfengine::ArmCoprocDecision TlbOperation(const cerfengine::ArmCoprocAccess& a) const;
 
-    ArmCp15Registers*   regs_   = nullptr;
-    ArmProcessorConfig* config_ = nullptr;
+    ArmCp15Registers*       regs_   = nullptr;
+    ArmProcessorConfig*     config_ = nullptr;
+    ArmPerformanceMonitors* pmu_    = nullptr;
 };
 
 }

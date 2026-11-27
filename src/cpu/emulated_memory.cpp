@@ -4,6 +4,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
+#include "guest_page_fences.h"
 #include "../boards/page_table_builder.h"
 #include "../peripherals/peripheral_dispatcher.h"
 #include "../platform/host_virtual_memory.h"
@@ -17,6 +18,7 @@ namespace cerfcore {
 REGISTER_SERVICE(EmulatedMemory);
 
 void EmulatedMemory::OnReady() {
+    fences_ = &emu_.Get<GuestPageFences>();
     auto& page = emu_.Get<PageTableBuilder>();
     for (const auto& r : page.BackedMemoryRegions()) {
         AddRegion(r.pa_base, r.size, r.kind, r.decode_span);
@@ -41,9 +43,6 @@ void EmulatedMemory::AddRegion(uint32_t base, uint32_t size,
     }
     const uint32_t wrap_mask = (span == size) ? 0xFFFFFFFFu : (size - 1u);
 
-    /* count_.load(acquire) inside the writer lock - we hold the writer
-       lock, so no other writer can be racing; the acquire pairs with
-       earlier store_release publications. */
     const size_t n = count_.load(std::memory_order_acquire);
 
     for (size_t i = 0; i < n; ++i) {
@@ -182,9 +181,10 @@ CERF_FORCEINLINE uint8_t* EmulatedMemory::PhysicalTranslate(uint32_t pa, bool wr
     const bool flash = IsFlash(*r);
     if (write && flash) return nullptr;
 
+    fences_->Wait(pa, 1u, write);
     uint8_t* const host    = EnsureBacked(r);
     const uint32_t page_pa = pa & ~(PAGE_SIZE - 1u);
-    if (page_pa >= r->base) {
+    if (page_pa >= r->base && !fences_->Fenced(page_pa, PAGE_SIZE)) {
         const uint32_t offset = page_pa - r->base;
         const uint32_t backed = BackedOffset(*r, offset);
         if (RangeLinear(*r, offset, PAGE_SIZE, backed)) {
@@ -195,16 +195,22 @@ CERF_FORCEINLINE uint8_t* EmulatedMemory::PhysicalTranslate(uint32_t pa, bool wr
     return host + BackedOffset(*r, pa - r->base);
 }
 
-uint8_t* EmulatedMemory::Translate(uint32_t vaddr) {
+uint8_t* EmulatedMemory::TranslateUnfenced(uint32_t vaddr) {
     Region* r = FindRegion(vaddr);
     if (!r)
         emu_.Get<Fatal>().Die("EmulatedMemory::Translate unmapped 0x%08X", vaddr);
     return EnsureBacked(r) + BackedOffset(*r, vaddr - r->base);
 }
 
+uint8_t* EmulatedMemory::Translate(uint32_t vaddr) {
+    fences_->Wait(vaddr, 1u, true);
+    return TranslateUnfenced(vaddr);
+}
+
 uint8_t* EmulatedMemory::TryTranslate(uint32_t paddr) {
     Region* r = FindRegion(paddr);
     if (!r) return nullptr;
+    fences_->Wait(paddr, 1u, false);
     return EnsureBacked(r) + BackedOffset(*r, paddr - r->base);
 }
 
@@ -218,6 +224,7 @@ uint8_t* EmulatedMemory::TryTranslateWrite(uint32_t paddr) {
         return nullptr;
     }
 
+    fences_->Wait(paddr, 1u, true);
     return EnsureBacked(r) + BackedOffset(*r, paddr - r->base);
 }
 
@@ -227,6 +234,18 @@ bool EmulatedMemory::IsFlash(const Region& r) {
 
 bool EmulatedMemory::InStateImage(const Region& r, bool flash) {
     return IsFlash(r) == flash && r.kind != MemoryKind::kStorage;
+}
+
+uint64_t EmulatedMemory::VolatileByteCount() const {
+    const size_t n = count_.load(std::memory_order_acquire);
+    uint64_t total = 0;
+    for (size_t i = 0; i < n; ++i) {
+        const Region& r = regions_[i];
+        if (IsFlash(r))
+            continue;
+        total += r.size;
+    }
+    return total;
 }
 
 EmulatedMemory::Region* EmulatedMemory::BulkRegion(uint32_t vaddr, size_t size) {
@@ -244,6 +263,12 @@ bool EmulatedMemory::CanCopyRange(uint32_t paddr, size_t size, bool writable) {
 }
 
 uint8_t* EmulatedMemory::TryTranslateRange(uint64_t paddr, uint64_t size, bool write) {
+    uint8_t* const host = TryTranslateRangeUnfenced(paddr, size, write);
+    if (host) fences_->Wait(static_cast<uint32_t>(paddr), size, write);
+    return host;
+}
+
+uint8_t* EmulatedMemory::TryTranslateRangeUnfenced(uint64_t paddr, uint64_t size, bool write) {
     if (size == 0 || paddr > UINT32_MAX || size > (uint64_t{1} << 32) - paddr)
         return nullptr;
     Region* r = FindRegion(static_cast<uint32_t>(paddr));
@@ -259,6 +284,7 @@ uint8_t* EmulatedMemory::TryTranslateRange(uint64_t paddr, uint64_t size, bool w
 CERF_FORCEINLINE bool EmulatedMemory::PhysicalSpanUniform(uint32_t pa, uint32_t span_bytes) {
     if (span_bytes <= 0x1000u) return true;
     const uint32_t base = pa & ~(span_bytes - 1u);
+    if (fences_->Fenced(base, span_bytes)) return false;
     Region* r = FindRegion(base);
     if (!r) return true;
     if (r->wrap_mask != 0xFFFFFFFFu) return false;
@@ -271,35 +297,43 @@ CERF_FORCEINLINE bool EmulatedMemory::PhysicalSpanUniform(uint32_t pa, uint32_t 
 }
 
 uint8_t EmulatedMemory::ReadByte(uint32_t vaddr) {
-    return *Translate(vaddr);
+    fences_->Wait(vaddr, 1u, false);
+    return *TranslateUnfenced(vaddr);
 }
 
 uint16_t EmulatedMemory::ReadHalf(uint32_t vaddr) {
-    return cerf::le::U16(Translate(vaddr));
+    fences_->Wait(vaddr, 2u, false);
+    return cerf::le::U16(TranslateUnfenced(vaddr));
 }
 
 uint32_t EmulatedMemory::ReadWord(uint32_t vaddr) {
-    return cerf::le::U32(Translate(vaddr));
+    fences_->Wait(vaddr, 4u, false);
+    return cerf::le::U32(TranslateUnfenced(vaddr));
 }
 
 uint64_t EmulatedMemory::ReadDword(uint32_t vaddr) {
-    return cerf::le::U64(Translate(vaddr));
+    fences_->Wait(vaddr, 8u, false);
+    return cerf::le::U64(TranslateUnfenced(vaddr));
 }
 
 void EmulatedMemory::WriteByte(uint32_t vaddr, uint8_t value) {
-    *Translate(vaddr) = value;
+    fences_->Wait(vaddr, 1u, true);
+    *TranslateUnfenced(vaddr) = value;
 }
 
 void EmulatedMemory::WriteHalf(uint32_t vaddr, uint16_t value) {
-    cerf::le::Put16(Translate(vaddr), value);
+    fences_->Wait(vaddr, 2u, true);
+    cerf::le::Put16(TranslateUnfenced(vaddr), value);
 }
 
 void EmulatedMemory::WriteWord(uint32_t vaddr, uint32_t value) {
-    cerf::le::Put32(Translate(vaddr), value);
+    fences_->Wait(vaddr, 4u, true);
+    cerf::le::Put32(TranslateUnfenced(vaddr), value);
 }
 
 void EmulatedMemory::WriteDword(uint32_t vaddr, uint64_t value) {
-    cerf::le::Put64(Translate(vaddr), value);
+    fences_->Wait(vaddr, 8u, true);
+    cerf::le::Put64(TranslateUnfenced(vaddr), value);
 }
 
 EmulatedMemory::Region* EmulatedMemory::BulkRegionFor(uint32_t vaddr,
@@ -331,6 +365,7 @@ void EmulatedMemory::LoadContents(uint32_t paddr, const void* host_src, size_t s
 
 void EmulatedMemory::CopyIntoRegion(Region* r, uint32_t vaddr, const void* host_src,
                                     size_t size) {
+    fences_->Wait(vaddr, size, true);
     uint8_t* host = EnsureBacked(r);
     const uint8_t* src = static_cast<const uint8_t*>(host_src);
     const uint64_t block = DecodeBlock(*r);
@@ -345,6 +380,7 @@ void EmulatedMemory::CopyIntoRegion(Region* r, uint32_t vaddr, const void* host_
 
 void EmulatedMemory::CopyOut(uint32_t vaddr, void* host_dst, size_t size) {
     Region* r = BulkRegionFor(vaddr, size, "CopyOut");
+    fences_->Wait(vaddr, size, false);
     const uint8_t* host = EnsureBacked(r);
     uint8_t* dst = static_cast<uint8_t*>(host_dst);
     const uint64_t block = DecodeBlock(*r);
@@ -393,93 +429,6 @@ uint32_t EmulatedMemory::WritableLength(uint32_t paddr, uint32_t size) {
     uint32_t k = 0;
     while (k < size && TryTranslateWrite(paddr + k) != nullptr) ++k;
     return k;
-}
-
-void EmulatedMemory::WipeVolatileRegions() {
-    const size_t n = count_.load(std::memory_order_acquire);
-    for (size_t i = 0; i < n; ++i) {
-        Region& r = regions_[i];
-        if (IsFlash(r)) {
-            continue;
-        }
-        /* Unbacked regions are already zero on first touch. */
-        if (uint8_t* host = r.host_ptr.load(std::memory_order_acquire)) {
-            std::memset(host, 0, r.size);
-            LOG(Mem, "WipeVolatileRegions: region 0x%08X size 0x%X zeroed\n",
-                r.base, r.size);
-        }
-    }
-}
-
-void EmulatedMemory::SaveState(StateWriter& w) { SaveRegions(w, false); }
-
-void EmulatedMemory::SaveFlashRegions(StateWriter& w) { SaveRegions(w, true); }
-
-void EmulatedMemory::RestoreState(StateReader& r) { RestoreRegions(r, false, true); }
-
-void EmulatedMemory::RestoreFlashRegions(StateReader& r) { RestoreRegions(r, true, true); }
-
-uint32_t EmulatedMemory::RegionCount(bool flash) const {
-    const size_t n = count_.load(std::memory_order_acquire);
-    uint32_t count = 0;
-    for (size_t i = 0; i < n; ++i) {
-        if (InStateImage(regions_[i], flash)) ++count;
-    }
-    return count;
-}
-
-void EmulatedMemory::SaveRegions(StateWriter& w, bool flash) {
-    const size_t n = count_.load(std::memory_order_acquire);
-    w.Write(flash ? "flash_count" : "volatile_count", RegionCount(flash));
-    for (size_t i = 0; i < n; ++i) {
-        Region& r = regions_[i];
-        if (!InStateImage(r, flash)) continue;
-        w.Write("base", r.base);
-        w.Write("region_size", r.size);
-        uint8_t* host = r.host_ptr.load(std::memory_order_acquire);
-        const uint8_t backed = host ? 1u : 0u;
-        w.Write("backed", backed);
-        if (host) w.WriteBytes("host", host, r.size);
-    }
-}
-
-void EmulatedMemory::RestoreRegions(StateReader& r, bool flash, bool write) {
-    const char* kind = flash ? "flash" : "RAM";
-    uint32_t count = 0;
-    r.Read(flash ? "flash_count" : "volatile_count", count);
-    if (count != RegionCount(flash))
-        r.Reject("the image has %u %s regions, this build has %u", count, kind,
-                 RegionCount(flash));
-    for (uint32_t k = 0; k < count; ++k) {
-        uint32_t base = 0, size = 0;
-        r.Read("base", base);
-        r.Read("region_size", size);
-        Region* reg = FindBackingRegion(base);
-        if (!reg || reg->base != base || reg->size != size || !InStateImage(*reg, flash))
-            r.Reject("%s region base=0x%08X size=0x%X is not in this memory map",
-                     kind, base, size);
-        uint8_t backed = 0;
-        r.Read("backed", backed);
-        if (!write) {
-            if (backed) r.SkipBytes("host", size);
-        } else if (backed) {
-            r.ReadBytes("host", EnsureBacked(reg), size);
-        } else if (uint8_t* host = reg->host_ptr.load(std::memory_order_acquire)) {
-            std::memset(host, 0, size);
-        }
-    }
-}
-
-uint64_t EmulatedMemory::VolatileByteCount() const {
-    const size_t n = count_.load(std::memory_order_acquire);
-    uint64_t total = 0;
-    for (size_t i = 0; i < n; ++i) {
-        const Region& r = regions_[i];
-        if (IsFlash(r))
-            continue;
-        total += r.size;
-    }
-    return total;
 }
 
 }

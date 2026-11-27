@@ -1,9 +1,13 @@
 #pragma once
 
+#include "rom_record_layout.h"
+
 #include <cerfcore/core/byte_order.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <span>
 #include <string>
 #include <vector>
@@ -38,6 +42,13 @@ constexpr uint32_t kIndexRecSize        = 8;
 constexpr uint32_t kIndexRecOffCompSize = 0;
 constexpr uint32_t kIndexRecOffFullSize = 2;
 constexpr uint32_t kIndexRecOffPtr      = 4;
+
+constexpr uint32_t kDirBlockOffNext  = 4;
+constexpr uint32_t kDirBlockHeadSize = 8;
+
+using VolumeRead = std::function<std::vector<uint8_t>(uint32_t offset, uint32_t length)>;
+using Inflate    = std::function<std::vector<uint8_t>(const std::vector<uint8_t>& packed,
+                                                      uint16_t full_size)>;
 
 struct IndexRecord {
     uint16_t comp_size;
@@ -108,15 +119,29 @@ std::vector<uint8_t> ReadIndexData(std::span<const uint8_t> raw,
                                     uint32_t                 indexsize,
                                     uint32_t                 expected_size);
 
-struct DirentRef {
-    size_t   abs_file_off;
-    uint32_t magic;
+std::vector<uint8_t> ReadIndexData(const VolumeRead& read,
+                                    const Inflate&    inflate,
+                                    uint32_t          indexptr,
+                                    uint32_t          indexsize,
+                                    uint32_t          expected_size);
+
+std::vector<IndexRecord> ReadIndexRecords(const VolumeRead& read, uint32_t indexptr,
+                                          uint32_t indexsize);
+
+struct LoadedDirent {
+    size_t                                 off   = 0;
+    size_t                                 block = 0;
+    std::array<uint8_t, kImgfsDirentSize> bytes{};
+    uint32_t Magic() const { return cerf::le::U32(bytes.data()); }
 };
 
-std::vector<DirentRef> EnumerateAll(std::span<const uint8_t> raw,
-                                     const Translator&        tr,
-                                     uint32_t                 bytes_per_block,
-                                     uint32_t                 dirent_size);
+std::vector<LoadedDirent> EnumerateChain(const VolumeRead& read,
+                                         uint32_t          first_block,
+                                         uint32_t          block_bytes);
+
+std::string ResolveName(const VolumeRead& read, const uint8_t* nameinfo_12);
+
+bool NameStringExtent(const uint8_t* nameinfo_12, uint32_t& ptr, uint32_t& bytes);
 
 std::string ResolveName(std::span<const uint8_t> raw,
                         const Translator&        tr,
@@ -140,7 +165,11 @@ struct ImgfsModule {
 
 std::vector<ImgfsModule> CollectModules(std::span<const uint8_t> raw,
                                          const Translator&        tr,
-                                         uint32_t                 bytes_per_block);
+                                         uint32_t                 first_dir_block,
+                                         uint32_t                 dir_block_sectors);
+
+std::vector<ImgfsModule> CollectModules(const std::vector<LoadedDirent>& dirents,
+                                         const VolumeRead&                read);
 
 }
 

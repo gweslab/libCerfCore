@@ -1,0 +1,9 @@
+{
+  "column": [
+    { "button": { "keys": ["VK_F6"], "icon": "volume_up" } },
+    { "button": { "keys": ["VK_F7"], "icon": "volume_down" } },
+    "jornada_power",
+    { "grow": 3 },
+    { "button": { "keys": ["VK_F8", "VK_F9"], "icon": "photo_camera" } }
+  ]
+}

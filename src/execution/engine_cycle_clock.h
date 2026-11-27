@@ -31,6 +31,11 @@ protected:
             cerfengine::CycleDeadline(state_->guest_cycle_counter, cycles_ahead);
     }
 
+    bool DeadlineReached() const final {
+        return cerfengine::CycleDeadlineReached(state_->guest_cycle_counter,
+                                                state_->guest_cycle_deadline);
+    }
+
     CpuState* state_ = nullptr;
 };
 

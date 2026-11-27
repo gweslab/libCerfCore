@@ -7,10 +7,14 @@
     "aux_control_register": true,
     "l2_cache_aux_control": true,
     "l1_system_array_debug": true,
+    "performance_monitors": true,
+    "pmcr_identification": "0x41002000",
     "vfp": true,
     "neon": true,
     "fpsid": "0x410330C0",
     "mvfr0": "0x11110222",
-    "mvfr1": "0x00011111"
+    "mvfr1": "0x00011111",
+    "sctlr_read_only_mask": "0x8DFFC7F8",
+    "sctlr_read_only_value": "0x00C50078"
   }
 }

@@ -41,6 +41,8 @@ public:
     virtual void     WriteWord (uint32_t addr, uint32_t value);
     virtual void     WriteDword(uint32_t addr, uint64_t value);
 
+    virtual uint64_t ReadStableUntil(uint32_t addr, cerfengine::MmioWidth width);
+
     using FastReadFn  = cerfengine::MmioReadFn;
     using FastWriteFn = cerfengine::MmioWriteFn;
 

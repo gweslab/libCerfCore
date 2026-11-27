@@ -2,7 +2,7 @@
 
 #include <cerfcore/core/service.h>
 #include "../../execution/guest_cycle_clock.h"
-#include "../../socs/cycle_anchored_counter.h"
+#include "../../socs/oscillator_ticks.h"
 
 #include <cstdint>
 #include <mutex>
@@ -10,6 +10,7 @@
 namespace cerfcore {
 
 class Pm8058Irq;
+class Pm8058Power;
 class StateWriter;
 class StateReader;
 
@@ -43,28 +44,33 @@ public:
 private:
     bool     RunningLocked() const;
     bool     AlarmArmedLocked() const;
-    uint32_t CountLocked(uint64_t now) const;
+    uint32_t CountLocked();
     uint32_t AlarmLocked() const;
-    void     SetCountLocked(uint64_t now, uint32_t count);
+    uint64_t MatchTickLocked();
+    void     SetCountLocked(uint32_t count);
     void     SetAlarmStatusLocked(bool high);
-    void     ArmAlarmLocked(uint64_t now);
-    void     RequireComparatorUnequalLocked(uint64_t now, const char* write) const;
+    void     ArmAlarmLocked();
+    void     ReArmLocked();
+    void     RequireComparatorUnequalLocked(const char* write);
     void     PowerOn();
     void     OnAlarmMatch();
     void     OnRateChange();
-    void     RedriveAlarmLine();
-    void     RequireRatio(bool ok) const;
+    void     OnResetRelease();
+    bool     AlarmTurnOnDue();
+    int64_t  AlarmTurnOnSleptNs();
 
     std::mutex mtx_;
 
-    GuestCycleClock*           clock_       = nullptr;
-    GuestCycleClock::Event*    alarm_event_ = nullptr;
-    Pm8058Irq*                 irq_         = nullptr;
-    NarrowCycleAnchoredCounter counter_;
-    uint32_t                   stopped_count_ = 0;
-    uint8_t                    ctrl_          = 0;
-    bool                       alarm_status_  = false;
-    uint8_t                    alarm_[kBytes] = {};
+    GuestCycleClock*         clock_       = nullptr;
+    GuestCycleClock::Event*  alarm_event_ = nullptr;
+    Pm8058Irq*               irq_         = nullptr;
+    Pm8058Power*             power_       = nullptr;
+    StoppableOscillatorTicks ticks_{emu_, true};
+    uint32_t                 offset_        = 0;
+    uint64_t                 armed_tick_    = 0;
+    uint8_t                  ctrl_          = 0;
+    bool                     alarm_status_  = false;
+    uint8_t                  alarm_[kBytes] = {};
 };
 
 }

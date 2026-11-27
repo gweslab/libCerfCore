@@ -1,0 +1,6 @@
+{
+  "name": "Elpida EDB4064B2PD",
+  "supported": true,
+  "size_mb": 512,
+  "connections": [{ "board_family_ids": ["nokia_sea_ray"] }]
+}

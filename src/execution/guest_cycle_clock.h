@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -71,6 +72,8 @@ public:
     int64_t  NowNs() { return guest_ns_ + CyclesToNs(Cycles() - guest_ns_cycle_); }
     uint64_t NsToCycles(int64_t ns) const;
     int64_t  CyclesToNs(uint64_t cycles) const;
+    uint64_t CycleAfterNs(int64_t ns) { return Cycles() + NsToCycles(ns); }
+    uint64_t CycleAtNs(int64_t due_ns) { return CycleAfterNs(std::max<int64_t>(due_ns - NowNs(), 0)); }
 
     void OnDispatch();
     void IdleStep(void* wake_event) final;
@@ -89,6 +92,7 @@ protected:
     virtual Rate     InitialRate()                      = 0;
     virtual void     SetCycles(uint64_t cycles)         = 0;
     virtual void     PublishDeadline(uint64_t cycles_ahead) = 0;
+    virtual bool     DeadlineReached() const            = 0;
 
 private:
     friend void CERFENGINE_FASTCALL cerfengine::host::ClockDispatch(cerfengine::ClockHost* clock);

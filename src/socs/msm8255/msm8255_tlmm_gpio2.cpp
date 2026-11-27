@@ -11,11 +11,8 @@ namespace {
 constexpr uint32_t kGpio2Base = 0xAC101000u;
 constexpr uint32_t kGpio2Size = 0x00001000u;
 
-/* Linux arch/arm/mach-msm gpio_hw.h CONFIG_ARCH_MSM7X30: bank 1's OUT, OE,
-   INT_EDGE, INT_POS, INT_EN, INT_CLEAR and INT_STATUS are MSM_GPIO2_REG(0x00,
-   0x08, 0x50, 0x58, 0x60, 0x68, 0x70), +0x400. */
 constexpr Msm8255GpioBank kBanks[] = {
-    {0x400u, 0x408u, 0x450u, 0x458u, 0x460u, 0x468u, 0x470u, 16u, 43u},
+    {0x400u, 0x408u, 0x450u, 0x458u, 0x460u, 0x468u, 0x470u, 0x420u, 16u, 43u},
 };
 
 constexpr uint32_t kBankCount = sizeof(kBanks) / sizeof(kBanks[0]);

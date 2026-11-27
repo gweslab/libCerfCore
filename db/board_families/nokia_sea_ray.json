@@ -4,5 +4,12 @@
   "device_year": 2011,
   "notes": [],
   "ga_color_depth": 24,
-  "rom_placing_mode": "flat_container"
+  "rom_placing_mode": "lumia800_emmc",
+  "hw_revision": 4,
+  "board_config": {
+    "camera_sensor": {
+      "default": "toshiba_jt8ew9",
+      "values": ["toshiba_jt8ew9", "sony_imx125"]
+    }
+  }
 }

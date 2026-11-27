@@ -1,0 +1,8 @@
+{
+  "name": "Nokia Lumia 800",
+  "board_family_ids": ["nokia_sea_ray"],
+  "panels": [
+    { "side": "bottom", "align": "center", "width": 1.0, "height": 0.2, "content": "lumia_800_touch_keys" },
+    { "side": "right", "align": "center", "width": 0.13, "height": 1.0, "content": "lumia_800_side_keys" }
+  ]
+}

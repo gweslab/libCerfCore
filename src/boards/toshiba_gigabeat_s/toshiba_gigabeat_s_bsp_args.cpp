@@ -2,6 +2,7 @@
 #include "toshiba_gigabeat_s_family_id.h"
 #include "toshiba_gigabeat_s_framebuffer.h"
 
+#include "../../boot/oal_args_header.h"
 #include <cerfcore/boot/guest_cold_boot.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
@@ -18,8 +19,9 @@ namespace {
    OAL's framebuffer IOCTL (0x1011018) rejects the block unless the signature
    and version below match exactly, then hands software the FB descriptor at
    +72; a wrong magic leaves the recovery screen blank. */
-constexpr uint32_t kArgsPa        = 0x80000000u;
-constexpr uint32_t kArgsSignature = 0x53475241u;  /* 'ARGS' (LE bytes A,R,G,S) */
+constexpr uint32_t kArgsPa     = 0x80000000u;
+constexpr uint16_t kOalVersion = 1u;
+constexpr uint16_t kBspVersion = 6u;
 
 /* Framebuffer descriptor (ARGS+72, 36 bytes) the recovery UI reads. It plots
    `*(u16*)(fb + 2*(x + w*y))` → 16bpp RGB565, stride = w*2. */
@@ -43,9 +45,7 @@ private:
     void WriteArgs() {
         auto& mem = emu_.Get<EmulatedMemory>();
 
-        mem.WriteWord(kArgsPa + 0u, kArgsSignature);
-        mem.WriteHalf(kArgsPa + 4u, uint16_t{1});  /* OAL version */
-        mem.WriteHalf(kArgsPa + 6u, uint16_t{6});  /* BSP version */
+        emu_.Get<OalArgsHeader>().Write(kArgsPa, kOalVersion, kBspVersion);
 
         const uint32_t fb = kArgsPa + kFbDescOff;
         mem.WriteWord(fb +  0u, toshiba_gigabeat_s::kScreenW); /* +0  screen width  */

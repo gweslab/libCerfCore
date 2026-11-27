@@ -81,8 +81,7 @@ void CasioCassiopeiaA10OnKey::EndButtonPress() {
 
 void CasioCassiopeiaA10OnKey::ArmRelease() {
     if (!button_press_) return;
-    const int64_t left = std::max<int64_t>(release_at_ns_ - clock_->NowNs(), 0);
-    clock_->Arm(release_, clock_->Cycles() + clock_->NsToCycles(left));
+    clock_->Arm(release_, clock_->CycleAtNs(release_at_ns_));
 }
 
 void CasioCassiopeiaA10OnKey::Hold(bool cpu_running) {

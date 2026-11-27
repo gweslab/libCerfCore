@@ -165,10 +165,16 @@ bool ParseXipAtEcec(std::span<const uint8_t> flat,
                     uint32_t                 flat_base_va,
                     ParsedXipRegion&         out);
 
+uint32_t KernelEntryVa(std::span<const uint8_t> flat, uint32_t flat_base_va, const ParsedTOC& toc);
+
 struct ImgfsSuperblock {
-    size_t   off             = 0;
-    uint32_t dirent_size     = 0;
-    uint32_t bytes_per_block = 0;
+    size_t   off               = 0;
+    uint32_t dir_block_sectors = 0;
+    uint32_t dirent_size       = 0;
+    uint32_t chunks_per_sector = 0;
+    uint32_t first_dir_block   = 0;
+    uint32_t data_block_bytes  = 0;
+    uint32_t compression       = 0;
 };
 
 bool ReadImgfsSuperblock(std::span<const uint8_t> bytes, size_t off, ImgfsSuperblock& out);

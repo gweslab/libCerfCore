@@ -28,24 +28,39 @@ constexpr size_t   kZipExtraLenOff         = 28u;
 constexpr uint16_t kZipMethodStore         = 0u;
 constexpr uint16_t kZipFlagDataDescriptor  = 1u << 3;
 
-constexpr size_t   kWmstoreSuperblockOff   = 0x200u;
-constexpr size_t   kWmstorePartTableOff    = 0x400u;
-constexpr size_t   kWmstorePartEntrySize   = 0x200u;
-constexpr size_t   kWmstorePartNameOff     = 0x08u;
-constexpr size_t   kWmstorePartNameChars   = 0x20u;
-constexpr size_t   kWmstorePartStartLbaOff = 0x4Cu;
-constexpr size_t   kWmstorePartSizeLbaOff  = 0x54u;
-constexpr uint32_t kWmstoreSectorBytes     = 512u;
+constexpr uint32_t kWmstoreSectorBytes         = 512u;
+constexpr uint8_t  kWmstoreStoreType           = 0xEFu;
+constexpr uint32_t kWmstoreStoreMaxStartLba    = 1u;
+constexpr size_t   kWmstoreSuperblockLbaOff    = 504u;
+constexpr size_t   kWmstoreSuperblockNameOff   = 0x18u;
+constexpr size_t   kWmstoreSuperblockNameChars = 0x20u;
+constexpr size_t   kWmstoreEntryCountOff       = 0x58u;
+constexpr size_t   kWmstoreAlignmentOff        = 0x60u;
+constexpr size_t   kWmstorePartNameOff         = 0x08u;
+constexpr size_t   kWmstorePartNameChars       = 0x20u;
+constexpr size_t   kWmstorePartStartLbaOff     = 0x4Cu;
+constexpr size_t   kWmstorePartSizeLbaOff      = 0x54u;
 
-struct WmstoreOsXip {
-    size_t   data_off    = 0;
-    uint32_t flat_size   = 0;
-    uint32_t base_va     = 0;
-    size_t   payload_off   = 0;
-    size_t   payload_bytes = 0;
+bool WmstoreStoreHeader(std::span<const uint8_t> sector, uint64_t disk_sectors,
+                        uint32_t& superblock_lba);
+
+bool WmstoreSuperblock(std::span<const uint8_t> sector, uint32_t& entry_count);
+
+struct WmstorePartition {
+    std::string name;
+    uint64_t    start_lba = 0;
+    uint64_t    size_lba  = 0;
 };
 
-bool WmstoreLocateOsXip(std::span<const uint8_t> raw, WmstoreOsXip& out);
+bool WmstorePartitionEntry(std::span<const uint8_t> sector, WmstorePartition& out);
+
+struct WmstoreXip {
+    uint32_t base_va   = 0;
+    uint32_t flat_size = 0;
+    uint32_t entry_va  = 0;
+};
+
+bool WmstoreParseXip(std::span<const uint8_t> partition, WmstoreXip& out);
 
 struct EscoMember {
     std::string name;

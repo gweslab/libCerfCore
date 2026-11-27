@@ -8,5 +8,6 @@
     "Guest Additions: driver will OVERWRITE your registry and permanently force WinCE Shell even for stock device runs."
   ],
   "ga_color_depth": 24,
+  "ga_window_size": 75497472,
   "rom_placing_mode": "imx51_nand"
 }

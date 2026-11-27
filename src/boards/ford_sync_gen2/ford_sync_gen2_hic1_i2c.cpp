@@ -1,3 +1,4 @@
+#include "../../socs/i2c_register_pointer.h"
 #include "../../socs/i2c_slave.h"
 
 #include <cerfcore/core/byte_order.h>
@@ -64,10 +65,9 @@ public:
         gpio_->AddWriteObserver([this] { OnEdge(); });
         emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
             cs42448_.Reset();
-            map_set_   = false;
             auto_incr_ = false;
             dm_byte_   = 0;
-            reg_       = 0;
+            reg_.Restore(0u, false, true);
         });
         gpio_->SetObserverState([this](StateWriter& w) { SaveBus(w); },
                                 [this](StateReader& r) { RestoreBus(r); });
@@ -82,7 +82,7 @@ public:
     }
 
     void TxnStart(uint8_t) override {
-        map_set_ = false;
+        reg_.Start();
         dm_byte_ = 0u;
     }
 
@@ -90,13 +90,11 @@ public:
         if (slave_addr == kTsc2003Addr) {
             tsc2003_->WriteCommand(b);
         } else if (slave_addr == kDmAddr) {
-        } else if (!map_set_) {
-            reg_ = b & 0x7Fu;
+        } else if (reg_.Select(static_cast<uint8_t>(b & 0x7Fu))) {
             auto_incr_ = (b & 0x80u) != 0u;
-            map_set_ = true;
         } else {
-            cs42448_.WriteReg(reg_, b);
-            if (auto_incr_) reg_ = static_cast<uint8_t>((reg_ + 1u) & 0x7Fu);
+            cs42448_.WriteReg(CodecReg(), b);
+            NextCodecReg();
         }
         return true;
     }
@@ -104,33 +102,39 @@ public:
     uint8_t TxnReadByte(uint8_t slave_addr) override {
         if (slave_addr == kDmAddr) return DmReadByte(++dm_byte_);
         if (slave_addr == kTsc2003Addr) return tsc2003_->ReadResultByte();
-        const uint8_t v = cs42448_.ReadReg(reg_);
-        if (auto_incr_) reg_ = static_cast<uint8_t>((reg_ + 1u) & 0x7Fu);
+        const uint8_t v = cs42448_.ReadReg(CodecReg());
+        NextCodecReg();
         return v;
     }
 
 private:
     void DriveSda(bool level) { gpio_->SetInputPin(kSda, level); }
 
+    uint8_t CodecReg() const { return static_cast<uint8_t>(reg_.Register()); }
+
+    void NextCodecReg() {
+        if (auto_incr_) reg_.Point(static_cast<uint8_t>((CodecReg() + 1u) & 0x7Fu));
+    }
+
     void SaveBus(StateWriter& w) {
         target_->SaveState(w);
-        w.Write("hic1_map_set", static_cast<uint8_t>(map_set_));
+        w.Write("hic1_map_set", static_cast<uint8_t>(!reg_.Pending()));
         w.Write("hic1_auto_incr", static_cast<uint8_t>(auto_incr_));
         w.Write("hic1_dm_byte", dm_byte_);
-        w.Write("hic1_reg", reg_);
+        w.Write("hic1_reg", CodecReg());
         cs42448_.SaveState(w);
         tsc2003_->SaveState(w);
     }
 
     void RestoreBus(StateReader& r) {
-        uint8_t v = 0;
+        uint8_t map_set = 0, reg = 0, v = 0;
         target_->RestoreState(r);
-        r.Read("hic1_map_set", v);
-        map_set_ = v != 0u;
+        r.Read("hic1_map_set", map_set);
         r.Read("hic1_auto_incr", v);
         auto_incr_ = v != 0u;
         r.Read("hic1_dm_byte", dm_byte_);
-        r.Read("hic1_reg", reg_);
+        r.Read("hic1_reg", reg);
+        reg_.Restore(reg, true, map_set == 0u);
         cs42448_.RestoreState(r);
         tsc2003_->RestoreState(r);
     }
@@ -198,10 +202,9 @@ private:
     Tsc2003Touch* tsc2003_ = nullptr;
     Cs42448Codec cs42448_;
     std::optional<I2cBitBangTarget> target_;
-    bool map_set_ = false;
     bool auto_incr_ = false;
     uint8_t  dm_byte_ = 0;
-    uint8_t  reg_ = 0;
+    I2cRegisterPointer reg_;
 };
 
 }  /* namespace */

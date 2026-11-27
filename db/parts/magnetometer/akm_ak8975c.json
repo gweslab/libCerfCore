@@ -1,0 +1,1 @@
+{ "name": "AKM AK8975C", "supported": true, "connections": [{ "board_family_ids": ["nokia_sea_ray"] }] }

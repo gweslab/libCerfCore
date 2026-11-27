@@ -1,0 +1,5 @@
+{
+  "part_picker": true,
+  "generic_part_id": "camera_sensor",
+  "enum_values": [{ "part_id": "toshiba_jt8ew9" }, { "part_id": "sony_imx125" }]
+}

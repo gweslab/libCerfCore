@@ -1,0 +1,1 @@
+{ "name": "Avago QPDS-T900", "supported": true, "connections": [{ "board_family_ids": ["nokia_sea_ray"] }] }

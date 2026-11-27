@@ -28,10 +28,9 @@ public:
         const std::array<Hp600BezelName, kHp600BezelZones>& names = emu_.Get<Hp600BezelButtons>().Names();
         std::array<RawTapButton, kHp600BezelZones>          buttons{};
         for (size_t zone = 0; zone < kHp600BezelZones; ++zone) {
-            buttons[zone] = RawTapButton{names[zone].id, names[zone].label, kBezelAdcY[zone]};
+            buttons[zone] = RawTapButton{names[zone].id, names[zone].label, kBezelAdcX, kBezelAdcY[zone]};
         }
-        return RawTapColumn(buttons, kBezelAdcX,
-                            [this](uint16_t x, uint16_t y) { emu_.Get<Hp600TouchPanel>().TapRaw(x, y); });
+        return RawTapButtons(buttons, [this](uint16_t x, uint16_t y) { emu_.Get<Hp600TouchPanel>().TapRaw(x, y); });
     }
 };
 

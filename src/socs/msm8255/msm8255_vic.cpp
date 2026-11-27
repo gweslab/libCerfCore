@@ -1,6 +1,7 @@
-#include "../irq_controller.h"
+#include "msm8255_vic.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "msm8255_dem_master.h"
 #include "msm8255_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
@@ -49,83 +50,54 @@ constexpr uint32_t kOffVectPriority0 = 0x200;
 constexpr uint32_t kMasterEnIrq = 1u << 0;
 constexpr uint32_t kMasterEnFiq = 1u << 1;
 
-/* irq-vic.c: VIC_NUM_REGS is 4 under CONFIG_ARCH_MSM7X30. */
-constexpr uint32_t kSourceCount = 128;
-constexpr uint32_t kBankCount   = 4;
-constexpr uint32_t kBitsPerBank = 32;
+}
 
-class Msm8255Vic : public IrqController {
-public:
-    using IrqController::IrqController;
+Msm8255Vic::SourceLine Msm8255Vic::LineOf(uint32_t source) {
+    return { source / kBitsPerBank, 1u << (source % kBitsPerBank) };
+}
 
-    bool ShouldRegister() override {
-        auto* bd = emu_.TryGet<BoardContext>();
-        return bd && bd->GetSocId() == SocId::Msm8255;
-    }
+uint32_t Msm8255Vic::LowestSource(uint32_t bank, uint32_t bits) {
+    return bank * kBitsPerBank + static_cast<uint32_t>(std::countr_zero(bits));
+}
 
-    void OnReady() override {
-        jit_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::ArmJit>();
-        emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
-            std::lock_guard<std::mutex> lk(state_mutex_);
-            for (uint32_t b = 0; b < kBankCount; ++b) {
-                raw_[b] = latch_[b] = enable_[b] = type_[b] = 0u;
-                select_[b] = polarity_[b] = softint_[b] = 0u;
-            }
-            for (uint32_t s = 0; s < kSourceCount; ++s) vect_priority_[s] = 0u;
-            no_pend_val_ = 0u;
-            master_en_   = 0u;
-            config_      = 0u;
-            Republish();
-        });
-    }
+void Msm8255Vic::SourceSet::Add(uint32_t source) {
+    const SourceLine line = LineOf(source);
+    banks[line.bank] |= line.mask;
+}
 
-    void AssertIrq   (int source_bit)            override;
-    void AssertSubIrq(int main_bit, int sub_bit) override;
-    void DeAssertIrq (int source_bit)            override;
-    void PulseIrq    (int source_bit)            override;
-    uint32_t ReadPendingVector()                 override;
+bool Msm8255Vic::SourceSet::Has(uint32_t source) const {
+    const SourceLine line = LineOf(source);
+    return (banks[line.bank] & line.mask) != 0u;
+}
 
-    uint32_t ReadReg (uint32_t off);
-    void     WriteReg(uint32_t off, uint32_t value);
+int Msm8255Vic::BankInSet(uint32_t off, uint32_t base) {
+    return (off >= base && off < base + 0x10u)
+               ? static_cast<int>((off - base) / 4u)
+               : -1;
+}
 
-    void SaveState(StateWriter& w);
-    void RestoreState(StateReader& r);
-    void PostRestore();
+bool Msm8255Vic::ShouldRegister() {
+    auto* bd = emu_.TryGet<BoardContext>();
+    return bd && bd->GetSocId() == SocId::Msm8255;
+}
 
-private:
-    struct SourceLine {
-        uint32_t bank;
-        uint32_t mask;
-    };
-
-    SourceLine CheckedLine(int source_bit, const char* op) const;
-    void       RequireActiveHigh(const SourceLine& line, int source_bit) const;
-    uint32_t PendingBank(uint32_t bank) const;
-    uint32_t IrqBank(uint32_t bank) const;
-    uint32_t FiqBank(uint32_t bank) const;
-    bool     HasPendingIrq() const;
-    void     Republish();
-
-    static int BankInSet(uint32_t off, uint32_t base) {
-        return (off >= base && off < base + 0x10u)
-                   ? static_cast<int>((off - base) / 4u)
-                   : -1;
-    }
-
-    mutable std::mutex state_mutex_;
-    cerfengine::ArmJit*  jit_ = nullptr;
-    uint32_t raw_[kBankCount]{};
-    uint32_t latch_[kBankCount]{};
-    uint32_t enable_[kBankCount]{};
-    uint32_t type_[kBankCount]{};
-    uint32_t select_[kBankCount]{};
-    uint32_t polarity_[kBankCount]{};
-    uint32_t softint_[kBankCount]{};
-    uint32_t vect_priority_[kSourceCount]{};
-    uint32_t no_pend_val_ = 0;
-    uint32_t master_en_   = 0;
-    uint32_t config_      = 0;
-};
+void Msm8255Vic::OnReady() {
+    jit_ = &emu_.Get<EngineBridge>().Engine().Get<cerfengine::ArmJit>();
+    dem_ = &emu_.Get<Msm8255DemMaster>();
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        for (uint32_t b = 0; b < kBankCount; ++b) {
+            raw_[b] = latch_[b] = enable_[b] = type_[b] = 0u;
+            select_[b] = polarity_[b] = softint_[b] = 0u;
+        }
+        wake_monitor_ = {};
+        for (uint32_t s = 0; s < kSourceCount; ++s) vect_priority_[s] = 0u;
+        no_pend_val_ = 0u;
+        master_en_   = 0u;
+        config_      = 0u;
+        Republish();
+    });
+}
 
 uint32_t Msm8255Vic::PendingBank(uint32_t bank) const {
     return ((latch_[bank] & type_[bank]) | (raw_[bank] & ~type_[bank])) |
@@ -148,15 +120,17 @@ bool Msm8255Vic::HasPendingIrq() const {
     return false;
 }
 
-void Msm8255Vic::Republish() {
+bool Msm8255Vic::HasPendingFiq() const {
+    if ((master_en_ & kMasterEnFiq) == 0u) return false;
     for (uint32_t b = 0; b < kBankCount; ++b) {
-        const uint32_t fiq = FiqBank(b);
-        if (fiq != 0u && (master_en_ & kMasterEnFiq) != 0u) {
-            emu_.Get<Fatal>().Die(
-                "msm8255 vic: FIQ source pending in bank %u (mask 0x%08X); FIQ "
-                "delivery is not implemented", b, fiq);
-        }
+        if (FiqBank(b) != 0u) return true;
     }
+    return false;
+}
+
+void Msm8255Vic::Republish() {
+    if (HasPendingFiq()) jit_->SetFiqPending();
+    else                 jit_->ClearFiqPending();
     if (HasPendingIrq()) jit_->SetInterruptPending();
     else                 jit_->ClearInterruptPending();
 }
@@ -166,8 +140,7 @@ Msm8255Vic::SourceLine Msm8255Vic::CheckedLine(int source_bit, const char* op) c
         emu_.Get<Fatal>().Die("msm8255 vic: %s source %d outside 0..%u",
                               op, source_bit, kSourceCount - 1u);
     }
-    return { static_cast<uint32_t>(source_bit) / kBitsPerBank,
-             1u << (static_cast<uint32_t>(source_bit) % kBitsPerBank) };
+    return LineOf(static_cast<uint32_t>(source_bit));
 }
 
 void Msm8255Vic::RequireActiveHigh(const SourceLine& line, int source_bit) const {
@@ -181,11 +154,17 @@ void Msm8255Vic::RequireActiveHigh(const SourceLine& line, int source_bit) const
 
 void Msm8255Vic::AssertIrq(int source_bit) {
     const SourceLine line = CheckedLine(source_bit, "AssertIrq");
-    std::lock_guard<std::mutex> lk(state_mutex_);
-    RequireActiveHigh(line, source_bit);
-    if ((raw_[line.bank] & line.mask) == 0u) latch_[line.bank] |= line.mask;
-    raw_[line.bank] |= line.mask;
-    Republish();
+    bool wake = false;
+    {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        RequireActiveHigh(line, source_bit);
+        const bool rose = (raw_[line.bank] & line.mask) == 0u;
+        if (rose) latch_[line.bank] |= line.mask;
+        raw_[line.bank] |= line.mask;
+        Republish();
+        wake = rose && wake_monitor_.Has(static_cast<uint32_t>(source_bit));
+    }
+    if (wake) dem_->WakeSourceRaised(static_cast<uint32_t>(source_bit));
 }
 
 void Msm8255Vic::DeAssertIrq(int source_bit) {
@@ -197,16 +176,35 @@ void Msm8255Vic::DeAssertIrq(int source_bit) {
 
 void Msm8255Vic::PulseIrq(int source_bit) {
     const SourceLine line = CheckedLine(source_bit, "PulseIrq");
-    std::lock_guard<std::mutex> lk(state_mutex_);
-    RequireActiveHigh(line, source_bit);
-    if ((type_[line.bank] & line.mask) == 0u) {
-        emu_.Get<Fatal>().Die(
-            "msm8255 vic: source %d delivered a zero-width pulse while its "
-            "TYPE bit selects level; a pulse on a level line is not modelled",
-            source_bit);
+    bool wake = false;
+    {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        RequireActiveHigh(line, source_bit);
+        if ((type_[line.bank] & line.mask) == 0u) {
+            emu_.Get<Fatal>().Die(
+                "msm8255 vic: source %d delivered a zero-width pulse while its "
+                "TYPE bit selects level; a pulse on a level line is not modelled",
+                source_bit);
+        }
+        if ((raw_[line.bank] & line.mask) == 0u) latch_[line.bank] |= line.mask;
+        Republish();
+        wake = wake_monitor_.Has(static_cast<uint32_t>(source_bit));
     }
-    if ((raw_[line.bank] & line.mask) == 0u) latch_[line.bank] |= line.mask;
-    Republish();
+    if (wake) dem_->WakeSourceRaised(static_cast<uint32_t>(source_bit));
+}
+
+void Msm8255Vic::MonitorWakeSources(const SourceSet& sources) {
+    SourceSet raised{};
+    {
+        std::lock_guard<std::mutex> lk(state_mutex_);
+        wake_monitor_ = sources;
+        for (uint32_t b = 0; b < kBankCount; ++b) raised.banks[b] = raw_[b] & sources.banks[b];
+    }
+    for (uint32_t b = 0; b < kBankCount; ++b) {
+        for (uint32_t bits = raised.banks[b]; bits != 0u; bits &= bits - 1u) {
+            dem_->WakeSourceRaised(LowestSource(b, bits));
+        }
+    }
 }
 
 uint32_t Msm8255Vic::ReadPendingVector() {
@@ -217,9 +215,7 @@ uint32_t Msm8255Vic::ReadPendingVector() {
         for (uint32_t b = 0; b < kBankCount; ++b) {
             uint32_t bits = IrqBank(b);
             while (bits != 0u) {
-                const uint32_t src =
-                    b * kBitsPerBank +
-                    static_cast<uint32_t>(std::countr_zero(bits));
+                const uint32_t src = LowestSource(b, bits);
                 bits &= bits - 1u;
                 const uint32_t prio = vect_priority_[src];
                 if (found >= 0) {
@@ -381,6 +377,8 @@ void Msm8255Vic::PostRestore() {
     std::lock_guard<std::mutex> lk(state_mutex_);
     Republish();
 }
+
+namespace {
 
 class Msm8255VicMmio : public Peripheral {
 public:

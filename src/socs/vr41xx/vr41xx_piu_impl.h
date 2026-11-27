@@ -177,7 +177,7 @@ public:
         r.Read("adps_return", adps_return_);
         uint64_t next_in = 0;
         r.Read("next_sample_in", next_in);
-        scan_.Restore(r, clock_->Cycles());
+        scan_.Restore(r);
         if (SamplingLocked()) {
             intreg_ |= kPenChgIntr;
             state_ = (cnt_cfg_ & kAtStop) ? kStWaitPenTouch : kStIntervalNext;

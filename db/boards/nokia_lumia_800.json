@@ -1,6 +1,6 @@
 {
-  "name": "Nokia Lumia 800 (RM-801)",
+  "name": "Nokia Lumia 800 (RM-801, hardware revision 4)",
   "short_name": "Lumia 800",
   "board_family_id": "nokia_sea_ray",
-  "support_level": "no_support"
+  "support_level": "bootable_full"
 }

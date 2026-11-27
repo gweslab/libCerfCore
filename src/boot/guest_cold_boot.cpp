@@ -3,6 +3,7 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
+#include "../cpu/emulated_memory_image.h"
 #include <cerfcore/host/guest_power_notifier.h>
 #include "../execution/engine_bridge.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
@@ -65,7 +66,7 @@ void GuestColdBoot::ExecuteIfPending() {
     if (wipe) {
         LOG(Boot, "GuestColdBoot: hard reset - wiping volatile RAM, replaying "
                   "%zu boot-time writes\n", replays_.Size());
-        emu_.Get<EmulatedMemory>().WipeVolatileRegions();
+        emu_.Get<EmulatedMemoryImage>().WipeVolatileRegions();
     } else {
         LOG(Boot, "GuestColdBoot: reset filling RAM from a saved image, replaying "
                   "%zu boot-time writes\n", replays_.Size());

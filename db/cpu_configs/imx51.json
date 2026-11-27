@@ -6,6 +6,7 @@
     "clidr": "0x0A000023",
     "ccsidr_l1i": "0x200FE01A",
     "ccsidr_l1d": "0xE00FE01A",
-    "ccsidr_l2": "0xF03FE03A"
+    "ccsidr_l2": "0xF03FE03A",
+    "pmu_interrupt": 77
   }
 }

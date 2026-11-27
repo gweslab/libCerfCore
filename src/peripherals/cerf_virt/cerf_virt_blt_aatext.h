@@ -12,6 +12,14 @@ namespace cerfcore {
 
 namespace CerfVirt {
 
+inline constexpr uint32_t kClearTypeGammaStep  = 100u;
+inline constexpr uint32_t kClearTypeGammaFirst = 10u;
+inline constexpr uint32_t kClearTypeGammaLast  = 22u;
+inline constexpr double   kClearTypeGammaScale = 10.0;
+inline constexpr double   kChannelMax          = 255.0;
+inline constexpr float    kAaDefaultGamma      = 2.330f;
+inline constexpr float    kGammaMilli          = 1000.0f;
+
 /* jornada720 ddi.dll sub_FFC7D8 (table 0x1007970); ipaq_h3600_ppc2000 ddi.dll sub_F62650 */
 inline constexpr uint16_t kClearTypeSampleCountRgb565[kCerfClearTypeSampleCountIndices] = {
     0xFFFF, 0xFFF6, 0xCF29, 0xFF7F, 0xFF76, 0xD6A8, 0xFEFF, 0xFEF6, 0xD628, 0xFE5F,
@@ -58,14 +66,57 @@ struct ClearTypeTables {
     }
 };
 
+inline constexpr uint32_t kAaLevels         = 16u;
+inline constexpr uint32_t kChannelLevels    = 256u;
+inline constexpr uint32_t kClearTypeBuckets = kClearTypeGammaLast - kClearTypeGammaFirst + 1u;
+
+struct ClearTypeGammaTables {
+    std::array<std::array<uint8_t, kChannelLevels>, kClearTypeBuckets> decode{};
+    std::array<std::array<uint8_t, kChannelLevels>, kClearTypeBuckets> encode{};
+
+    ClearTypeGammaTables() {
+        for (uint32_t b = 0; b < kClearTypeBuckets; ++b) {
+            const double gamma = (kClearTypeGammaFirst + b) / kClearTypeGammaScale;
+            for (uint32_t i = 0; i < kChannelLevels; ++i) {
+                const double level = static_cast<double>(i) / kChannelMax;
+                decode[b][i] = static_cast<uint8_t>(std::floor(kChannelMax * std::pow(level, gamma) + 0.5));
+                encode[b][i] = static_cast<uint8_t>(std::floor(kChannelMax * std::pow(level, 1.0 / gamma) + 0.5));
+            }
+        }
+    }
+
+    static const ClearTypeGammaTables& Get() {
+        static const ClearTypeGammaTables tables;
+        return tables;
+    }
+};
+
+struct AaGammaTables {
+    float    gamma = 0.0f;
+    uint32_t blend[kAaLevels]{};
+    uint32_t inverse[kAaLevels]{};
+
+    void Select(float g) {
+        if (g == gamma) return;
+        gamma = g;
+        for (uint32_t k = 0; k < kAaLevels; ++k) {
+            const float a = (k > 0) ? (float)(k + 1) : 0.0f;
+            blend[k]   = (uint32_t)(65536.0f * std::pow(a / 16.0f, 1.0f / g));
+            inverse[k] = (uint32_t)(65536.0f - 65536.0f * std::pow(1.0f - a / 16.0f, 1.0f / g));
+        }
+    }
+};
+
 struct AATextContext {
     uint32_t fl[3];
     int      shR[3];
     int      shL[3];
     uint32_t uF[3];
-    uint32_t aulB[16];
-    uint32_t aulIB[16];
+    const uint32_t* aulB  = nullptr;
+    const uint32_t* aulIB = nullptr;
     const ClearTypeTables* ct = nullptr;
+    const uint8_t* ct_decode = nullptr;
+    const uint8_t* ct_encode = nullptr;
     const uint16_t* ct_sample = nullptr;
     bool     ct_sample_fg_white = false;
     uint32_t s565_mask[3];
@@ -73,7 +124,7 @@ struct AATextContext {
     uint32_t s565_bits[3];
     uint32_t d_shift[3];
 
-    void Build(const uint32_t masks[3], uint32_t on_color, float gamma = 2.330f) {
+    void Build(const uint32_t masks[3], uint32_t on_color, const AaGammaTables& gamma) {
         for (int c = 0; c < 3; ++c) {
             fl[c] = masks[c];
             int r = (int)BltPixelOps::HighBitPos(masks[c]) - 8;
@@ -83,14 +134,19 @@ struct AATextContext {
             shL[c] = l;
             uF[c] = ((on_color & masks[c]) >> r) << l;
         }
-        for (int k = 0; k < 16; ++k) {
-            const float a = (k > 0) ? (float)(k + 1) : 0.0f;
-            aulB[k]  = (uint32_t)(65536.0f * std::pow(a / 16.0f, 1.0f / gamma));
-            aulIB[k] = (uint32_t)(65536.0f - 65536.0f * std::pow(1.0f - a / 16.0f, 1.0f / gamma));
-        }
+        aulB  = gamma.blend;
+        aulIB = gamma.inverse;
     }
 
     void UseClearType() { ct = &ClearTypeTables::Get(); }
+
+    void UseClearTypeGamma(uint32_t milli) {
+        const uint32_t bucket =
+            std::clamp(milli / kClearTypeGammaStep, kClearTypeGammaFirst, kClearTypeGammaLast) - kClearTypeGammaFirst;
+        const ClearTypeGammaTables& tables = ClearTypeGammaTables::Get();
+        ct_decode = tables.decode[bucket].data();
+        ct_encode = tables.encode[bucket].data();
+    }
 
     void UseClearTypeSampleCount(uint32_t on_color) {
         ct_sample = kClearTypeSampleCountRgb565;
@@ -138,9 +194,10 @@ struct AATextContext {
         uint32_t u = 0;
         for (int c = 0; c < 3; ++c) {
             const uint32_t uT = ((dst & fl[c]) << shL[c]) >> shR[c];
-            const int32_t bg = static_cast<int32_t>(uT);
-            const int32_t fg = static_cast<int32_t>(uF[c]);
-            const uint32_t out = static_cast<uint32_t>(bg + (((fg - bg) * kBlend[coverage[c]] + 0x80000) >> 20));
+            const int32_t bg = static_cast<int32_t>(ct_decode ? ct_decode[uT] : uT);
+            const int32_t fg = static_cast<int32_t>(ct_decode ? ct_decode[uF[c]] : uF[c]);
+            const uint32_t mix = static_cast<uint32_t>(bg + (((fg - bg) * kBlend[coverage[c]] + 0x80000) >> 20));
+            const uint32_t out = ct_decode ? ct_encode[mix] : mix;
             u |= (((out << shR[c]) >> shL[c]) & fl[c]);
         }
         return u;

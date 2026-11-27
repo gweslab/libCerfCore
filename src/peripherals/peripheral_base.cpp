@@ -16,6 +16,8 @@ void Peripheral::WriteHalf (uint32_t addr, uint16_t value) { HaltUnsupportedAcce
 void Peripheral::WriteWord (uint32_t addr, uint32_t value) { HaltUnsupportedAccess("WriteWord",  addr, value); }
 void Peripheral::WriteDword(uint32_t addr, uint64_t value) { HaltUnsupportedAccess("WriteDword", addr, value); }
 
+uint64_t Peripheral::ReadStableUntil(uint32_t, cerfengine::MmioWidth) { return 0; }
+
 uint32_t Peripheral::AutoFastRead(void* ctx, uint32_t off, uint32_t width) {
     auto* p = static_cast<Peripheral*>(ctx);
     const uint32_t addr = p->MmioBase() + off;

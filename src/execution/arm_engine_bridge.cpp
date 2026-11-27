@@ -9,7 +9,9 @@
 #include "../cpu/arm/arm_injection_band.h"
 #include "../cpu/arm/arm_instruction_timing_model.h"
 #include "../cpu/arm/arm_page_walker.h"
+#include "../cpu/arm/arm_performance_monitors.h"
 #include "../cpu/arm_processor_config.h"
+#include "../socs/core_power_collapse.h"
 #include <cerfengine/arm/arm_cpu.h>
 #include <cerfengine/arm/arm_mmu.h>
 #include <cerfengine/arm/arm_system_host.h>
@@ -58,8 +60,8 @@ constexpr void VisitCpuTail(cerfengine::ArmCpuState& s, F& field) {
 
 template <typename F>
 constexpr void VisitMmuControl(cerfengine::ArmMmuState& s, F& field) {
-    field("control_register", s.control_register.word);
-    field("effective_control_register", s.effective_control_register.word);
+    field("sctlr", s.control_register.word);
+    field("effective_sctlr", s.effective_control_register.word);
 }
 
 template <typename F>
@@ -142,12 +144,16 @@ public:
                       "the cp15 visitors must name every field of ArmCp15File");
         StateWriteField field(w);
         VisitMmuSection(*Engine().Get<cerfengine::ArmMmu>().State(), cp15_->File(), field);
+        if (auto* pmu = emu_.TryGet<ArmPerformanceMonitors>()) pmu->SaveState(w);
+        emu_.Get<ArmCoprocProvider>().SaveState(w);
     }
 
     void RestoreMmuState(StateReader& r) override {
         cerfengine::ArmMmu& mmu = Engine().Get<cerfengine::ArmMmu>();
         StateReadField field(r);
         VisitMmuSection(*mmu.State(), cp15_->File(), field);
+        if (auto* pmu = emu_.TryGet<ArmPerformanceMonitors>()) pmu->RestoreState(r);
+        emu_.Get<ArmCoprocProvider>().RestoreState(r);
         mmu.RefreshFcseFold();
         mmu.InvalidateAllTlbs();
     }
@@ -168,6 +174,11 @@ public:
     }
 
     cerfengine::ArmResetResult ArmReset() override { return cp15_->Reset(); }
+
+    bool ArmResumeAfterWfi() override {
+        auto* collapse = emu_.TryGet<CorePowerCollapse>();
+        return collapse != nullptr && collapse->ResumeIfCollapsed();
+    }
 
 protected:
     void FillSetup(cerfengine::Setup& setup) override {
@@ -208,6 +219,8 @@ protected:
         f.fpsid                         = cfg.Fpsid();
         f.mvfr0                         = cfg.Mvfr0();
         f.mvfr1                         = cfg.Mvfr1();
+        f.sctlr_read_only_mask          = cfg.SctlrReadOnlyMask();
+        f.sctlr_read_only_value         = cfg.SctlrReadOnlyValue();
 
         setup.isa                 = cerfengine::Isa::kArm;
         setup.arm_translation     = &emu_.Get<ArmPageWalker>();

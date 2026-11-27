@@ -33,6 +33,9 @@ struct Msm8255MddiVideoStream {
     uint16_t pixel_count;
 };
 
+inline constexpr uint32_t kMsm8255MddiVideoStreamHeaderBytes = 26u;
+inline constexpr uint32_t kMsm8255MddiPixelDataCrcBytes      = 2u;
+
 struct Msm8255MddiSurface {
     const uint8_t*   pixels;
     uint32_t         stride_bytes;
@@ -52,7 +55,7 @@ public:
     virtual void     WriteRegister(uint32_t address, uint32_t value) = 0;
 
     virtual void WriteVideoStream(const Msm8255MddiVideoStream& video,
-                                  uint32_t data_pa, uint32_t data_bytes) = 0;
+                                  const uint8_t* data, uint32_t data_bytes) = 0;
 
     virtual Msm8255MddiSurface Surface() const = 0;
 

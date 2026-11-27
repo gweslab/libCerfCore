@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <set>
 
 namespace cerfcore {
 
@@ -36,7 +37,7 @@ std::string Utf16LeToAscii(const uint8_t* utf16, size_t bytes) {
     return out;
 }
 
-}  /* namespace */
+}
 
 IndexRecord ReadIndexRecord(const uint8_t* rec) {
     return {U16(rec + kIndexRecOffCompSize), U16(rec + kIndexRecOffFullSize),
@@ -132,42 +133,41 @@ std::vector<uint8_t> Translator::Read(std::span<const uint8_t> raw,
     return out;
 }
 
-std::vector<uint8_t> ReadIndexData(std::span<const uint8_t> raw,
-                                    const Translator&        tr,
-                                    uint32_t                 indexptr,
-                                    uint32_t                 indexsize,
-                                    uint32_t                 expected_size) {
-    if (indexptr == 0 || indexsize == 0) return {};
-    const std::vector<uint8_t> idx = tr.Read(raw, indexptr, indexsize);
-    if (idx.size() < indexsize) return {};
-
-    std::vector<uint8_t> out;
-    out.reserve(expected_size);
+std::vector<IndexRecord> ReadIndexRecords(const VolumeRead& read, uint32_t indexptr,
+                                          uint32_t indexsize) {
+    std::vector<IndexRecord> records;
+    if (indexptr == 0 || indexsize == 0) return records;
+    const std::vector<uint8_t> idx = read(indexptr, indexsize);
+    if (idx.size() < indexsize) return records;
     const uint32_t n_records = indexsize / kIndexRecSize;
     for (uint32_t i = 0; i < n_records; ++i) {
         const IndexRecord rec = ReadIndexRecord(idx.data() + i * kIndexRecSize);
         if (rec.IsTerminator()) break;
-        const uint16_t comp_sz = rec.comp_size;
-        const uint16_t full_sz = rec.full_size;
-        const uint32_t ptr     = rec.ptr;
-        if (ptr == 0) {
-            out.insert(out.end(), full_sz, uint8_t(0));
+        records.push_back(rec);
+    }
+    return records;
+}
+
+std::vector<uint8_t> ReadIndexData(const VolumeRead& read,
+                                    const Inflate&    inflate,
+                                    uint32_t          indexptr,
+                                    uint32_t          indexsize,
+                                    uint32_t          expected_size) {
+    std::vector<uint8_t> out;
+    out.reserve(expected_size);
+    for (const IndexRecord& rec : ReadIndexRecords(read, indexptr, indexsize)) {
+        if (rec.ptr == 0) {
+            out.insert(out.end(), rec.full_size, uint8_t(0));
             continue;
         }
-        std::vector<uint8_t> chunk = tr.Read(raw, ptr, comp_sz);
-        if (comp_sz == full_sz) {
+        const std::vector<uint8_t> chunk = read(rec.ptr, rec.comp_size);
+        if (rec.comp_size == rec.full_size) {
             out.insert(out.end(), chunk.begin(), chunk.end());
-        } else {
-            std::vector<uint8_t> dec =
-                ce_imgfs_xpress::Decompress(chunk.data(), chunk.size(),
-                                             full_sz);
-            if (dec.size() == full_sz) {
-                out.insert(out.end(), dec.begin(), dec.end());
-            } else {
-                out.insert(out.end(), dec.begin(), dec.end());
-                out.insert(out.end(), full_sz - dec.size(), uint8_t(0));
-            }
+            continue;
         }
+        const std::vector<uint8_t> dec = inflate(chunk, rec.full_size);
+        out.insert(out.end(), dec.begin(), dec.end());
+        if (dec.size() < rec.full_size) out.insert(out.end(), rec.full_size - dec.size(), uint8_t(0));
     }
     if (expected_size > 0 && out.size() > expected_size) {
         out.resize(expected_size);
@@ -175,86 +175,111 @@ std::vector<uint8_t> ReadIndexData(std::span<const uint8_t> raw,
     return out;
 }
 
-std::vector<DirentRef> EnumerateAll(std::span<const uint8_t> raw,
-                                     const Translator&        tr,
-                                     uint32_t                 bytes_per_block,
-                                     uint32_t                 dirent_size) {
-    std::vector<DirentRef> out;
-    if (bytes_per_block == 0 || dirent_size == 0) return out;
-    const uint32_t ents_per_blk = (bytes_per_block - 8) / dirent_size;
-    const size_t   imgfs_base   = tr.ImgfsBase();
-    if (imgfs_base + 8 > raw.size()) return out;
+std::vector<uint8_t> ReadIndexData(std::span<const uint8_t> raw,
+                                    const Translator&        tr,
+                                    uint32_t                 indexptr,
+                                    uint32_t                 indexsize,
+                                    uint32_t                 expected_size) {
+    return ReadIndexData(
+        [&](uint32_t offset, uint32_t length) { return tr.Read(raw, offset, length); },
+        [](const std::vector<uint8_t>& packed, uint16_t full_size) {
+            return ce_imgfs_xpress::Decompress(packed.data(), packed.size(), full_size);
+        },
+        indexptr, indexsize, expected_size);
+}
 
-    for (size_t off = imgfs_base; off + 8 <= raw.size(); off += bytes_per_block) {
-        if (U32(raw.data() + off) != kDirMagic) continue;
-        for (uint32_t i = 0; i < ents_per_blk; ++i) {
-            const size_t eo = off + 8 + i * dirent_size;
-            if (eo + dirent_size > raw.size()) break;
-            const uint32_t magic = U32(raw.data() + eo);
-            out.push_back({eo, magic});
+std::vector<LoadedDirent> EnumerateChain(const VolumeRead& read,
+                                         uint32_t          first_block,
+                                         uint32_t          block_bytes) {
+    std::vector<LoadedDirent> out;
+    if (block_bytes <= kDirBlockHeadSize) return out;
+    const uint32_t per_block = (block_bytes - kDirBlockHeadSize) / kImgfsDirentSize;
+    std::set<uint32_t> visited;
+    for (uint32_t at = first_block; at != 0 && visited.insert(at).second;) {
+        const std::vector<uint8_t> block = read(at, block_bytes);
+        if (block.size() < block_bytes || U32(block.data()) != kDirMagic) break;
+        for (uint32_t i = 0; i < per_block; ++i) {
+            const uint32_t rel = kDirBlockHeadSize + i * kImgfsDirentSize;
+            LoadedDirent   d;
+            d.off   = size_t(at) + rel;
+            d.block = at;
+            std::memcpy(d.bytes.data(), block.data() + rel, kImgfsDirentSize);
+            out.push_back(d);
         }
+        at = U32(block.data() + kDirBlockOffNext);
     }
     return out;
 }
 
-std::string ResolveName(std::span<const uint8_t> raw,
-                        const Translator&        tr,
-                        const uint8_t*           ni) {
+bool NameStringExtent(const uint8_t* ni, uint32_t& ptr, uint32_t& bytes) {
     const uint16_t length = U16(ni);
-    const uint16_t flags  = U16(ni + 2);
+    if (length <= 4 || (U16(ni + 2) & 0x02)) return false;
+    ptr   = U32(ni + 8);
+    bytes = uint32_t(length) * 2;
+    return true;
+}
+
+std::string ResolveName(const VolumeRead& read, const uint8_t* ni) {
+    const uint16_t length = U16(ni);
     if (length == 0) return {};
 
     if (length <= 4) {
         return Utf16LeToAscii(ni + 4, size_t(length) * 2);
     }
 
-    const uint32_t ptr = U32(ni + 8);
-    if (flags & 0x02) {
-        const size_t off = tr.Translate(ptr);
-        if (off != SIZE_MAX && off + kImgfsDirentSize <= raw.size()) {
-            if (U32(raw.data() + off) == kMagicName) {
-                return Utf16LeToAscii(raw.data() + off + 4, kImgfsDirentSize - 4);
-            }
+    uint32_t ptr = 0, bytes = 0;
+    if (!NameStringExtent(ni, ptr, bytes)) {
+        const std::vector<uint8_t> dirent = read(U32(ni + 8), kImgfsDirentSize);
+        if (dirent.size() == kImgfsDirentSize && U32(dirent.data()) == kMagicName) {
+            return Utf16LeToAscii(dirent.data() + 4, kImgfsDirentSize - 4);
         }
         return {};
     }
-    const size_t off = tr.Translate(ptr);
-    if (off == SIZE_MAX) return {};
-    const size_t bytes = size_t(length) * 2;
-    if (off + bytes > raw.size()) return {};
-    return Utf16LeToAscii(raw.data() + off, bytes);
+    const std::vector<uint8_t> chars = read(ptr, bytes);
+    if (chars.size() != bytes) return {};
+    return Utf16LeToAscii(chars.data(), bytes);
 }
 
-std::vector<ImgfsModule> CollectModules(std::span<const uint8_t> raw,
-                                         const Translator&        tr,
-                                         uint32_t                 bytes_per_block) {
+namespace {
+
+VolumeRead TranslatedRead(std::span<const uint8_t> raw, const Translator& tr) {
+    return [raw, &tr](uint32_t offset, uint32_t length) { return tr.Read(raw, offset, length); };
+}
+
+}
+
+std::string ResolveName(std::span<const uint8_t> raw,
+                        const Translator&        tr,
+                        const uint8_t*           ni) {
+    return ResolveName(TranslatedRead(raw, tr), ni);
+}
+
+std::vector<ImgfsModule> CollectModules(const std::vector<LoadedDirent>& dirents,
+                                         const VolumeRead&                read) {
     std::vector<ImgfsModule> mods;
-    const auto refs = EnumerateAll(raw, tr, bytes_per_block, kImgfsDirentSize);
     size_t i = 0;
-    while (i < refs.size()) {
-        if (refs[i].magic != kMagicModule) { ++i; continue; }
-        const size_t eo = refs[i].abs_file_off;
-        const uint8_t* d = raw.data() + eo;
+    while (i < dirents.size()) {
+        if (dirents[i].Magic() != kMagicModule) { ++i; continue; }
+        const uint8_t* d = dirents[i].bytes.data();
         ImgfsModule m;
-        m.dirent_off    = eo;
+        m.dirent_off    = dirents[i].off;
         m.file_size     = U32(d + kDirentFileSizeOff);
         m.mod_indexptr  = U32(d + kModuleIndexPtrOff);
         m.mod_indexsize = U32(d + kModuleIndexSizeOff);
-        m.name          = ResolveName(raw, tr, d + kDirentNameInfoOff);
+        m.name          = ResolveName(read, d + kDirentNameInfoOff);
 
         size_t j = i + 1;
-        while (j < refs.size()) {
-            const uint32_t mj = refs[j].magic;
+        while (j < dirents.size()) {
+            const uint32_t mj = dirents[j].Magic();
             if (mj == kMagicName) { ++j; continue; }
             if (mj != kMagicSection && mj != kMagicModuleSection) break;
-            const size_t seo = refs[j].abs_file_off;
-            const uint8_t* sd = raw.data() + seo;
+            const uint8_t* sd = dirents[j].bytes.data();
             ImgfsModule::Section s;
-            s.dirent_off    = seo;
+            s.dirent_off    = dirents[j].off;
             s.file_size     = U32(sd + kDirentFileSizeOff);
             s.sec_indexptr  = U32(sd + kSectionIndexPtrOff);
             s.sec_indexsize = U32(sd + kSectionIndexSizeOff);
-            s.name          = ResolveName(raw, tr, sd + kDirentNameInfoOff);
+            s.name          = ResolveName(read, sd + kDirentNameInfoOff);
             m.sections.push_back(std::move(s));
             ++j;
         }
@@ -262,6 +287,17 @@ std::vector<ImgfsModule> CollectModules(std::span<const uint8_t> raw,
         i = j;
     }
     return mods;
+}
+
+std::vector<ImgfsModule> CollectModules(std::span<const uint8_t> raw,
+                                         const Translator&        tr,
+                                         uint32_t                 first_dir_block,
+                                         uint32_t                 dir_block_sectors) {
+    const VolumeRead read = TranslatedRead(raw, tr);
+    std::vector<LoadedDirent> dirents =
+        EnumerateChain(read, first_dir_block, kImgfsPageSize * dir_block_sectors);
+    for (LoadedDirent& d : dirents) d.off = tr.Translate(uint32_t(d.off));
+    return CollectModules(dirents, read);
 }
 
 }

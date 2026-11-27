@@ -1,4 +1,5 @@
 #include "boot_mode.h"
+#include "reset_vector_placing_mode_id.h"
 
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
@@ -12,8 +13,8 @@ public:
     using BootMode::BootMode;
 
     bool ShouldRegister() override {
-        const RomPlacingMode mode = emu_.Get<BoardContext>().GetRomPlacingMode();
-        return mode == RomPlacingMode::ResetVector || mode == RomPlacingMode::Unknown;
+        const std::string_view mode = emu_.Get<BoardContext>().GetRomPlacingMode();
+        return mode == RomPlacingModeId::ResetVector || mode.empty();
     }
 
     uint32_t ColdEntryPa() override { return 0; }

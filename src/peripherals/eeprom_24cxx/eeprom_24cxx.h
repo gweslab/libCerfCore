@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../socs/i2c_register_pointer.h"
 #include "../../socs/i2c_slave.h"
 
 #include <cerfcore/platform/host_file.h>
@@ -49,10 +50,8 @@ private:
     std::string                        path_;
     std::array<uint8_t, kBlockBytes>   cells_{};
     std::array<uint8_t, kMaxPageBytes> page_{};
-    uint16_t page_dirty_   = 0;
-    uint16_t addr_         = 0;
-    bool     addr_valid_   = false;
-    bool     addr_pending_ = false;
+    uint16_t           page_dirty_ = 0;
+    I2cRegisterPointer addr_;
 };
 
 }

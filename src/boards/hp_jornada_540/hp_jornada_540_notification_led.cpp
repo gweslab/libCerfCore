@@ -99,8 +99,7 @@ void HpJornada540NotificationLed::SetDisplayOff(bool off) {
 }
 
 void HpJornada540NotificationLed::ArmEndLocked() {
-    const int64_t left = std::max<int64_t>(end_ns_ - clock_->NowNs(), 0);
-    clock_->Arm(end_event_, clock_->Cycles() + clock_->NsToCycles(left));
+    clock_->Arm(end_event_, clock_->CycleAtNs(end_ns_));
 }
 
 void HpJornada540NotificationLed::End() {

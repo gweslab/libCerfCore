@@ -1,0 +1,1 @@
+{ "name": "NXP ISP1504", "supported": true, "connections": [{ "board_family_ids": ["toshiba_gigabeat_s"] }] }

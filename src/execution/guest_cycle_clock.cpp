@@ -190,6 +190,7 @@ void GuestCycleClock::RunDue(uint64_t now) {
 }
 
 CERF_FORCEINLINE void GuestCycleClock::DispatchDue() {
+    if (!DeadlineReached()) return;
     const uint64_t now = Cycles();
     RunDue(now);
     Publish(now);

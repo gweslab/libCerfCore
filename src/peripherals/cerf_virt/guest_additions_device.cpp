@@ -12,4 +12,6 @@ bool GuestAdditionsDevice::ShouldRegister() { return emu_.Get<DeviceConfig>().gu
 
 void GuestAdditionsDevice::OnReady() { emu_.Get<MachineObjectTree>().Add(this); }
 
+void GuestAdditionsDevice::LiveResizeChanged() { Changed(); }
+
 }

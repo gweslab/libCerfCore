@@ -3,7 +3,10 @@
 #include <cerfcore/boot/rom_parser_service.h>
 
 #include <cerfcore/boards/board_context.h>
+#include "flat_container_placing_mode_id.h"
 #include <cerfcore/core/cerf_emulator.h>
+#include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
 #include "../boards/page_table_builder.h"
 
 namespace cerfcore {
@@ -16,21 +19,28 @@ public:
 
     bool ShouldRegister() override {
         return emu_.Get<BoardContext>().GetRomPlacingMode()
-            == RomPlacingMode::FlatContainer;
+            == RomPlacingModeId::FlatContainer;
+    }
+
+    void OnReady() override {
+        BootMode::OnReady();
+        if (!emu_.Get<RomParserService>().Ok()) {
+            emu_.Get<Fatal>().UserError("device '%s': the ROM holds no image CERF can boot",
+                                        emu_.Get<DeviceConfig>().device_name.c_str());
+        }
     }
 
     /* ARM ARM DDI 0406C.c A2.3.2 BXWritePC(), p. A2-47: "BranchTo(address<31:1>
        :'0')" - bit<0> is the instruction-set selector, not part of the
        address. */
     uint32_t ColdEntryPa() override {
-        auto& rom = emu_.Get<RomParserService>();
-        return emu_.Get<PageTableBuilder>().VaToPa(rom.EntryVa() & 0xFFFFFFFEu);
+        return KernelEntryPa(emu_.Get<RomParserService>().EntryVa());
     }
 
     /* ARM ARM DDI 0406C.c A2.3.2 BXWritePC(), p. A2-47: "if address<0> == '1'
        then SelectInstrSet(InstrSet_Thumb)". */
     bool ColdEntryThumb() override {
-        return (emu_.Get<RomParserService>().EntryVa() & 1u) != 0u;
+        return KernelEntryThumb(emu_.Get<RomParserService>().EntryVa());
     }
 
     uint32_t ColdStackPa() override {

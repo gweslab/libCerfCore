@@ -4,6 +4,7 @@
 #include <cerfcore/peripherals/cerf_virt/cerf_virt_framebuffer.h>
 
 #include "../peripheral_dispatcher.h"
+#include "guest_additions_device.h"
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
@@ -28,7 +29,15 @@ void CerfVirtResize::OnReady() {
         applied_h_.store(0u, std::memory_order_release);
         applied_quarter_.store(0u, std::memory_order_release);
         applied_gen_.store(0u, std::memory_order_release);
+        SetFixedSize(0u);
     });
+}
+
+bool CerfVirtResize::GuestFixedSize() const { return fixed_size_.load(std::memory_order_acquire) != 0u; }
+
+void CerfVirtResize::SetFixedSize(uint32_t fixed) {
+    if (fixed_size_.exchange(fixed, std::memory_order_acq_rel) != fixed)
+        emu_.Get<GuestAdditionsDevice>().LiveResizeChanged();
 }
 
 uint32_t CerfVirtResize::MmioBase() const {
@@ -52,6 +61,7 @@ void CerfVirtResize::WriteWord(uint32_t addr, uint32_t value) {
         case CerfVirt::kRszAppliedW:       applied_w_.store(value); break;
         case CerfVirt::kRszAppliedH:       applied_h_.store(value); break;
         case CerfVirt::kRszAppliedQuarter: applied_quarter_.store(value); break;
+        case CerfVirt::kRszFixedSize:      SetFixedSize(value != 0u ? 1u : 0u); break;
         case CerfVirt::kRszAppliedGen: {
             applied_gen_.store(value);
             const uint32_t w = applied_w_.load();
@@ -77,6 +87,7 @@ void CerfVirtResize::SaveState(StateWriter& w) {
     w.Write<uint32_t>("applied_h", applied_h_.load(std::memory_order_acquire));
     w.Write<uint32_t>("applied_gen", applied_gen_.load(std::memory_order_acquire));
     w.Write<uint32_t>("applied_quarter", applied_quarter_.load(std::memory_order_acquire));
+    w.Write<uint32_t>("fixed_size", fixed_size_.load(std::memory_order_acquire));
 }
 
 void CerfVirtResize::RestoreState(StateReader& r) {
@@ -88,6 +99,7 @@ void CerfVirtResize::RestoreState(StateReader& r) {
     r.Read("applied_h", v); applied_h_.store(v, std::memory_order_release);
     r.Read("applied_gen", v); applied_gen_.store(v, std::memory_order_release);
     r.Read("applied_quarter", v); applied_quarter_.store(v, std::memory_order_release);
+    r.Read("fixed_size", v); SetFixedSize(v);
 }
 
 void CerfVirtResize::RequestResize(uint32_t w, uint32_t h) {

@@ -40,7 +40,7 @@ void CerfVirtColorScheme::ApplyFromConfig() {
         emu_.Get<Fatal>().Die("unknown --ga-color-scheme key '%s'", key.c_str());
     }
     count_ = scheme->count;
-    for (uint32_t i = 0; i < count_ && i < CerfVirt::kColorSchemeMax; ++i)
+    for (uint32_t i = 0; i < count_; ++i)
         entries_[i] = scheme->entries[i];
     present_ = true;
     LOG(GuestAdditions, "color scheme override: '%s' published (%u entries)",

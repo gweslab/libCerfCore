@@ -322,6 +322,27 @@ uint8_t EmmcCardBase::CheckedErasedMemCont() const {
     return code;
 }
 
+std::vector<uint8_t> EmmcCardBase::ReadStoredSectors(uint64_t first, uint64_t count) {
+    const uint64_t sectors = SectorCount();
+    if (count > sectors || first > sectors - count) {
+        emu_.Get<Fatal>().Die(
+            "eMMC card in slot %u: a read of %llu sectors at sector %llu ends past the "
+            "%u sectors of the card", SlotIndex(), static_cast<unsigned long long>(count),
+            static_cast<unsigned long long>(first), SectorCount());
+    }
+    if (count > SIZE_MAX / cerf_mmc::kBlockBytes) {
+        emu_.Get<Fatal>().Die(
+            "eMMC card in slot %u: a read of %llu sectors does not fit in host memory", SlotIndex(),
+            static_cast<unsigned long long>(count));
+    }
+    std::vector<uint8_t> out(size_t(count) * cerf_mmc::kBlockBytes);
+    for (uint64_t i = 0; i < count; ++i)
+        ReadBlock(static_cast<uint32_t>(first + i), out.data() + size_t(i) * cerf_mmc::kBlockBytes);
+    return out;
+}
+
+uint32_t EmmcCardBase::StoredSectorCount() const { return SectorCount(); }
+
 uint8_t EmmcCardBase::ErasedByte() const {
     return CheckedErasedMemCont() == kErasedMemContOnes ? 0xFFu : 0x00u;
 }

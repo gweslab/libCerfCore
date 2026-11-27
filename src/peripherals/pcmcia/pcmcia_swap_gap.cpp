@@ -78,9 +78,8 @@ void PcmciaSwapGap::ArmAtDeadline() {
         if (!open_ || !started_) return;
         deadline = deadline_ns_;
     }
-    auto&         clock = emu_.Get<GuestCycleClock>();
-    const int64_t left  = std::max<int64_t>(deadline - clock.NowNs(), 0);
-    clock.Arm(Event(), clock.Cycles() + clock.NsToCycles(left));
+    auto& clock = emu_.Get<GuestCycleClock>();
+    clock.Arm(Event(), clock.CycleAtNs(deadline));
 }
 
 void PcmciaSwapGap::Close() {

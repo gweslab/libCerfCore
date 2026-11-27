@@ -22,6 +22,10 @@ public:
 
     /* Initial SP at cold reset, PHYSICAL. */
     virtual uint32_t ColdStackPa() = 0;
+
+protected:
+    uint32_t KernelEntryPa(uint32_t entry_va);
+    static bool KernelEntryThumb(uint32_t entry_va);
 };
 
 }

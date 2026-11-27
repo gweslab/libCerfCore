@@ -1,1 +1,1 @@
-{ "soc_id": "sa1100", "inherits_cpu_config_id": "strongarm", "values": { "midr": "0x4401A110", "ctr": "0x4401A110" } }
+{ "soc_id": "sa1100", "inherits_cpu_config_id": "strongarm", "values": { "midr": "0x4401A110", "ctr": "0x4401A110", "sctlr_read_only_mask": "0xFFFFCC70" } }

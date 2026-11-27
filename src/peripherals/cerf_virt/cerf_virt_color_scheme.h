@@ -23,6 +23,9 @@ public:
     void SaveState(StateWriter& w) override;
     void RestoreState(StateReader& r) override;
 
+    uint32_t                                               PublishedCount() const { return present_ ? count_ : 0u; }
+    const std::array<uint32_t, CerfVirt::kColorSchemeMax>& PublishedEntries() const { return entries_; }
+
 private:
     void ApplyFromConfig();
 

@@ -4,6 +4,9 @@
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/cerf_paths.h>
+#include <cerfcore/core/device_config_keys.h>
+#include <cerfcore/core/device_file_types.h>
+#include <cerfcore/core/host_file_bytes.h>
 
 #include "../boot/sec_flash.h"
 #include <cerfcore/host/configuration_problem.h>
@@ -24,9 +27,19 @@ bool DeviceNotFoundService::IsDevicePresent() {
     if (!cfg.rom_primary.empty() &&
         host_platform::HostFileExists(ResolveDeviceFile(cfg.device_name, cfg.rom_primary)))
         return true;
+    if (HasEmmcStore()) return true;
     if (auto* sf = emu_.TryGet<SecFlash>(); sf && sf->IsPresent()) return true;
     if (emu_.TryGet<NorFlashStore>()) return true;
     return emu_.TryGet<Imx51NandStore>() != nullptr;
+}
+
+bool DeviceNotFoundService::HasEmmcStore() {
+    const auto& cfg = emu_.Get<DeviceConfig>();
+    for (const DeviceFileType& type : emu_.Get<DeviceFileTypes>().ForBoard(cfg.board_id)) {
+        if (type.section == DeviceFileSection::kStorage && type.id == config_key::kStorageEmmc)
+            return HostFileNonEmpty(ResolveDeviceFile(cfg.device_name, cfg.storage_emmc));
+    }
+    return false;
 }
 
 void DeviceNotFoundService::EnsureFound() {

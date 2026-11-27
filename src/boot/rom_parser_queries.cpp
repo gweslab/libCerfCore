@@ -3,6 +3,7 @@
 #include "rom_toc_lookup.h"
 
 #include <cerfcore/boards/board_context.h>
+#include "flat_container_placing_mode_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 
@@ -18,7 +19,7 @@ constexpr const char* kKernelModule = "nk.exe";
 
 bool RomParserQueries::ShouldRegister() {
     return emu_.Get<BoardContext>().GetRomPlacingMode()
-        == RomPlacingMode::FlatContainer;
+        == RomPlacingModeId::FlatContainer;
 }
 
 void RomParserQueries::OnReady() {

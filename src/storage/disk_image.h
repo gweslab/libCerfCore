@@ -36,6 +36,7 @@ public:
 private:
     host_platform::HostFile file_;
     uint64_t                sector_count_ = 0;
+    uint64_t                file_bytes_   = 0;
 };
 
 }

@@ -40,11 +40,13 @@ inline constexpr uint32_t kPacmarkBytes    = 4u;
    RPCROUTER_ROUTER_ADDRESS, RPCROUTER_MSGSIZE_MAX and the RPCROUTER_CTRL_CMD_*
    command numbers. */
 inline constexpr uint32_t kRouterMsgSizeMax  = 512u;
+inline constexpr uint32_t kRouterFragmentDataMax = kRouterMsgSizeMax - 8u - 4u;
 inline constexpr uint32_t kRouterVersion     = 1u;
 inline constexpr uint32_t kRouterAddress     = 0xFFFFFFFEu;
 inline constexpr uint32_t kCtrlCmdData       = 1u;
 inline constexpr uint32_t kCtrlCmdHello      = 2u;
 inline constexpr uint32_t kCtrlCmdNewServer  = 4u;
+inline constexpr uint32_t kCtrlCmdRemoveClient = 6u;
 inline constexpr uint32_t kCtrlCmdResumeTx   = 7u;
 
 /* RFC 5531 section 9 The RPC Message Protocol: enum msg_type CALL 0 REPLY 1,
@@ -55,11 +57,12 @@ inline constexpr uint32_t kOncrpcReply   = 1u;
 inline constexpr uint32_t kOncrpcVersion = 2u;
 inline constexpr uint32_t kMsgAccepted   = 0u;
 inline constexpr uint32_t kAcceptSuccess = 0u;
-inline constexpr uint32_t kAcceptProcUnavail = 3u;
 inline constexpr uint32_t kAuthNone      = 0u;
 
 inline constexpr uint32_t kXdrTrue  = 1u;
 inline constexpr uint32_t kXdrFalse = 0u;
+
+inline constexpr uint32_t kRpcNoCallback = 0xFFFFFFFFu;
 
 /* RFC 5531 section 9: a call body is xid, msg_type, rpcvers, prog, vers, proc,
    then the cred and verf opaque_auth pairs, then the procedure arguments. */

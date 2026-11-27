@@ -10,6 +10,7 @@ namespace cerfcore {
 namespace CerfVirt {
 
 const uint32_t kKbWriteSeq  = 0x00u;
+const uint32_t kKbNoInjector = 0x04u;
 const uint32_t kKbRingBase  = 0x10u;
 const uint32_t kKbRingCount = 256u;
 

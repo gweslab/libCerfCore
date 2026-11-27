@@ -26,6 +26,9 @@ constexpr uint32_t kPll2StatusActive = 0x00010000u;
 /* Linux drivers/clk/qcom/common.h: PLL_VOTE_FSM_ENA BIT(20). */
 constexpr uint32_t kPll2ModeFsmEnabled = 0x00100000u;
 
+constexpr uint32_t kRegUartNs       = 0x0E0u;
+constexpr uint32_t kUartNsClocksOff = 0u;
+
 class Msm8255ClkCtl : public Peripheral {
 public:
     using Peripheral::Peripheral;
@@ -45,6 +48,7 @@ public:
         switch (addr - MmioBase()) {
         case kRegPll2Mode:   return kPll2ModeFsmEnabled;
         case kRegPll2Status: return kPll2StatusActive;
+        case kRegUartNs:     return kUartNsClocksOff;
         default:             HaltUnsupportedAccess("ReadWord", addr, 0);
         }
     }

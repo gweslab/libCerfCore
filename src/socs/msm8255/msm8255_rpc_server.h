@@ -1,5 +1,7 @@
 #pragma once
 
+#include "msm8255_rpc_endpoint.h"
+
 #include <cerfcore/core/service.h>
 
 #include <cstdint>
@@ -20,14 +22,13 @@ public:
     virtual uint32_t ServerVers() const = 0;
     virtual uint32_t ServerCid() const  = 0;
 
-    virtual uint32_t AnswerCall(uint32_t in_pa, uint32_t size, uint32_t out_pa,
+    virtual uint32_t AnswerCall(const uint8_t* payload, uint32_t size, uint32_t out_pa,
                                 uint32_t out_cap, uint32_t self_pid,
                                 uint32_t peer_pid, uint32_t peer_cid) = 0;
 
-    virtual bool CallbackClientCid(uint32_t& cid) const;
+    virtual void ReleaseClient(const Msm8255RpcEndpoint& client) = 0;
 
-    virtual uint32_t ConsumeCallbackReply(uint32_t in_pa, uint32_t size,
-                                          uint32_t out_pa, uint32_t out_cap);
+    virtual bool CallbackClientCid(uint32_t& cid) const;
 };
 
 }

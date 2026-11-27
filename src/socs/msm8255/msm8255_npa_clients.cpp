@@ -1,14 +1,13 @@
 #include "msm8255_npa_clients.h"
 
-#include "msm8255_rpcrouter_wire.h"
-
 #include <cerfcore/boards/board_context.h>
 #include "msm8255_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
-#include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
+
+#include <utility>
 
 namespace cerfcore {
 
@@ -19,79 +18,82 @@ bool Msm8255NpaClients::ShouldRegister() {
 
 void Msm8255NpaClients::OnReady() {
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
-        resource_.clear();
-        request_.clear();
-        issued_.clear();
+        clients_.Clear();
+        names_.clear();
     });
 }
 
-uint32_t Msm8255NpaClients::ResourceKeyAt(uint32_t body, uint32_t off) {
-    auto& mem = emu_.Get<EmulatedMemory>();
-
-    const uint32_t length = Be32(mem.ReadWord(body + off));
-
-    uint32_t key  = length;
-    uint32_t at   = off + 4u;
-    uint32_t left = length;
-    for (; left >= 4u; left -= 4u, at += 4u) {
-        key = key * 31u + Be32(mem.ReadWord(body + at));
-    }
-    if (left != 0u) {
-        const uint32_t named = 0xFFFFFFFFu << (8u * (4u - left));
-        key = key * 31u + (Be32(mem.ReadWord(body + at)) & named);
-    }
-    return key;
+void Msm8255NpaClients::RegisterResourceDriver(
+    std::string name, std::function<void(uint32_t)> apply_level) {
+    drivers_.push_back({std::move(name), std::move(apply_level)});
 }
 
-uint32_t Msm8255NpaClients::IssueHandle(uint32_t resource) {
-    resource_.push_back(resource);
-    request_.push_back(0u);
-    issued_.push_back(0u);
-    return static_cast<uint32_t>(resource_.size());
+uint32_t Msm8255NpaClients::NameIndex(const std::string& resource) {
+    for (uint32_t i = 0; i < names_.size(); ++i) {
+        if (names_[i] == resource) return i;
+    }
+    names_.push_back(resource);
+    return static_cast<uint32_t>(names_.size() - 1u);
 }
 
-uint32_t Msm8255NpaClients::HandleCount() const {
-    return static_cast<uint32_t>(resource_.size());
+uint32_t Msm8255NpaClients::IssueHandle(const std::string& resource) {
+    Msm8255NpaClient* client = clients_.Issue();
+    if (!client) {
+        emu_.Get<Fatal>().Die("msm8255 npa clients: create-client after %u issued handles",
+                              clients_.LastId());
+    }
+    client->name = NameIndex(resource);
+    return client->id;
 }
 
 uint32_t Msm8255NpaClients::ApplyRequest(uint32_t handle, uint32_t request) {
-    const uint32_t self = handle - 1u;
-    request_[self] = request;
-    issued_[self]  = 1u;
+    Msm8255NpaClient* self = clients_.Find(handle);
+    if (!self) {
+        emu_.Get<Fatal>().Die(
+            "msm8255 npa clients: the issue-request call names client handle %u, and this "
+            "peer has issued %u", handle, clients_.LastId());
+    }
+    self->request = request;
+    self->issued  = 1u;
 
-    for (uint32_t i = 0; i < resource_.size(); ++i) {
-        if (i == self || resource_[i] != resource_[self] || issued_[i] == 0u) {
+    for (const Msm8255NpaClient& other : clients_.Clients()) {
+        if (other.id == self->id || other.name != self->name || other.issued == 0u) {
             continue;
         }
         emu_.Get<Fatal>().Die(
             "msm8255 npa clients: client handle %u requests %u of the resource "
             "client handle %u already requested %u of, and the rule this peer "
             "would aggregate them by is not modeled",
-            handle, request, i + 1u, request_[i]);
+            handle, request, other.id, other.request);
+    }
+    for (const ResourceDriver& driver : drivers_) {
+        if (driver.name == names_[self->name]) {
+            driver.apply_level(request);
+        }
     }
     return request;
 }
 
 void Msm8255NpaClients::SaveState(StateWriter& w) {
-    w.Write<uint32_t>("resource_count", static_cast<uint32_t>(resource_.size()));
-    for (uint32_t i = 0; i < resource_.size(); ++i) {
-        w.Write<uint32_t>("resource", resource_[i]);
-        w.Write<uint32_t>("request", request_[i]);
-        w.Write<uint32_t>("issued", issued_[i]);
+    w.Write<uint32_t>("npa_name_count", static_cast<uint32_t>(names_.size()));
+    for (const std::string& name : names_) {
+        w.Write<uint32_t>("npa_name_bytes", static_cast<uint32_t>(name.size()));
+        w.WriteBytes("npa_name", name.data(), name.size());
     }
+    clients_.Save(w, "npa");
 }
 
 void Msm8255NpaClients::RestoreState(StateReader& r) {
-    uint32_t clients = 0;
-    r.Read("resource_count", clients);
-    resource_.assign(clients, 0u);
-    request_.assign(clients, 0u);
-    issued_.assign(clients, 0u);
-    for (uint32_t i = 0; i < clients; ++i) {
-        r.Read("resource", resource_[i]);
-        r.Read("request", request_[i]);
-        r.Read("issued", issued_[i]);
+    uint32_t count = 0u;
+    r.Read("npa_name_count", count);
+    names_.assign(count, std::string{});
+    for (std::string& name : names_) {
+        uint32_t bytes = 0u;
+        r.Read("npa_name_bytes", bytes);
+        name.resize(bytes);
+        r.ReadBytes("npa_name", name.data(), bytes);
     }
+    clients_.Restore(r, "npa");
 }
 
 REGISTER_SERVICE(Msm8255NpaClients);

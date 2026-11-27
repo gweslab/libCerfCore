@@ -38,11 +38,11 @@ public:
     }
 
     void OnReady() override {
-        data_path_ = &emu_.Get<DataPath>();
+        data_path_   = &emu_.Get<DataPath>();
+        clock_reset_ = &emu_.Get<Msm8255ClockReset>();
         emu_.Get<GuestCpuReset>().RegisterResetListener(
             [this](ResetLineKind) { ResetState(); });
-        emu_.Get<Msm8255ClockReset>().RegisterListener(kResetClock,
-                                                      [this] { ResetState(); });
+        clock_reset_->RegisterListener(kResetClock, [this] { ResetState(); });
         emu_.Get<PeripheralDispatcher>().Register(this);
     }
 
@@ -50,6 +50,7 @@ public:
     uint32_t MmioSize() const override { return kSize; }
 
     uint32_t ReadWord(uint32_t addr) override {
+        clock_reset_->RequireReleased(kResetClock, addr);
         const uint32_t off = addr - kBase;
         if (off >= kFifo && off < kFifo + kFifoBytes) {
             uint32_t events = 0u;
@@ -74,6 +75,7 @@ public:
     }
 
     void WriteWord(uint32_t addr, uint32_t value) override {
+        clock_reset_->RequireReleased(kResetClock, addr);
         const uint32_t off = addr - kBase;
         if (off >= kFifo && off < kFifo + kFifoBytes) {
             LatchDataEvents(
@@ -287,7 +289,8 @@ private:
         Store(reg, ReadRestoredRegister(r, name, writable, kBase, offset));
     }
 
-    DataPath*             data_path_ = nullptr;
+    DataPath*             data_path_   = nullptr;
+    Msm8255ClockReset*    clock_reset_ = nullptr;
     std::atomic<uint32_t> power_{kUngroundedPowerOn};
     std::atomic<uint32_t> clock_{kUngroundedPowerOn};
     std::atomic<uint32_t> mask0_{kUngroundedPowerOn};

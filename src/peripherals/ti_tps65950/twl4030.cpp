@@ -139,7 +139,13 @@ bool Twl4030::MatchesAddress(uint8_t slave_addr) const {
 void Twl4030::TxnStart(uint8_t slave_addr) {
     std::lock_guard<std::mutex> lk(state_mutex_);
     const int idx = AddrIndex(slave_addr);
-    sub_addr_pending_[idx] = true;
+    sub_addr_[idx].Start();
+}
+
+uint8_t Twl4030::AdvanceSubLocked(int idx) {
+    const uint8_t sub = static_cast<uint8_t>(sub_addr_[idx].Register());
+    sub_addr_[idx].Point(static_cast<uint8_t>(sub + 1u));
+    return sub;
 }
 
 bool Twl4030::TxnWriteByte(uint8_t slave_addr, uint8_t byte) {
@@ -147,13 +153,8 @@ bool Twl4030::TxnWriteByte(uint8_t slave_addr, uint8_t byte) {
     uint8_t   sub = 0;
     {
         std::lock_guard<std::mutex> lk(state_mutex_);
-        if (sub_addr_pending_[idx]) {
-            sub_addr_[idx] = byte;
-            sub_addr_pending_[idx] = false;
-            return true;
-        }
-        sub = sub_addr_[idx];
-        sub_addr_[idx] = (sub_addr_[idx] + 1u) & 0xFFu;
+        if (sub_addr_[idx].Select(byte)) return true;
+        sub = AdvanceSubLocked(idx);
     }
     if (slave_addr == kTwlAddr_PWR_RTC && !ApplyMsecure(sub, byte)) return true;
     if (slave_addr == kTwlAddr_PWR_RTC && emu_.Get<Tps65950PowerMaster>().ConsumeWrite(sub, byte)) return true;
@@ -199,9 +200,8 @@ uint8_t Twl4030::TxnReadByte(uint8_t slave_addr) {
     {
         std::lock_guard<std::mutex> lk(state_mutex_);
         const int idx = AddrIndex(slave_addr);
-        sub = sub_addr_[idx];
+        sub = AdvanceSubLocked(idx);
         v   = regs_[idx][sub];
-        sub_addr_[idx] = (sub_addr_[idx] + 1u) & 0xFFu;
     }
     uint8_t data = 0;
     if (slave_addr == kTwlAddr_PWR_RTC && emu_.Get<Tps65950PowerMaster>().ConsumeRead(sub, data)) return data;
@@ -234,8 +234,10 @@ void Twl4030::SaveState(StateWriter& w) {
     {
         std::lock_guard<std::mutex> lk(state_mutex_);
         for (const auto& bank : regs_) w.WriteBytes("twl_regs", bank.data(), bank.size());
-        w.WriteBytes("twl_sub_addr", sub_addr_.data(), sub_addr_.size());
-        for (bool pending : sub_addr_pending_) w.Write<uint8_t>("twl_sub_addr_pending", pending ? 1u : 0u);
+        std::array<uint8_t, kAddrCount> subs{};
+        for (int i = 0; i < kAddrCount; ++i) subs[i] = static_cast<uint8_t>(sub_addr_[i].Register());
+        w.WriteBytes("twl_sub_addr", subs.data(), subs.size());
+        for (const I2cRegisterPointer& sub : sub_addr_) w.Write<uint8_t>("twl_sub_addr_pending", sub.Pending() ? 1u : 0u);
     }
     emu_.Get<Tps65950AudioInterface>().Save(w);
     emu_.Get<Tps65950PowerMaster>().Save(w);
@@ -247,11 +249,12 @@ void Twl4030::RestoreState(StateReader& r) {
     {
         std::lock_guard<std::mutex> lk(state_mutex_);
         for (auto& bank : regs_) r.ReadBytes("twl_regs", bank.data(), bank.size());
-        r.ReadBytes("twl_sub_addr", sub_addr_.data(), sub_addr_.size());
-        for (bool& pending : sub_addr_pending_) {
+        std::array<uint8_t, kAddrCount> subs{};
+        r.ReadBytes("twl_sub_addr", subs.data(), subs.size());
+        for (int i = 0; i < kAddrCount; ++i) {
             uint8_t v = 0;
             r.Read("twl_sub_addr_pending", v);
-            pending = v != 0u;
+            sub_addr_[i].Restore(subs[i], true, v != 0u);
         }
     }
     AudioChanged(false, true, true);

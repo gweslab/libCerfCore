@@ -13,11 +13,8 @@
 #include <cerfcore/host/machine_object_tree.h>
 #include <cerfcore/state/state_stream.h>
 
-#include <algorithm>
 #include <array>
 #include <cstring>
-#include <unordered_set>
-#include <vector>
 
 namespace cerfcore {
 
@@ -67,9 +64,9 @@ void Imx51NandStore::OnReady() {
 void Imx51NandStore::ReadPage(uint64_t main_off, uint8_t* main, uint8_t* spare) {
     MarkRx();
     const uint64_t page = main_off / kMainBytes;
-    if (auto ov = read_overlay_.find(page); ov != read_overlay_.end() && !dropped_.contains(page)) {
-        std::memcpy(main,  ov->second.data(),              kMainBytes);
-        std::memcpy(spare, ov->second.data() + kMainBytes, kSpareBytes);
+    if (const uint8_t* ov = overlay_.Find(page)) {
+        std::memcpy(main,  ov,              kMainBytes);
+        std::memcpy(spare, ov + kMainBytes, kSpareBytes);
         return;
     }
     std::array<uint8_t, kPageStride> buf{};
@@ -92,7 +89,7 @@ void Imx51NandStore::WritePage(uint64_t main_off, const uint8_t* main, const uin
             static_cast<unsigned long long>(page), static_cast<unsigned long long>(main_off));
         return;
     }
-    DropOverlayPage(page);
+    overlay_.Drop(page);
     std::array<uint8_t, kPageStride> buf{};
     std::memcpy(buf.data(),              main,  kMainBytes);
     std::memcpy(buf.data() + kMainBytes, spare, kSpareBytes);
@@ -105,36 +102,16 @@ void Imx51NandStore::WritePage(uint64_t main_off, const uint8_t* main, const uin
 void Imx51NandStore::EraseBlock(uint64_t main_off) {
     const uint64_t first_page = (main_off / kBlock) * kPagesPerBlock;
     for (uint64_t page = first_page; page < first_page + kPagesPerBlock; ++page)
-        DropOverlayPage(page);
+        overlay_.Drop(page);
     img_.PunchHole(first_page * kSectorsPerPage, kPagesPerBlock * kSectorsPerPage);
 }
 
-void Imx51NandStore::DropOverlayPage(uint64_t page) {
-    if (read_overlay_.contains(page)) dropped_.insert(page);
-}
-
 void Imx51NandStore::SaveState(StateWriter& w) const {
-    std::vector<uint64_t> pages;
-    pages.reserve(read_overlay_.size());
-    for (const auto& [page, bytes] : read_overlay_)
-        if (!dropped_.contains(page)) pages.push_back(page);
-    std::sort(pages.begin(), pages.end());
-    w.Write<uint64_t>("overlay_page_count", pages.size());
-    for (uint64_t page : pages) w.Write("overlay_page", page);
+    overlay_.SaveState(w, "overlay_page_count", "overlay_page");
 }
 
 void Imx51NandStore::RestoreState(StateReader& r) {
-    uint64_t count = 0;
-    r.Read("overlay_page_count", count);
-    std::unordered_set<uint64_t> kept;
-    for (uint64_t i = 0; i < count; ++i) {
-        uint64_t page = 0;
-        r.Read("overlay_page", page);
-        kept.insert(page);
-    }
-    dropped_.clear();
-    for (const auto& [page, bytes] : read_overlay_)
-        if (!kept.contains(page)) dropped_.insert(page);
+    overlay_.RestoreState(r, "overlay_page_count", "overlay_page");
 }
 
 void Imx51NandStore::ReadMain(uint64_t main_off, void* dst, uint32_t len) {
@@ -191,15 +168,10 @@ uint32_t Imx51NandStore::MainPopcount(const uint8_t* main) {
 
 void Imx51NandStore::SetReadOverlayPage(uint64_t page_index, const uint8_t* main,
                                         const uint8_t* spare) {
-    dropped_.erase(page_index);
-    std::array<uint8_t, kPageStride>& buf = read_overlay_[page_index];
+    std::array<uint8_t, kPageStride> buf{};
     std::memcpy(buf.data(),              main,  kMainBytes);
     std::memcpy(buf.data() + kMainBytes, spare, kSpareBytes);
 
-    /* Restamp the FileSysFal per-page spare checksum for the modified main, else the
-       guest FAL read returns error 13 and the IMGFS mount fails. checksum =
-       (MainPopcount + K) & 0xFFFF at spare 0x183(lo)/0x1C2(hi); K
-       (=popcount logical+field2) is recovered as a delta from the backing page. */
     std::array<uint8_t, kPageStride> orig{};
     if (page_index < device_pages_ &&
         img_.ReadSectors(page_index * kSectorsPerPage, kSectorsPerPage, orig.data())) {
@@ -214,6 +186,7 @@ void Imx51NandStore::SetReadOverlayPage(uint64_t page_index, const uint8_t* main
         buf[kMainBytes + 0x183u] = static_cast<uint8_t>(new_ck & 0xFF);
         buf[kMainBytes + 0x1C2u] = static_cast<uint8_t>((new_ck >> 8) & 0xFF);
     }
+    overlay_.Set(page_index, buf.data());
 }
 
 }

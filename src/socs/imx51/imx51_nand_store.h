@@ -2,13 +2,11 @@
 
 #include <cerfcore/core/service.h>
 #include <cerfcore/host/machine_storage.h>
+#include "../../storage/block_read_overlay.h"
 #include "../../storage/disk_image.h"
 
-#include <array>
 #include <cstdint>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace cerfcore {
 
@@ -65,13 +63,11 @@ private:
     static constexpr uint32_t kPagesPerBlock = kBlock / kMainBytes;          /* 128 */
 
     void Seed();
-    void DropOverlayPage(uint64_t page);
     static uint32_t MainPopcount(const uint8_t* main);
 
-    DiskImage img_;
-    uint64_t  device_pages_ = 0;
-    std::unordered_map<uint64_t, std::array<uint8_t, kPageStride>> read_overlay_;
-    std::unordered_set<uint64_t>                                    dropped_;
+    DiskImage        img_;
+    uint64_t         device_pages_ = 0;
+    BlockReadOverlay overlay_{kPageStride};
 };
 
 }

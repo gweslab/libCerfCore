@@ -85,6 +85,10 @@ public:
     bool HasL2CacheAuxControl()  const { return l2_cache_aux_control_; }
     bool HasAuxControlRegister() const { return aux_control_register_; }
 
+    bool     HasPerformanceMonitors() const { return performance_monitors_; }
+    uint32_t PmcrIdentification()     const { return pmcr_identification_; }
+    uint32_t PmuInterrupt()           const { return pmu_interrupt_; }
+
     uint32_t Clidr() const { return clidr_; }
     uint32_t Ccsidr(uint32_t csselr) const;
 
@@ -98,6 +102,9 @@ public:
     bool     HasIwmmxt()            const { return iwmmxt_; }
     uint32_t Wcid()                 const { return wcid_; }
 
+    uint32_t SctlrReadOnlyMask()  const { return sctlr_read_only_mask_; }
+    uint32_t SctlrReadOnlyValue() const { return sctlr_read_only_value_; }
+
 private:
     uint32_t pc_store_offset_ = 0;
     uint32_t midr_            = 0;
@@ -110,6 +117,10 @@ private:
     uint32_t mvfr0_           = 0;
     uint32_t mvfr1_           = 0;
     uint32_t wcid_            = 0;
+    uint32_t pmcr_identification_ = 0;
+    uint32_t pmu_interrupt_       = 0;
+    uint32_t sctlr_read_only_mask_  = 0;
+    uint32_t sctlr_read_only_value_ = 0;
     bool     xscale_accumulator_ = false;
     bool     iwmmxt_             = false;
 
@@ -142,6 +153,7 @@ private:
     bool aux_control_register_         = false;
     bool l2_cache_aux_control_         = false;
     bool l1_system_array_debug_        = false;
+    bool performance_monitors_         = false;
     bool vfp_                          = false;
     bool neon_                         = false;
 };

@@ -49,7 +49,7 @@ public:
         });
         emu_.Get<GuestCpuReset>().RegisterResetReleaseListener([this] {
             if (!wake_hold_.exchange(false, std::memory_order_acq_rel)) return;
-            clock_->Arm(wake_release_, clock_->Cycles() + clock_->NsToCycles(kWakeHoldNs));
+            clock_->Arm(wake_release_, clock_->CycleAfterNs(kWakeHoldNs));
         });
         emu_.Get<KeyboardRouter>().Register(this);
     }

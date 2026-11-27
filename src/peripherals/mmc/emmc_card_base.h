@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <span>
+#include <vector>
 
 namespace cerfcore {
 
@@ -103,6 +104,10 @@ public:
 
     void SaveState(StateWriter& w) override;
     void RestoreState(StateReader& r) override;
+
+    std::vector<uint8_t> ReadStoredSectors(uint64_t first, uint64_t count);
+    uint32_t             StoredSectorCount() const;
+    virtual void         OverlaySector(uint32_t sector, const uint8_t* bytes) = 0;
 
 protected:
     virtual SdCardCid                       Cid() const = 0;

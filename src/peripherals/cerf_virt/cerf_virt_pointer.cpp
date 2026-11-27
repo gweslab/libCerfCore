@@ -7,8 +7,12 @@
 #include <cerfcore/boards/board_context.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/core/log.h>
 #include <cerfcore/host/host_presentation.h>
 #include <cerfcore/host/pointer_input.h>
+#include <cerfcore/host/pointer_router.h>
+#include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -20,6 +24,10 @@ bool CerfVirtPointer::ShouldRegister() {
 }
 
 void CerfVirtPointer::OnReady() {
+    emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
+        if (!emu_.Get<GuestCpuReset>().DeliveredResetWasResume())
+            no_injector_.store(false, std::memory_order_release);
+    });
     emu_.Get<PeripheralDispatcher>().Register(this);
 }
 
@@ -50,11 +58,19 @@ uint32_t CerfVirtPointer::ReadWord(uint32_t addr) {
             change_unseen_ = false;
             return seq_.load();
         }
-        default:                        return 0u;
+        default:
+            emu_.Get<Fatal>().Die("[CerfVirtPointer] read +0x%X", addr - MmioBase());
     }
 }
 
-void CerfVirtPointer::WriteWord(uint32_t, uint32_t) {}
+void CerfVirtPointer::WriteWord(uint32_t addr, uint32_t value) {
+    if (addr - MmioBase() != CerfVirt::kPtrNoInjector)
+        emu_.Get<Fatal>().Die("[CerfVirtPointer] write +0x%X = 0x%08X", addr - MmioBase(), value);
+    no_injector_.store(value != 0u, std::memory_order_release);
+    LOG(GuestAdditions, "guest additions: the guest %s pointer input\n",
+        value != 0u ? "cannot inject" : "injects");
+    emu_.Get<PointerRouter>().ReevaluateAuto();
+}
 
 void CerfVirtPointer::SaveState(StateWriter& w) {
     w.Write<uint32_t>("x", x_.load());
@@ -62,6 +78,7 @@ void CerfVirtPointer::SaveState(StateWriter& w) {
     w.Write<uint32_t>("buttons", buttons_.load());
     w.Write<uint32_t>("wheel", wheel_.load());
     w.Write<uint32_t>("seq", seq_.load());
+    w.Write<uint8_t>("no_injector", no_injector_.load(std::memory_order_acquire) ? 1u : 0u);
 }
 
 void CerfVirtPointer::RestoreState(StateReader& r) {
@@ -71,6 +88,9 @@ void CerfVirtPointer::RestoreState(StateReader& r) {
     r.Read("buttons", v); buttons_.store(v);
     r.Read("wheel", v); wheel_.store(v);
     r.Read("seq", v); seq_.store(v);
+    uint8_t no_injector = 0;
+    r.Read("no_injector", no_injector);
+    no_injector_.store(no_injector != 0u, std::memory_order_release);
     std::lock_guard<std::mutex> lock(mutex_);
     held_.Clear();
     change_unseen_ = false;
@@ -126,7 +146,7 @@ public:
     }
 
     bool SourceReady() const override {
-        return emu_.Get<CerfGuestLiveness>().IsAlive();
+        return emu_.Get<CerfGuestLiveness>().IsAlive() && emu_.Get<CerfVirtPointer>().GuestInjects();
     }
 
 protected:

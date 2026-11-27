@@ -22,6 +22,7 @@ struct Msm8255GpioBank {
     uint32_t int_en;
     uint32_t int_clear;
     uint32_t int_status;
+    uint32_t in;
     uint32_t lo;
     uint32_t hi;
 
@@ -77,6 +78,7 @@ public:
             const uint32_t after  = high ? (before | mask) : (before & ~mask);
             in_[i].store(after, std::memory_order_release);
             driven_[i].fetch_or(mask, std::memory_order_acq_rel);
+            RefreshKept(i);
 
             const bool edge = (regs_[i][2].load(std::memory_order_acquire) &
                                mask) != 0u;
@@ -87,6 +89,65 @@ public:
                                        high == pos)
                                     : (high == pos);
             if (latch) status_[i].fetch_or(mask, std::memory_order_acq_rel);
+            return true;
+        }
+        return false;
+    }
+
+    bool LocateInput(uint32_t off, uint32_t& bank) const {
+        for (uint32_t i = 0; i < kBankCount; ++i) {
+            if (off != banks_[i].in) continue;
+            bank = i;
+            return true;
+        }
+        return false;
+    }
+
+    const Msm8255GpioBank& Bank(uint32_t bank) const { return banks_[bank]; }
+
+    bool LocateOutput(uint32_t off, uint32_t& bank) const {
+        for (uint32_t i = 0; i < kBankCount; ++i) {
+            if (off != banks_[i].out && off != banks_[i].oe) continue;
+            bank = i;
+            return true;
+        }
+        return false;
+    }
+
+    bool LocatePin(uint32_t pin, uint32_t& bank) const {
+        for (uint32_t i = 0; i < kBankCount; ++i) {
+            if (!banks_[i].Owns(pin)) continue;
+            bank = i;
+            return true;
+        }
+        return false;
+    }
+
+    uint32_t OutputLevels(uint32_t bank) const { return regs_[bank][0].load(std::memory_order_acquire); }
+    uint32_t OutputEnables(uint32_t bank) const { return regs_[bank][1].load(std::memory_order_acquire); }
+
+    uint32_t InputLevels(uint32_t bank, uint32_t pulled_up, uint32_t kept) const {
+        const uint32_t out      = regs_[bank][0].load(std::memory_order_acquire);
+        const uint32_t oe       = regs_[bank][1].load(std::memory_order_acquire);
+        const uint32_t drv      = driven_[bank].load(std::memory_order_acquire);
+        const uint32_t level    = in_[bank].load(std::memory_order_acquire);
+        const uint32_t held     = kept_[bank].load(std::memory_order_acquire);
+        const uint32_t floating = ~oe & ~drv;
+        const uint32_t value    = (oe & out) | (~oe & drv & level) |
+                                  (floating & pulled_up) | (floating & kept & held);
+        return value & banks_[bank].Pins();
+    }
+
+    bool SetOutputEnable(uint32_t pin, bool enable) {
+        for (uint32_t i = 0; i < kBankCount; ++i) {
+            if (!banks_[i].Owns(pin)) continue;
+            const uint32_t mask = 1u << (pin - banks_[i].lo);
+            if (enable) {
+                regs_[i][1].fetch_or(mask, std::memory_order_acq_rel);
+            } else {
+                regs_[i][1].fetch_and(~mask, std::memory_order_acq_rel);
+            }
+            RefreshKept(i);
             return true;
         }
         return false;
@@ -125,6 +186,7 @@ public:
                 return Msm8255GpioAccess::PinsAbsent;
             }
             regs_[bank][fam].store(value, std::memory_order_release);
+            RefreshKept(bank);
             return Msm8255GpioAccess::Served;
         }
         for (uint32_t i = 0; i < kBankCount; ++i) {
@@ -144,6 +206,7 @@ public:
         for (uint32_t i = 0; i < kBankCount; ++i) {
             in_[i].store(0u, std::memory_order_release);
             driven_[i].store(0u, std::memory_order_release);
+            kept_[i].store(0u, std::memory_order_release);
             status_[i].store(0u, std::memory_order_release);
             for (uint32_t f = 0; f < kMsm8255GpioFamilies; ++f) {
                 regs_[i][f].store(0u, std::memory_order_release);
@@ -155,6 +218,7 @@ public:
         for (uint32_t i = 0; i < kBankCount; ++i) {
             w.Write<uint32_t>("in", in_[i].load(std::memory_order_acquire));
             w.Write<uint32_t>("driven", driven_[i].load(std::memory_order_acquire));
+            w.Write<uint32_t>("kept", kept_[i].load(std::memory_order_acquire));
             w.Write<uint32_t>("status", status_[i].load(std::memory_order_acquire));
             for (uint32_t f = 0; f < kMsm8255GpioFamilies; ++f) {
                 w.Write<uint32_t>("regs", regs_[i][f].load(std::memory_order_acquire));
@@ -166,17 +230,20 @@ public:
         for (uint32_t i = 0; i < kBankCount; ++i) {
             uint32_t level = 0;
             uint32_t drv   = 0;
+            uint32_t held  = 0;
             uint32_t stat  = 0;
             r.Read("in", level);
             r.Read("driven", drv);
+            r.Read("kept", held);
             r.Read("status", stat);
-            if (((level | drv | stat) & ~banks_[i].Pins()) != 0u) {
+            if (((level | drv | held | stat) & ~banks_[i].Pins()) != 0u) {
                 bad_off   = banks_[i].int_status;
-                bad_value = level | drv | stat;
+                bad_value = level | drv | held | stat;
                 return false;
             }
             in_[i].store(level, std::memory_order_release);
             driven_[i].store(drv, std::memory_order_release);
+            kept_[i].store(held, std::memory_order_release);
             status_[i].store(stat, std::memory_order_release);
             for (uint32_t f = 0; f < kMsm8255GpioFamilies; ++f) {
                 uint32_t value = 0;
@@ -207,6 +274,18 @@ private:
         }
     }
 
+    void RefreshKept(uint32_t bank) {
+        const uint32_t out   = regs_[bank][0].load(std::memory_order_acquire);
+        const uint32_t oe    = regs_[bank][1].load(std::memory_order_acquire);
+        const uint32_t drv   = driven_[bank].load(std::memory_order_acquire);
+        const uint32_t level = in_[bank].load(std::memory_order_acquire);
+        const uint32_t now   = (oe & out) | (~oe & drv & level);
+        const uint32_t mask  = oe | drv;
+        const uint32_t held  = kept_[bank].load(std::memory_order_acquire);
+        kept_[bank].store(((held & ~mask) | (now & mask)) & banks_[bank].Pins(),
+                          std::memory_order_release);
+    }
+
     bool Locate(uint32_t off, uint32_t& bank, uint32_t& fam) const {
         for (uint32_t i = 0; i < kBankCount; ++i) {
             for (uint32_t f = 0; f < kMsm8255GpioFamilies; ++f) {
@@ -225,6 +304,7 @@ private:
     std::atomic<uint32_t> regs_[kBankCount][kMsm8255GpioFamilies] = {};
     std::atomic<uint32_t> in_[kBankCount]                         = {};
     std::atomic<uint32_t> driven_[kBankCount]                     = {};
+    std::atomic<uint32_t> kept_[kBankCount]                       = {};
     std::atomic<uint32_t> status_[kBankCount]                     = {};
 };
 

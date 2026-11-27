@@ -16,8 +16,6 @@ namespace cerfcore {
 
 using CpuArch = cerfengine::Isa;
 
-enum class RomPlacingMode { FlatContainer, Imx51Nand, ResetVector, Unknown };
-
 enum class SupportLevel { BootableFull, BootablePartial, UnknownPartial, NoSupport };
 
 inline constexpr uint32_t kDefaultGaColorDepth = 24u;
@@ -107,10 +105,11 @@ struct DbBoard {
     uint32_t                      ga_color_depth;
     uint32_t                      ga_window_size;
     int                           dynamic_scale_factor;
-    RomPlacingMode                rom_placing_mode;
+    std::string                   rom_placing_mode;
     bool                          configurable_screen;
     uint32_t                      device_year;
     std::optional<std::array<uint8_t, 3>> led_color;
+    std::optional<uint32_t>               hw_revision;
     std::vector<std::string>              notes;
     std::vector<DbFeature>            features;
     std::vector<const DbPart*>        connected_parts;

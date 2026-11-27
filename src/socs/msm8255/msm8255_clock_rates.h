@@ -11,6 +11,11 @@ class StateReader;
 class StateWriter;
 
 inline constexpr uint32_t kMsm8255MdhIndexCount = 2u;
+inline constexpr uint32_t kMsm8255CameraClock   = 65u;
+inline constexpr uint32_t kMsm8255PmdhClock     = 115u;
+inline constexpr uint32_t kMsm8255MdpVsyncClock = 43u;
+inline constexpr uint32_t kMsm8255MdpVsyncHz    = 24576000u;
+inline constexpr uint32_t kMsm8255RatedClockCount = 5u;
 
 class Msm8255ClockRates : public Service {
 public:
@@ -33,7 +38,8 @@ private:
                           uint32_t clock, uint32_t freq_hz, uint32_t match);
 
     std::atomic<uint32_t> mdh_granted_khz_[kMsm8255MdhIndexCount] = {};
-    std::atomic<uint32_t> mdp_core_granted_hz_{0u};
+    std::atomic<uint32_t> rated_hz_[kMsm8255RatedClockCount] = {};
+    std::atomic<bool>     rated_granted_[kMsm8255RatedClockCount] = {};
 };
 
 }

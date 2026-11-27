@@ -1,7 +1,8 @@
 {
   "unknown_name": true,
-  "supported": false,
+  "supported": true,
   "width": 480,
   "height": 800,
+  "clamp_viewport": true,
   "connections": [{ "board_family_ids": ["nokia_sea_ray"] }]
 }

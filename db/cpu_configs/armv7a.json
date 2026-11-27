@@ -22,6 +22,8 @@
     "ldrex_strex_v6k": true,
     "barrier_insn": true,
     "cp15_v6": true,
-    "cp15_v7": true
+    "cp15_v7": true,
+    "sctlr_read_only_mask": "0x8CDD87F8",
+    "sctlr_read_only_value": "0x00C50078"
   }
 }

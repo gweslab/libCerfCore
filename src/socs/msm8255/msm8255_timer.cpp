@@ -12,6 +12,7 @@
 #include "../irq_controller.h"
 
 #include <cstdint>
+#include <limits>
 
 namespace cerfcore {
 
@@ -81,6 +82,15 @@ public:
     }
     void WriteWord(uint32_t addr, uint32_t value) override {
         FastWrite(addr - MmioBase(), value, 4u);
+    }
+
+    uint64_t ReadStableUntil(uint32_t addr, MmioWidth width) override {
+        if (width != MmioWidth::kWord) return 0;
+        switch (addr - MmioBase()) {
+            case kGptCount: return CountStableUntil(0);
+            case kDgtCount: return CountStableUntil(1);
+            default:        return 0;
+        }
     }
 
     void SaveState(StateWriter& w) override {
@@ -272,6 +282,12 @@ private:
     uint32_t Count(int n, uint64_t now) const {
         if (!Counting(n)) return ch_[n].stopped_count;
         return ch_[n].counter.CountAt(now);
+    }
+
+    uint64_t CountStableUntil(int n) {
+        if (!Counting(n)) return std::numeric_limits<uint64_t>::max();
+        const NarrowCycleAnchoredCounter& counter = ch_[n].counter;
+        return counter.CycleOfTick(counter.TicksSince(Now()) + 1u);
     }
 
     bool MatchDue(int n, uint64_t now) const {

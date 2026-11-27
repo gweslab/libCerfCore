@@ -19,10 +19,8 @@ void Eeprom24cxx::OnReady() {
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind kind) {
         if (!ResetsWithLine(DeviceAddress(), kind)) return;
         page_.fill(0);
-        page_dirty_   = 0;
-        addr_         = 0;
-        addr_valid_   = false;
-        addr_pending_ = false;
+        page_dirty_ = 0;
+        addr_.Reset(0u, false);
     });
 }
 
@@ -31,16 +29,11 @@ bool Eeprom24cxx::MatchesAddress(uint8_t slave_addr) const {
 }
 
 void Eeprom24cxx::TxnStart(uint8_t) {
-    addr_pending_ = true;
+    addr_.Start();
 }
 
 bool Eeprom24cxx::TxnWriteByte(uint8_t, uint8_t byte) {
-    if (addr_pending_) {
-        addr_         = byte;
-        addr_valid_   = true;
-        addr_pending_ = false;
-        return true;
-    }
+    if (addr_.Select(byte)) return true;
     const uint16_t page_bytes = PageBytes();
     if (page_bytes == 0u) {
         if (page_dirty_ != 0u) Refuse("second data byte to a part whose page size is not established");
@@ -49,18 +42,19 @@ bool Eeprom24cxx::TxnWriteByte(uint8_t, uint8_t byte) {
         return true;
     }
     const uint16_t in_page = static_cast<uint16_t>(page_bytes - 1u);
-    const uint16_t slot    = addr_ & in_page;
+    const uint16_t addr    = addr_.Register();
+    const uint16_t slot    = addr & in_page;
     page_[slot] = byte;
     page_dirty_ = static_cast<uint16_t>(page_dirty_ | (1u << slot));
-    addr_       = static_cast<uint16_t>((addr_ & ~in_page) | ((addr_ + 1u) & in_page));
+    addr_.Point(static_cast<uint16_t>((addr & ~in_page) | ((addr + 1u) & in_page)));
     return true;
 }
 
 uint8_t Eeprom24cxx::TxnReadByte(uint8_t) {
-    addr_pending_ = false;
-    if (!addr_valid_) Refuse("current-address read before any word address");
-    if (addr_ >= kBlockBytes) Refuse("sequential read past word 0xFF");
-    return cells_[addr_++];
+    addr_.EndSelect();
+    if (!addr_.Selected()) Refuse("current-address read before any word address");
+    if (addr_.Register() >= kBlockBytes) Refuse("sequential read past word 0xFF");
+    return cells_[addr_.Advance()];
 }
 
 void Eeprom24cxx::BusStart() {
@@ -71,13 +65,13 @@ void Eeprom24cxx::BusStop() {
     if (page_dirty_ == 0u) return;
     const uint16_t page_bytes = PageBytes();
     if (page_bytes == 0u) {
-        cells_[addr_] = page_[0];
-        page_dirty_   = 0;
-        addr_valid_   = false;
-        if (!path_.empty()) StoreCells(addr_, 1u);
+        cells_[addr_.Register()] = page_[0];
+        page_dirty_              = 0;
+        addr_.Clear();
+        if (!path_.empty()) StoreCells(addr_.Register(), 1u);
         return;
     }
-    const uint16_t base = static_cast<uint16_t>(addr_ & ~(page_bytes - 1u));
+    const uint16_t base = static_cast<uint16_t>(addr_.Register() & ~(page_bytes - 1u));
     for (uint16_t i = 0; i < page_bytes; ++i) {
         if (page_dirty_ & (1u << i)) cells_[base | i] = page_[i];
     }
@@ -122,26 +116,26 @@ void Eeprom24cxx::SaveState(StateWriter& w) {
     if (path_.empty()) w.WriteBytes("eeprom_cells", cells_.data(), cells_.size());
     w.WriteBytes("eeprom_page", page_.data(), page_.size());
     w.Write("eeprom_page_dirty", page_dirty_);
-    w.Write("eeprom_addr", addr_);
-    w.Write("eeprom_addr_valid", static_cast<uint8_t>(addr_valid_));
-    w.Write("eeprom_addr_pending", static_cast<uint8_t>(addr_pending_));
+    w.Write("eeprom_addr", addr_.Register());
+    w.Write("eeprom_addr_valid", static_cast<uint8_t>(addr_.Selected()));
+    w.Write("eeprom_addr_pending", static_cast<uint8_t>(addr_.Pending()));
 }
 
 void Eeprom24cxx::RestoreState(StateReader& r) {
-    uint8_t v = 0;
+    uint16_t addr = 0;
+    uint8_t  valid = 0, pending = 0;
     if (path_.empty()) r.ReadBytes("eeprom_cells", cells_.data(), cells_.size());
     r.ReadBytes("eeprom_page", page_.data(), page_.size());
     r.Read("eeprom_page_dirty", page_dirty_);
-    r.Read("eeprom_addr", addr_);
-    r.Read("eeprom_addr_valid", v);
-    addr_valid_ = v != 0u;
-    r.Read("eeprom_addr_pending", v);
-    addr_pending_ = v != 0u;
+    r.Read("eeprom_addr", addr);
+    r.Read("eeprom_addr_valid", valid);
+    r.Read("eeprom_addr_pending", pending);
+    addr_.Restore(addr, valid != 0u, pending != 0u);
 }
 
 void Eeprom24cxx::Refuse(const char* what) const {
     emu_.Get<Fatal>().Die("%s: %s (word 0x%02X)", PartName(), what,
-                          static_cast<unsigned>(addr_));
+                          static_cast<unsigned>(addr_.Register()));
 }
 
 }

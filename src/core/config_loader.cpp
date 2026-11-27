@@ -226,6 +226,9 @@ void ConfigLoader::LoadStorage(const json& root, DeviceConfig& config, const std
     SetNonEmptyString(config.storage_nor,    s, config_key::kStorageNor,    path, config_key::kStorage);
     SetNonEmptyString(config.storage_eeprom, s, config_key::kStorageEeprom, path, config_key::kStorage);
     SetNonEmptyString(config.storage_modem_nv, s, config_key::kStorageModemNv, path, config_key::kStorage);
+    SetNonEmptyString(config.storage_fuel_gauge, s, config_key::kStorageFuelGauge, path, config_key::kStorage);
+    SetNonEmptyString(config.storage_touch_controller, s, config_key::kStorageTouchController, path,
+                      config_key::kStorage);
 }
 
 template <class Card>

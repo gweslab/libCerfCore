@@ -79,18 +79,16 @@ bool IbmWorkpadZ50BatteryGauge::MatchesAddress(uint8_t slave_addr) const {
 }
 
 void IbmWorkpadZ50BatteryGauge::TxnStart(uint8_t) {
-    cmd_pending_ = true;
+    cmd_.Start();
     write_count_ = 0;
     read_len_    = 0;
     read_idx_    = 0;
 }
 
+uint8_t IbmWorkpadZ50BatteryGauge::Command() const { return static_cast<uint8_t>(cmd_.Register()); }
+
 bool IbmWorkpadZ50BatteryGauge::TxnWriteByte(uint8_t, uint8_t byte) {
-    if (cmd_pending_) {
-        cmd_         = byte;
-        cmd_pending_ = false;
-        return true;
-    }
+    if (cmd_.Select(byte)) return true;
     if (write_count_ == 0u) {
         write_lo_    = byte;
         write_count_ = 1u;
@@ -98,10 +96,10 @@ bool IbmWorkpadZ50BatteryGauge::TxnWriteByte(uint8_t, uint8_t byte) {
     }
     if (write_count_ != 1u) {
         emu_.Get<Fatal>().Die("z50 battery gauge: write byte 0x%02X after a word to command 0x%02X",
-                              byte, cmd_);
+                              byte, Command());
     }
     write_count_ = 2u;
-    WriteWord(cmd_, static_cast<uint16_t>(write_lo_ | (byte << 8)));
+    WriteWord(Command(), static_cast<uint16_t>(write_lo_ | (byte << 8)));
     return true;
 }
 
@@ -109,19 +107,19 @@ uint8_t IbmWorkpadZ50BatteryGauge::TxnReadByte(uint8_t) {
     if (read_idx_ == 0u) LatchRead();
     if (read_idx_ >= read_len_) {
         emu_.Get<Fatal>().Die("z50 battery gauge: read byte %u of command 0x%02X past its %u bytes",
-                              read_idx_, cmd_, read_len_);
+                              read_idx_, Command(), read_len_);
     }
     return read_[read_idx_++];
 }
 
 void IbmWorkpadZ50BatteryGauge::LatchRead() {
-    if (cmd_ == kCmdManufacturerData) {
+    if (Command() == kCmdManufacturerData) {
         read_.fill(0);
         read_[0]  = kManufacturerDataLen;
         read_len_ = static_cast<uint8_t>(kManufacturerDataLen + 1u);
         return;
     }
-    const uint16_t w = Word(cmd_);
+    const uint16_t w = Word(Command());
     read_[0]  = static_cast<uint8_t>(w);
     read_[1]  = static_cast<uint8_t>(w >> 8);
     read_len_ = 2u;
@@ -229,8 +227,8 @@ void IbmWorkpadZ50BatteryGauge::SaveState(StateWriter& w) {
     w.Write("gauge_staged_fcc", staged_fcc_);
     w.Write("gauge_fcc_staged", static_cast<uint8_t>(fcc_staged_));
     w.Write("gauge_busy_left_ns", std::max<int64_t>(busy_until_ns_ - clock_->NowNs(), 0));
-    w.Write("gauge_cmd", cmd_);
-    w.Write("gauge_cmd_pending", static_cast<uint8_t>(cmd_pending_));
+    w.Write("gauge_cmd", Command());
+    w.Write("gauge_cmd_pending", static_cast<uint8_t>(cmd_.Pending()));
     w.Write("gauge_write_lo", write_lo_);
     w.Write("gauge_write_count", write_count_);
     w.WriteBytes("gauge_read", read_.data(), read_.size());
@@ -252,9 +250,10 @@ void IbmWorkpadZ50BatteryGauge::RestoreState(StateReader& r) {
     fcc_staged_ = v != 0u;
     r.Read("gauge_busy_left_ns", busy_left);
     busy_until_ns_ = clock_->NowNs() + busy_left;
-    r.Read("gauge_cmd", cmd_);
+    uint8_t cmd = 0;
+    r.Read("gauge_cmd", cmd);
     r.Read("gauge_cmd_pending", v);
-    cmd_pending_ = v != 0u;
+    cmd_.Restore(cmd, true, v != 0u);
     r.Read("gauge_write_lo", write_lo_);
     r.Read("gauge_write_count", write_count_);
     r.ReadBytes("gauge_read", read_.data(), read_.size());

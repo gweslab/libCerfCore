@@ -11,6 +11,12 @@
 | [GNU libiconv](https://www.gnu.org/software/libiconv/) | LGPL-2.1-or-later, used under LGPL-3.0 |
 | [GNU gettext (libintl)](https://www.gnu.org/software/gettext/) | LGPL-2.1-or-later, used under LGPL-3.0 |
 
+## Included
+
+| Component | License |
+| --- | --- |
+| [Microsoft C++ Standard Library](https://github.com/microsoft/STL) (`std::lerp`) | Apache-2.0 WITH LLVM-exception |
+
 ## Studied references
 
 - **[QEMU](https://www.qemu.org/)**
@@ -26,6 +32,8 @@
 - **[Polynomial Interpolators for High-Quality Resampling of Oversampled Audio](http://yehar.com/blog/wp-content/uploads/2009/08/deip.pdf)** - Olli Niemitalo
 - **[qemu-neo1973](https://github.com/jvesely/qemu-neo1973)** - Openmoko
 - **[libqmi](https://gitlab.freedesktop.org/mobile-broadband/libqmi)**
+- **[Gobi 3000 SDK](https://chromium.googlesource.com/chromiumos/third_party/gobi3k-sdk)** - Code Aurora Forum
+- **[oFono](https://git.kernel.org/pub/scm/network/ofono/ofono.git)**
 - **[ModemManager libqcdm](https://gitlab.freedesktop.org/mobile-broadband/ModemManager)**
 - **[Rockbox](https://www.rockbox.org/)**
 - **[Das U-Boot](https://github.com/u-boot/u-boot)**
@@ -34,6 +42,10 @@
 - **[Wine](https://www.winehq.org/)**
 - **[XNU](https://github.com/apple-oss-distributions/xnu)**
 - **[Android Open Source Project](https://source.android.com/)**
+- **[HD2 Leo GPS library](https://github.com/tytung/android_hardware_leo_libgps)** - The XDAndroid Project
 - **[X.Org Trident driver](https://gitlab.freedesktop.org/xorg/driver/xf86-video-trident)**
+- **[Mesa freedreno](https://gitlab.freedesktop.org/mesa/mesa)**
+- **[Xenia](https://github.com/xenia-project/xenia)**
+- **[ImageMagick](https://imagemagick.org/)**
 - **[sh3-emu](https://github.com/Gadgetoid/sh3-emu)** - Phil Howard
 - **[coreboot](https://www.coreboot.org/)**

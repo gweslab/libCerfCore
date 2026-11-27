@@ -14,10 +14,16 @@ constexpr uint8_t  kImgfsUuid[16] = {
     0xF8, 0xAC, 0x2C, 0x9D, 0xE3, 0xD4, 0x2B, 0x4D,
     0xBD, 0x30, 0x91, 0x6E, 0xD8, 0x4F, 0x31, 0xDC,
 };
-constexpr uint32_t kImgfsSbOffDirentSize    = 0x1C;
-constexpr uint32_t kImgfsSbOffBytesPerBlock = 0x24;
-constexpr uint32_t kImgfsSbSize             = 0x28;
-constexpr uint32_t kImgfsDirentSize         = 0x34;
+constexpr uint32_t kImgfsSbOffVersion         = 0x10;
+constexpr uint32_t kImgfsSbOffDirBlockSectors = 0x14;
+constexpr uint32_t kImgfsSbOffRuns            = 0x18;
+constexpr uint32_t kImgfsSbOffDirentSize      = 0x1C;
+constexpr uint32_t kImgfsSbOffChunksPerSector = 0x20;
+constexpr uint32_t kImgfsSbOffFirstDirBlock   = 0x24;
+constexpr uint32_t kImgfsSbOffDataBlockBytes  = 0x28;
+constexpr uint32_t kImgfsSbOffCompression     = 0x2C;
+constexpr uint32_t kImgfsSbSize               = 0x30;
+constexpr uint32_t kImgfsDirentSize           = 0x34;
 
 constexpr uint32_t kE32OffObjcnt      = 0x00;
 constexpr uint32_t kE32OffImageflags  = 0x02;

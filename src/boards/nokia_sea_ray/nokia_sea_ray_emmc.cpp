@@ -1,6 +1,5 @@
 #include "../../peripherals/sk_hynix_h26m52002ckr/sk_hynix_h26m52002ckr.h"
 
-#include <cerfcore/boot/rom_parser_service.h>
 #include "../../boot/rom_wmstore_parse.h"
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
@@ -10,7 +9,11 @@
 #include <cerfcore/core/host_file_bytes.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/platform/host_file.h>
+#include <cerfcore/state/state_stream.h>
+#include "../../storage/block_read_overlay.h"
 #include "../../storage/disk_image.h"
+#include "../../storage/fat_volume_layout.h"
+#include "nokia_sea_ray_emmc_layout.h"
 #include <cerfcore/boards/board_context.h>
 #include "nokia_sea_ray_family_id.h"
 
@@ -30,14 +33,6 @@ constexpr uint64_t kFlasherEraseUnit      = 0x800000u;
 constexpr uint8_t  kFlasherWriteEraseFill = 0xFFu;
 constexpr uint32_t kSeedChunkSectors      = 2048u;
 
-constexpr uint32_t kMbrEntryTypeOff    = 450u;
-constexpr uint32_t kMbrEntryLbaOff     = 454u;
-constexpr uint32_t kMbrSignatureOff    = 510u;
-constexpr uint8_t  kMbrSignature0      = 0x55u;
-constexpr uint8_t  kMbrSignature1      = 0xAAu;
-constexpr uint8_t  kPartitionExtended  = 0x05u;
-constexpr uint8_t  kPartitionStore     = 0x48u;
-constexpr uint32_t kEbrStoreRelativeLba = 1u;
 constexpr uint32_t kMinStoreContainerOrigin = 2u;
 
 constexpr uint32_t kHoleMarkerSector = 1u;
@@ -63,8 +58,33 @@ public:
         OpenStore();
     }
 
+    void OverlaySector(uint32_t sector, const uint8_t* bytes) override {
+        if (sector >= SectorCount() || (sector >= kHoleMarkerSector && sector < hole_end_)) {
+            emu_.Get<Fatal>().Die(
+                "eMMC card in slot %u: a read overlay of sector %u lies outside the sectors "
+                "that storage.emmc %s models", kEmmcSlotIndex, sector, store_path_.c_str());
+        }
+        overlay_.Set(sector, bytes);
+    }
+
+    void SaveState(StateWriter& w) override {
+        SkHynixH26m52002ckr::SaveState(w);
+        if (emu_.Get<DeviceConfig>().guest_additions)
+            overlay_.SaveState(w, "overlay_sector_count", "overlay_sector");
+    }
+
+    void RestoreState(StateReader& r) override {
+        SkHynixH26m52002ckr::RestoreState(r);
+        if (emu_.Get<DeviceConfig>().guest_additions)
+            overlay_.RestoreState(r, "overlay_sector_count", "overlay_sector");
+    }
+
 protected:
     void ReadBlock(uint32_t sector, uint8_t* out) override {
+        if (const uint8_t* overlay = overlay_.Find(sector)) {
+            std::memcpy(out, overlay, cerf_mmc::kBlockBytes);
+            return;
+        }
         if (sector >= kHoleMarkerSector && sector < hole_end_) {
             emu_.Get<Fatal>().Die(
                 "eMMC card in slot %u: sector %u lies in [%u, %u), which the seed of "
@@ -86,6 +106,7 @@ protected:
                 "write there is not modeled", kEmmcSlotIndex, sector,
                 kHoleMarkerSector, hole_end_, store_path_.c_str());
         }
+        overlay_.Drop(sector);
         if (!store_.WriteSectors(sector, 1u, data)) {
             emu_.Get<Fatal>().Die(
                 "eMMC card in slot %u: sector %u cannot be written to %s",
@@ -94,40 +115,51 @@ protected:
     }
 
 private:
-    const ParsedRom& PackagePrimary() {
-        const RomParserService& parser = emu_.Get<RomParserService>();
-        if (!parser.Ok() || !parser.Primary().is_wmstore) {
-            emu_.Get<Fatal>().Die(
-                "eMMC card in slot %u: the loaded firmware package is not a "
-                "_wmstore container, so no sector content is modeled",
-                kEmmcSlotIndex);
+    void LoadPackage() {
+        const DeviceConfig& cfg = emu_.Get<DeviceConfig>();
+        package_name_ = cfg.rom_primary;
+        if (package_name_.empty()) {
+            emu_.Get<Fatal>().UserError(
+                "eMMC card in slot %u: storage.emmc %s does not exist and rom.primary "
+                "is not set, so the card cannot be seeded", kEmmcSlotIndex,
+                store_path_.c_str());
         }
-        return parser.Primary();
+        if (!TryReadHostFileBytes(ResolveDeviceFile(cfg.device_name, package_name_),
+                                  package_)) {
+            emu_.Get<Fatal>().UserError("eMMC card in slot %u: rom.primary %s cannot be read",
+                                        kEmmcSlotIndex, package_name_.c_str());
+        }
+        std::vector<ri::EscoMember> members;
+        if (!ri::EscoStoredMembers(package_, members)) {
+            emu_.Get<Fatal>().UserError(
+                "eMMC card in slot %u: rom.primary %s is not a firmware package",
+                kEmmcSlotIndex, package_name_.c_str());
+        }
+        payload_ = members[0];
     }
 
     void LoadImageOrigin() {
-        const ParsedRom& rom = PackagePrimary();
         ri::EscoRange image;
-        if (!ri::EscoImageRange(rom.raw, image)) {
-            emu_.Get<Fatal>().Die(
-                "eMMC card in slot %u: %s carries no image write record, so its "
-                "place on the card is not known", kEmmcSlotIndex,
-                rom.filename.c_str());
+        if (!ri::EscoImageRange(package_, image)) {
+            emu_.Get<Fatal>().UserError(
+                "eMMC card in slot %u: rom.primary %s carries no image write record, so "
+                "its place on the card is not known", kEmmcSlotIndex,
+                package_name_.c_str());
         }
         if (image.start % cerf_mmc::kBlockBytes != 0u) {
             emu_.Get<Fatal>().Die(
                 "eMMC card in slot %u: %s is written at card byte 0x%llX, which "
-                "is not a whole sector", kEmmcSlotIndex, rom.filename.c_str(),
+                "is not a whole sector", kEmmcSlotIndex, package_name_.c_str(),
                 static_cast<unsigned long long>(image.start));
         }
         const uint64_t origin = image.start / cerf_mmc::kBlockBytes;
         const uint64_t payload_sectors =
-            (uint64_t(rom.wmstore_payload_bytes) + cerf_mmc::kBlockBytes - 1u) /
+            (uint64_t(payload_.bytes) + cerf_mmc::kBlockBytes - 1u) /
             cerf_mmc::kBlockBytes;
         if (origin + payload_sectors > SectorCount()) {
             emu_.Get<Fatal>().Die(
                 "eMMC card in slot %u: %s ends at sector %llu, past the %u sectors "
-                "of the card", kEmmcSlotIndex, rom.filename.c_str(),
+                "of the card", kEmmcSlotIndex, package_name_.c_str(),
                 static_cast<unsigned long long>(origin + payload_sectors),
                 SectorCount());
         }
@@ -135,14 +167,14 @@ private:
             emu_.Get<Fatal>().Die(
                 "eMMC card in slot %u: %s is written at sector %llu, which leaves "
                 "no room for the partition table ahead of it", kEmmcSlotIndex,
-                rom.filename.c_str(), static_cast<unsigned long long>(origin));
+                package_name_.c_str(), static_cast<unsigned long long>(origin));
         }
         image_target_  = image.target;
         image_drive_   = image.drive;
         image_origin_  = static_cast<uint32_t>(origin);
         image_end_     = static_cast<uint32_t>(origin + payload_sectors);
         LOG(Boot, "eMMC card in slot %u: %s is written at part sector %u\n",
-            kEmmcSlotIndex, rom.filename.c_str(), image_origin_);
+            kEmmcSlotIndex, package_name_.c_str(), image_origin_);
     }
 
     void OpenStore() {
@@ -188,7 +220,7 @@ private:
                 "eMMC card in slot %u: storage.emmc %s cannot be opened", kEmmcSlotIndex, path.c_str());
         }
         if (image.SectorCount() != SectorCount()) {
-            emu_.Get<Fatal>().Die(
+            emu_.Get<Fatal>().UserError(
                 "eMMC card in slot %u: storage.emmc %s holds %llu sectors, and the "
                 "card has %u", kEmmcSlotIndex, path.c_str(),
                 static_cast<unsigned long long>(image.SectorCount()), SectorCount());
@@ -199,6 +231,7 @@ private:
         const std::string seeding = store_path_ + ".seeding";
         LOG(Boot, "eMMC card in slot %u: seeding storage.emmc %s\n",
             kEmmcSlotIndex, store_path_.c_str());
+        LoadPackage();
         LoadImageOrigin();
         LoadUserAreaErase();
         uint32_t err = 0;
@@ -216,6 +249,7 @@ private:
             SeedPayload(image);
             SeedErase(image);
         }
+        std::vector<uint8_t>().swap(package_);
         if (!host_platform::ReplaceHostFile(seeding, store_path_, false)) {
             emu_.Get<Fatal>().Die(
                 "eMMC card in slot %u: the seeded card image %s cannot be moved to "
@@ -230,28 +264,28 @@ private:
         const DeviceConfig& cfg = emu_.Get<DeviceConfig>();
         const std::string& name = cfg.rom_lumia800_user_area_erase;
         if (name.empty()) {
-            emu_.Get<Fatal>().Die(
-                "eMMC card in slot %u: rom.lumia800_user_area_erase is not set, "
-                "so the content of the user area is not modeled", kEmmcSlotIndex);
+            emu_.Get<Fatal>().UserError(
+                "eMMC card in slot %u: storage.emmc %s does not exist and "
+                "rom.lumia800_user_area_erase is not set, so the card cannot be seeded",
+                kEmmcSlotIndex, store_path_.c_str());
         }
         std::vector<uint8_t> bytes;
         if (!TryReadHostFileBytes(ResolveDeviceFile(cfg.device_name, name), bytes)) {
-            emu_.Get<Fatal>().Die("eMMC card in slot %u: rom.lumia800_user_area_erase %s cannot be read",
-                                  kEmmcSlotIndex, name.c_str());
+            emu_.Get<Fatal>().UserError("eMMC card in slot %u: rom.lumia800_user_area_erase %s cannot be read",
+                                        kEmmcSlotIndex, name.c_str());
         }
         ri::EscoRange erase;
         if (!ri::EscoEraseRange(bytes, erase)) {
-            emu_.Get<Fatal>().Die(
+            emu_.Get<Fatal>().UserError(
                 "eMMC card in slot %u: rom.lumia800_user_area_erase %s is not an "
                 "erase package", kEmmcSlotIndex, name.c_str());
         }
-        const ParsedRom& rom = PackagePrimary();
         if (erase.target != image_target_ || erase.drive != image_drive_) {
-            emu_.Get<Fatal>().Die(
+            emu_.Get<Fatal>().UserError(
                 "eMMC card in slot %u: rom.lumia800_user_area_erase %s names "
                 "target %u, drive %u, but %s is written to target %u, drive %u",
                 kEmmcSlotIndex, name.c_str(), erase.target, erase.drive,
-                rom.filename.c_str(), image_target_, image_drive_);
+                package_name_.c_str(), image_target_, image_drive_);
         }
         if (erase.start % cerf_mmc::kBlockBytes != 0u ||
             erase.size % cerf_mmc::kBlockBytes != 0u) {
@@ -269,7 +303,7 @@ private:
                 "eMMC card in slot %u: rom.lumia800_user_area_erase %s starts "
                 "before the end of the %zu payload bytes of %s, and only an erase "
                 "range past the payload is modeled", kEmmcSlotIndex, name.c_str(),
-                rom.wmstore_payload_bytes, rom.filename.c_str());
+                payload_.bytes, package_name_.c_str());
         }
         if (start >= SectorCount()) {
             emu_.Get<Fatal>().Die(
@@ -294,18 +328,20 @@ private:
 
     void SeedStoreContainer(DiskImage& image) {
         uint8_t mbr[cerf_mmc::kBlockBytes] = {};
-        mbr[kMbrEntryTypeOff] = kPartitionExtended;
-        cerf::le::Put32(mbr + kMbrEntryLbaOff, image_origin_ - 1u);
-        mbr[kMbrSignatureOff]      = kMbrSignature0;
-        mbr[kMbrSignatureOff + 1u] = kMbrSignature1;
+        fat_volume_layout::MbrPartition extended;
+        extended.type      = kNokiaSeaRayPartitionExtended;
+        extended.start_lba = image_origin_ - kNokiaSeaRayEbrStoreRelativeLba;
+        fat_volume_layout::WriteMbrPartition(mbr, 0u, extended);
+        fat_volume_layout::WriteBootSignature(mbr);
         WriteSeed(image, 0u, 1u, mbr);
 
         uint8_t ebr[cerf_mmc::kBlockBytes] = {};
-        ebr[kMbrEntryTypeOff] = kPartitionStore;
-        cerf::le::Put32(ebr + kMbrEntryLbaOff, kEbrStoreRelativeLba);
-        ebr[kMbrSignatureOff]      = kMbrSignature0;
-        ebr[kMbrSignatureOff + 1u] = kMbrSignature1;
-        WriteSeed(image, image_origin_ - 1u, 1u, ebr);
+        fat_volume_layout::MbrPartition store;
+        store.type      = kNokiaSeaRayPartitionStore;
+        store.start_lba = kNokiaSeaRayEbrStoreRelativeLba;
+        fat_volume_layout::WriteMbrPartition(ebr, 0u, store);
+        fat_volume_layout::WriteBootSignature(ebr);
+        WriteSeed(image, extended.start_lba, 1u, ebr);
     }
 
     void SeedHoleMarker(DiskImage& image) {
@@ -318,16 +354,15 @@ private:
     }
 
     void SeedPayload(DiskImage& image) {
-        const ParsedRom& rom = PackagePrimary();
-        if (rom.wmstore_payload_bytes % cerf_mmc::kBlockBytes != 0u) {
+        if (payload_.bytes % cerf_mmc::kBlockBytes != 0u) {
             emu_.Get<Fatal>().Die(
                 "eMMC card in slot %u: the %zu payload bytes of %s end inside a "
                 "sector, and the rest of that sector is not modeled",
-                kEmmcSlotIndex, rom.wmstore_payload_bytes, rom.filename.c_str());
+                kEmmcSlotIndex, payload_.bytes, package_name_.c_str());
         }
-        const uint8_t* payload = rom.raw.data() + rom.wmstore_payload_off;
+        const uint8_t* payload = package_.data() + payload_.off;
         const uint32_t sectors =
-            static_cast<uint32_t>(rom.wmstore_payload_bytes / cerf_mmc::kBlockBytes);
+            static_cast<uint32_t>(payload_.bytes / cerf_mmc::kBlockBytes);
         for (uint32_t done = 0; done < sectors;) {
             const uint32_t n = (std::min)(kSeedChunkSectors, sectors - done);
             WriteSeed(image, image_origin_ + done, n,
@@ -362,8 +397,12 @@ private:
         }
     }
 
-    DiskImage   store_;
-    std::string store_path_;
+    DiskImage        store_;
+    BlockReadOverlay overlay_{cerf_mmc::kBlockBytes};
+    std::string      store_path_;
+    std::string          package_name_;
+    std::vector<uint8_t> package_;
+    ri::EscoMember       payload_;
     uint32_t hole_end_       = 0u;
     uint32_t image_target_   = 0u;
     uint32_t image_drive_    = 0u;

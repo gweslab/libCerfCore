@@ -36,4 +36,8 @@ ArmCoprocDecision ArmCoprocProvider::RegisterTransferDouble(const ArmCoprocAcces
     return {.action = cerfengine::ArmCoprocAction::kUndefined};
 }
 
+void ArmCoprocProvider::SaveState(StateWriter&) const {}
+
+void ArmCoprocProvider::RestoreState(StateReader&) {}
+
 }

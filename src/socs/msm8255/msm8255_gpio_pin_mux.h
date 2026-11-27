@@ -18,6 +18,11 @@ constexpr bool Msm8255GpioBanksAddressablePins(const Msm8255GpioBank* banks,
     return true;
 }
 
+inline constexpr uint32_t kMsm8255PinPullMask   = 0x3u;
+inline constexpr uint32_t kMsm8255PinFuncShift  = 2u;
+inline constexpr uint32_t kMsm8255PinFuncMask   = 0xFu;
+inline constexpr uint32_t kMsm8255PinDriveShift = 6u;
+
 enum class Msm8255GpioMuxAccess {
     NotMine,
     PinAbsent,
@@ -34,9 +39,12 @@ public:
        bits beside a two-bit pull and a four-bit func, and names eight drive
        strengths, GPIO_2MA through GPIO_16MA. */
     static constexpr uint32_t kConfigMask     = 0x3FFu;
-    static constexpr uint32_t kDriveShift     = 6u;
+    static constexpr uint32_t kDriveShift     = kMsm8255PinDriveShift;
     static constexpr uint32_t kDriveFieldMask = 0xFu;
     static constexpr uint32_t kDriveNamedMax  = 7u;
+    static constexpr uint32_t kPullMask       = kMsm8255PinPullMask;
+    static constexpr uint32_t kPullKeeper     = 0x2u;
+    static constexpr uint32_t kPullUp         = 0x3u;
 
     explicit Msm8255GpioPinMux(const Msm8255GpioBanks<kBankCount>& banks)
         : banks_(banks) {}
@@ -55,14 +63,30 @@ public:
         if (selection_valid_.load(std::memory_order_acquire) == 0u) {
             return Msm8255GpioMuxAccess::NoPinSelected;
         }
-        const Msm8255GpioMuxAccess ok = ValidateConfig(value);
-        if (ok != Msm8255GpioMuxAccess::Served) {
-            bad = value;
-            return ok;
+        return StoreConfig(selected_.load(std::memory_order_acquire), value, bad);
+    }
+
+    uint32_t PinsWithPull(uint32_t lo, uint32_t span, uint32_t pull) const {
+        uint32_t mask = 0u;
+        for (uint32_t i = 0; i < span; ++i) {
+            if ((config_[lo + i].load(std::memory_order_acquire) & kPullMask) == pull) {
+                mask |= 1u << i;
+            }
         }
-        config_[selected_.load(std::memory_order_acquire)].store(
-            value, std::memory_order_release);
-        return Msm8255GpioMuxAccess::Served;
+        return mask;
+    }
+
+    uint32_t Function(uint32_t pin) const {
+        return (config_[pin].load(std::memory_order_acquire) >> kMsm8255PinFuncShift) &
+               kMsm8255PinFuncMask;
+    }
+
+    Msm8255GpioMuxAccess SetPinConfig(uint32_t pin, uint32_t value, uint32_t& bad) {
+        if (!banks_.OwnsPin(pin)) {
+            bad = pin;
+            return Msm8255GpioMuxAccess::PinAbsent;
+        }
+        return StoreConfig(pin, value, bad);
     }
 
     void Reset() {
@@ -110,6 +134,16 @@ public:
     }
 
 private:
+    Msm8255GpioMuxAccess StoreConfig(uint32_t pin, uint32_t value, uint32_t& bad) {
+        const Msm8255GpioMuxAccess ok = ValidateConfig(value);
+        if (ok != Msm8255GpioMuxAccess::Served) {
+            bad = value;
+            return ok;
+        }
+        config_[pin].store(value, std::memory_order_release);
+        return Msm8255GpioMuxAccess::Served;
+    }
+
     static Msm8255GpioMuxAccess ValidateConfig(uint32_t value) {
         if ((value & ~kConfigMask) != 0u) {
             return Msm8255GpioMuxAccess::ConfigBitsAbsent;

@@ -10,6 +10,7 @@ inline uint32_t Expand2(uint32_t v) { return (v << 6) | (v << 4) | (v << 2) | v;
 inline uint32_t Expand4(uint32_t v) { return (v << 4) | v; }
 inline uint32_t Expand5(uint32_t v) { return (v << 3) | (v >> 2); }
 inline uint32_t Expand6(uint32_t v) { return (v << 2) | (v >> 4); }
+inline uint32_t Expand8To12(uint32_t v) { return (v << 4) | (v >> 4); }
 
 inline uint32_t PackXrgb(uint32_t r, uint32_t g, uint32_t b) {
     return 0xFF000000u | (r << 16) | (g << 8) | b;

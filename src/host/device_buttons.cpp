@@ -18,12 +18,11 @@ void DeviceButtons::OnReady() {
     }
 }
 
-std::vector<DeviceButtons::ButtonSpec> DeviceButtons::RawTapColumn(std::span<const RawTapButton> buttons,
-                                                                   uint16_t adc_x,
-                                                                   std::function<void(uint16_t, uint16_t)> tap) const {
+std::vector<DeviceButtons::ButtonSpec> DeviceButtons::RawTapButtons(std::span<const RawTapButton> buttons,
+                                                                    std::function<void(uint16_t, uint16_t)> tap) const {
     std::vector<ButtonSpec> out;
     for (const RawTapButton& b : buttons)
-        out.push_back(ButtonSpec{b.id, b.name, [tap, adc_x, y = b.adc_y] { tap(adc_x, y); }});
+        out.push_back(ButtonSpec{b.id, b.name, [tap, x = b.x, y = b.y] { tap(x, y); }});
     return out;
 }
 

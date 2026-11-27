@@ -3,10 +3,12 @@
 #include "rom_placer.h"
 
 #include "board_boot_placer.h"
+#include "kernel_image_copier.h"
 #include <cerfcore/boot/guest_cold_boot.h>
 #include <cerfcore/boot/rom_parser_service.h>
 
 #include <cerfcore/boards/board_context.h>
+#include "flat_container_placing_mode_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
@@ -22,22 +24,10 @@ REGISTER_SERVICE(RomPlacer);
 
 bool RomPlacer::ShouldRegister() {
     return emu_.Get<BoardContext>().GetRomPlacingMode()
-        == RomPlacingMode::FlatContainer;
-}
-
-bool RomPlacer::IsVolatilePa(uint32_t pa) {
-    for (const auto& r : emu_.Get<PageTableBuilder>().BackedMemoryRegions()) {
-        if (pa < r.pa_base || pa >= r.pa_base + r.size) continue;
-        return r.kind != MemoryKind::kFlash &&
-               r.kind != MemoryKind::kRom;
-    }
-    return true;
+        == RomPlacingModeId::FlatContainer;
 }
 
 bool RomPlacer::PlaceRomXips(const ParsedRom& rom, bool volatile_only) {
-    auto& page_tables = emu_.Get<PageTableBuilder>();
-    auto& mem         = emu_.Get<EmulatedMemory>();
-
     bool first_placed = false;
     for (size_t i = 0; i < rom.xips.size(); ++i) {
         const auto& xip = rom.xips[i];
@@ -65,34 +55,9 @@ bool RomPlacer::PlaceRomXips(const ParsedRom& rom, bool volatile_only) {
         const size_t copy_len =
             std::min(xip_len, rom.flat.size() - file_off);
 
-        /* One CopyIn per VA->PA-contiguous run, not one flat copy: a CE
-           image crossing non-contiguous OAT bands (SIMpad's DRAM head +
-           flash-XIP body) needs each run at its mapped PA; a single-band
-           image yields one run identical to the old behavior. */
-        const uint32_t img_end = physfirst + uint32_t(copy_len);
-        uint32_t run_va = physfirst;
-        while (run_va < img_end) {
-            const uint32_t run_pa = page_tables.VaToPa(run_va);
-            uint32_t va = run_va;
-            do {
-                va += 0x1000u;
-            } while (va < img_end &&
-                     page_tables.VaToPa(va) == run_pa + (va - run_va));
-            const uint32_t run_end = std::min(va, img_end);
-            const uint32_t run_len = run_end - run_va;
-            if (volatile_only && !IsVolatilePa(run_pa)) {
-                run_va = run_end;
-                continue;
-            }
-            const size_t src_off = file_off + size_t(run_va - physfirst);
-            mem.CopyIn(run_pa, rom.flat.data() + src_off, run_len);
-            LOG(Boot,
-                "RomPlacer %s: xip[%zu] run %u bytes  src_off=0x%zX  "
-                "kva=0x%08X..0x%08X  pa=0x%08X\n",
-                rom.filename.c_str(), i, run_len, src_off,
-                run_va, run_end, run_pa);
-            run_va = run_end;
-        }
+        emu_.Get<KernelImageCopier>().CopyToKernelVa(
+            physfirst, rom.flat.data() + file_off, uint32_t(copy_len), volatile_only,
+            rom.filename.c_str());
         if (i == 0) first_placed = true;
     }
     return first_placed;
@@ -113,7 +78,7 @@ void RomPlacer::PlaceB000FFSections(const ParsedRom& rom, bool volatile_only) {
                                     uint64_t(reg.va_base) + reg.size);
             if (lo >= hi) continue;
             const uint32_t pa = reg.pa_base + uint32_t(lo - reg.va_base);
-            if (volatile_only && !IsVolatilePa(pa)) continue;
+            if (volatile_only && !emu_.Get<KernelImageCopier>().IsVolatilePa(pa)) continue;
             const size_t   src_off = s.data_off + size_t(lo - s.base);
             const uint32_t len     = uint32_t(hi - lo);
             if (src_off + len > rom.raw.size()) continue;

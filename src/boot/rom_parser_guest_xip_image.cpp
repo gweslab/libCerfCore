@@ -2,6 +2,7 @@
 
 #include "rom_placer.h"
 #include <cerfcore/boards/board_context.h>
+#include "flat_container_placing_mode_id.h"
 #include <cerfcore/boot/rom_parser_queries.h>
 #include <cerfcore/core/board_database.h>
 #include <cerfcore/core/cerf_emulator.h>
@@ -17,7 +18,7 @@ public:
 
     bool ShouldRegister() override {
         return emu_.Get<DeviceConfig>().guest_additions &&
-               emu_.Get<BoardContext>().GetRomPlacingMode() == RomPlacingMode::FlatContainer &&
+               emu_.Get<BoardContext>().GetRomPlacingMode() == RomPlacingModeId::FlatContainer &&
                emu_.Get<RomParserService>().Ok();
     }
 

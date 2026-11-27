@@ -31,13 +31,14 @@ protected:
     struct RawTapButton {
         const char* id;
         const char* name;
-        uint16_t    adc_y;
+        uint16_t    x;
+        uint16_t    y;
     };
 
     virtual std::vector<ButtonSpec> BoardButtons() = 0;
 
-    std::vector<ButtonSpec> RawTapColumn(std::span<const RawTapButton> buttons, uint16_t adc_x,
-                                         std::function<void(uint16_t, uint16_t)> tap) const;
+    std::vector<ButtonSpec> RawTapButtons(std::span<const RawTapButton> buttons,
+                                          std::function<void(uint16_t, uint16_t)> tap) const;
 
 private:
     class WiredButton final : public MachineButton {

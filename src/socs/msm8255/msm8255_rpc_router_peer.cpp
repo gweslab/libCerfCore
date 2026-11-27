@@ -1,5 +1,6 @@
 #include "msm8255_rpc_router_peer.h"
 
+#include "msm8255_modem_callbacks.h"
 #include "msm8255_rpc_server.h"
 #include "msm8255_rpc_server_registry.h"
 #include "msm8255_rpcrouter_wire.h"
@@ -8,10 +9,12 @@
 #include "msm8255_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/log.h>
 #include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
 
+#include <algorithm>
 #include <cstdint>
 
 namespace cerfcore {
@@ -23,10 +26,8 @@ bool Msm8255RpcRouterPeer::ShouldRegister() {
 
 void Msm8255RpcRouterPeer::OnReady() {
     emu_.Get<GuestCpuReset>().RegisterResetListener([this](ResetLineKind) {
-        next_mid_  = 1;
-        srv_pid_   = 0;
-        srv_cid_   = 0;
-        srv_known_ = false;
+        next_mid_ = 1;
+        incomplete_.clear();
     });
 }
 
@@ -67,28 +68,7 @@ uint32_t Msm8255RpcRouterPeer::Answer(uint32_t in_pa, uint32_t in_avail,
 
     const uint32_t dst_cid = mem.ReadWord(in_pa + kHdrDstCidOff);
     if (dst_cid != kRouterAddress) {
-        for (auto* server : registry.Servers()) {
-            uint32_t cb_cid  = 0;
-            uint32_t written = 0;
-            if (server->CallbackClientCid(cb_cid) && dst_cid == cb_cid) {
-                written = server->ConsumeCallbackReply(in_pa, size, out_pa,
-                                                       out_cap);
-            } else if (dst_cid == server->ServerCid()) {
-                written = server->AnswerCall(
-                    in_pa, size, out_pa, out_cap,
-                    mem.ReadWord(in_pa + kHdrDstPidOff),
-                    mem.ReadWord(in_pa + kHdrSrcPidOff),
-                    mem.ReadWord(in_pa + kHdrSrcCidOff));
-            } else {
-                continue;
-            }
-            return written +
-                   AnswerConfirmRx(in_pa, out_pa, out_cap, written);
-        }
-        emu_.Get<Fatal>().Die(
-            "msm8255 rpc router peer: the guest addressed cid 0x%08X, and none "
-            "of the %u announced endpoints claims it",
-            dst_cid, (uint32_t)registry.Servers().size());
+        return AnswerData(in_pa, size, out_pa, out_cap);
     }
 
     if (size != kCtrlMsgBytes) {
@@ -115,19 +95,35 @@ uint32_t Msm8255RpcRouterPeer::Answer(uint32_t in_pa, uint32_t in_avail,
     if (type == kCtrlCmdNewServer) {
         const uint32_t vers = mem.ReadWord(in_pa + kHdrBytes + kSrvVersOff);
         if (vers == 0u) {
-            emu_.Get<Fatal>().Die(
-                "msm8255 rpc router peer: the guest announced a server with "
-                "version 0, which the router model rejects");
+            LOG(SocModem, "msm8255 rpc router peer: dropped the announcement of prog 0x%08X with version 0\n",
+                mem.ReadWord(in_pa + kHdrBytes + kSrvProgOff));
+            return 0u;
         }
-        RecordAnnouncedServer(mem.ReadWord(in_pa + kHdrBytes + kSrvPidOff),
-                              mem.ReadWord(in_pa + kHdrBytes + kSrvCidOff));
+        LOG(SocModem, "msm8255 rpc router peer: the guest announced prog 0x%08X vers 0x%08X at pid %u cid 0x%08X\n",
+            mem.ReadWord(in_pa + kHdrBytes + kSrvProgOff), vers,
+            mem.ReadWord(in_pa + kHdrBytes + kSrvPidOff),
+            mem.ReadWord(in_pa + kHdrBytes + kSrvCidOff));
+        return 0u;
+    }
+
+    if (type == kCtrlCmdRemoveClient) {
+        const Msm8255RpcEndpoint client{mem.ReadWord(in_pa + kHdrBytes + kCliPidOff),
+                                        mem.ReadWord(in_pa + kHdrBytes + kCliCidOff)};
+        LOG(SocModem, "msm8255 rpc router peer: the guest removed client pid %u cid 0x%08X\n",
+            client.pid, client.cid);
+        std::erase_if(incomplete_, [&client](const Msm8255RpcIncompletePacket& p) {
+            return Msm8255RpcEndpoint{p.src_pid, p.src_cid} == client;
+        });
+        for (auto* server : registry.Servers()) server->ReleaseClient(client);
+        emu_.Get<Msm8255ModemCallbacks>().ReleaseClient(client);
         return 0u;
     }
 
     if (type != kCtrlCmdHello) {
         emu_.Get<Fatal>().Die(
-            "msm8255 rpc router peer: router control command %u is not modeled",
-            type);
+            "msm8255 rpc router peer: router control command %u (words %08X %08X) is not modeled",
+            type, mem.ReadWord(in_pa + kHdrBytes + kCliPidOff),
+            mem.ReadWord(in_pa + kHdrBytes + kCliCidOff));
     }
 
     const uint32_t msg_bytes = kHdrBytes + kCtrlMsgBytes;
@@ -165,19 +161,89 @@ void Msm8255RpcRouterPeer::ValidatePacmark(uint32_t pacmark,
             "and the router header declares %u", pacmark,
             pacmark & kPacmarkLenMask, body_bytes);
     }
-    if ((pacmark & kPacmarkFirst) == 0u || (pacmark & kPacmarkLast) == 0u) {
-        emu_.Get<Fatal>().Die(
-            "msm8255 rpc router peer: pacmark 0x%08X is a fragment, and only a "
-            "whole single-fragment message is modeled", pacmark);
+}
+
+Msm8255RpcServer* Msm8255RpcRouterPeer::Claimant(uint32_t dst_cid, bool& reply) {
+    auto& registry = emu_.Get<Msm8255RpcServerRegistry>();
+    for (auto* server : registry.Servers()) {
+        uint32_t cb_cid = 0;
+        if (server->CallbackClientCid(cb_cid) && dst_cid == cb_cid) {
+            reply = true;
+            return server;
+        }
+        if (dst_cid == server->ServerCid()) {
+            reply = false;
+            return server;
+        }
     }
+    emu_.Get<Fatal>().Die(
+        "msm8255 rpc router peer: the guest addressed cid 0x%08X, and none "
+        "of the %u announced endpoints claims it",
+        dst_cid, (uint32_t)registry.Servers().size());
+}
+
+uint32_t Msm8255RpcRouterPeer::AnswerData(uint32_t in_pa, uint32_t size,
+                                          uint32_t out_pa, uint32_t out_cap) {
+    auto& mem = emu_.Get<EmulatedMemory>();
+
+    if (size < kPacmarkBytes) {
+        emu_.Get<Fatal>().Die(
+            "msm8255 rpc router peer: a %u-byte data packet carries no pacmark",
+            size);
+    }
+    const uint32_t pacmark = mem.ReadWord(in_pa + kHdrBytes);
+    const uint32_t bytes   = size - kPacmarkBytes;
+    ValidatePacmark(pacmark, bytes);
+
+    const uint32_t dst_cid = mem.ReadWord(in_pa + kHdrDstCidOff);
+    bool reply = false;
+    Msm8255RpcServer* server = Claimant(dst_cid, reply);
+
+    const uint32_t mid = (pacmark >> kPacmarkMidShift) & kPacmarkMidMask;
+    auto it = std::find_if(incomplete_.begin(), incomplete_.end(),
+                           [&](const Msm8255RpcIncompletePacket& p) {
+                               return p.dst_cid == dst_cid && p.mid == mid;
+                           });
+    if (it == incomplete_.end()) {
+        incomplete_.push_back({dst_cid, mid, mem.ReadWord(in_pa + kHdrSrcPidOff),
+                               mem.ReadWord(in_pa + kHdrSrcCidOff),
+                               mem.ReadWord(in_pa + kHdrDstPidOff), {}});
+        it = incomplete_.end() - 1;
+    }
+    const size_t held = it->body.size();
+    it->body.resize(held + bytes);
+    mem.CopyOut(in_pa + kHdrBytes + kPacmarkBytes, it->body.data() + held, bytes);
+    if ((pacmark & kPacmarkLast) == 0u) {
+        return AnswerConfirmRx(in_pa, out_pa, out_cap, 0u);
+    }
+
+    const Msm8255RpcIncompletePacket packet = std::move(*it);
+    incomplete_.erase(it);
+
+    const uint32_t total = kPacmarkBytes + static_cast<uint32_t>(packet.body.size());
+    std::vector<uint8_t> payload(total);
+    cerf::le::Put32(payload.data(), Pacmark(total - kPacmarkBytes, mid, true, true));
+    std::copy(packet.body.begin(), packet.body.end(), payload.begin() + kPacmarkBytes);
+
+    auto& callbacks = emu_.Get<Msm8255ModemCallbacks>();
+    uint32_t written = reply
+        ? callbacks.ConsumeReply(*server, payload.data(), total, out_pa, out_cap)
+        : server->AnswerCall(payload.data(), total, out_pa, out_cap,
+                             packet.dst_pid, packet.src_pid, packet.src_cid);
+    written += callbacks.FlushDue(out_pa + written, out_cap - written);
+    return written + AnswerConfirmRx(in_pa, out_pa, out_cap, written);
 }
 
 /* Linux arch/arm/mach-msm smd_rpcrouter.c msm_rpc_write: the sender allocates a
    fresh pacmark mid per message, from one counter masked to eight bits. */
-uint32_t Msm8255RpcRouterPeer::NextPacmark(uint32_t body_bytes) {
-    const uint32_t mid = ++next_mid_ & kPacmarkMidMask;
-    return (body_bytes & kPacmarkLenMask) | (mid << kPacmarkMidShift) |
-           kPacmarkFirst | kPacmarkLast;
+uint32_t Msm8255RpcRouterPeer::NextMid() {
+    return ++next_mid_ & kPacmarkMidMask;
+}
+
+uint32_t Msm8255RpcRouterPeer::Pacmark(uint32_t bytes, uint32_t mid, bool first,
+                                       bool last) {
+    return (bytes & kPacmarkLenMask) | (mid << kPacmarkMidShift) |
+           (first ? kPacmarkFirst : 0u) | (last ? kPacmarkLast : 0u);
 }
 
 /* Linux arch/arm/mach-msm smd_rpcrouter.c do_read_data: every data packet that
@@ -210,25 +276,6 @@ uint32_t Msm8255RpcRouterPeer::AnswerConfirmRx(uint32_t in_pa, uint32_t out_pa,
                   mem.ReadWord(in_pa + kHdrSrcPidOff), self_pid,
                   mem.ReadWord(in_pa + kHdrDstCidOff));
     return bytes;
-}
-
-void Msm8255RpcRouterPeer::RecordAnnouncedServer(uint32_t pid, uint32_t cid) {
-    if (srv_known_ && (pid != srv_pid_ || cid != srv_cid_)) {
-        emu_.Get<Fatal>().Die(
-            "msm8255 rpc router peer: the guest announced a second server "
-            "endpoint at pid %u cid %u while pid %u cid %u is already known, "
-            "and routing to more than one endpoint is not modeled",
-            pid, cid, srv_pid_, srv_cid_);
-    }
-    srv_pid_   = pid;
-    srv_cid_   = cid;
-    srv_known_ = true;
-}
-
-bool Msm8255RpcRouterPeer::AnnouncedServer(uint32_t& pid, uint32_t& cid) const {
-    pid = srv_pid_;
-    cid = srv_cid_;
-    return srv_known_;
 }
 
 void Msm8255RpcRouterPeer::WriteHeader(uint32_t out_pa, uint32_t type,
@@ -288,18 +335,36 @@ void Msm8255RpcRouterPeer::WriteCtrlMsg(uint32_t out_pa, uint32_t cmd,
 
 void Msm8255RpcRouterPeer::SaveState(StateWriter& w) {
     w.Write<uint32_t>("next_mid", next_mid_);
-    w.Write<uint32_t>("srv_pid", srv_pid_);
-    w.Write<uint32_t>("srv_cid", srv_cid_);
-    w.Write<uint32_t>("srv_known", srv_known_ ? 1u : 0u);
+    w.Write<uint32_t>("incomplete_count", static_cast<uint32_t>(incomplete_.size()));
+    for (const Msm8255RpcIncompletePacket& p : incomplete_) {
+        w.Write<uint32_t>("incomplete_dst_cid", p.dst_cid);
+        w.Write<uint32_t>("incomplete_mid", p.mid);
+        w.Write<uint32_t>("incomplete_src_pid", p.src_pid);
+        w.Write<uint32_t>("incomplete_src_cid", p.src_cid);
+        w.Write<uint32_t>("incomplete_dst_pid", p.dst_pid);
+        w.Write<uint32_t>("incomplete_bytes", static_cast<uint32_t>(p.body.size()));
+        w.WriteBytes("incomplete_body", p.body.data(), p.body.size());
+    }
+    emu_.Get<Msm8255ModemCallbacks>().SaveState(w);
 }
 
 void Msm8255RpcRouterPeer::RestoreState(StateReader& r) {
-    uint32_t known = 0;
     r.Read("next_mid", next_mid_);
-    r.Read("srv_pid", srv_pid_);
-    r.Read("srv_cid", srv_cid_);
-    r.Read("srv_known", known);
-    srv_known_ = known != 0u;
+    uint32_t count = 0;
+    r.Read("incomplete_count", count);
+    incomplete_.assign(count, {});
+    for (Msm8255RpcIncompletePacket& p : incomplete_) {
+        r.Read("incomplete_dst_cid", p.dst_cid);
+        r.Read("incomplete_mid", p.mid);
+        r.Read("incomplete_src_pid", p.src_pid);
+        r.Read("incomplete_src_cid", p.src_cid);
+        r.Read("incomplete_dst_pid", p.dst_pid);
+        uint32_t bytes = 0;
+        r.Read("incomplete_bytes", bytes);
+        p.body.assign(bytes, 0u);
+        r.ReadBytes("incomplete_body", p.body.data(), p.body.size());
+    }
+    emu_.Get<Msm8255ModemCallbacks>().RestoreState(r);
 }
 
 REGISTER_SERVICE(Msm8255RpcRouterPeer);

@@ -60,17 +60,6 @@ public:
 
     virtual uint32_t UnmappedWindowVa(uint32_t pa, uint32_t size) const;
 
-    /* True iff `va` lies inside any cached-DRAM band. Default impl
-       walks CachedDramRegions(); SoC overrides not needed. */
-    bool IsInCachedDram(uint32_t va) const {
-        for (const auto& r : CachedDramRegions()) {
-            if (va >= r.va_base && va < r.va_base + r.size) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /* First 64K-aligned hole of at least `size` bytes in the kernel static
        window [0x80000000,0xA0000000) not covered by MappedVaSpans(); 0 if none.
        The band must live here, not KSEG2 (0xC0000000+) which the CE6/7 kernel

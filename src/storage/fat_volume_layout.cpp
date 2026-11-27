@@ -9,8 +9,14 @@ namespace cerfcore {
 
 namespace fat_volume_layout {
 
+namespace {
+
+size_t MbrPartitionEntryOffset(unsigned index) { return kMbrPartTable + index * kMbrPartEntryBytes; }
+
+}
+
 uint8_t* MbrPartitionEntry(uint8_t* mbr, unsigned index) {
-    return mbr + kMbrPartTable + index * kMbrPartEntryBytes;
+    return mbr + MbrPartitionEntryOffset(index);
 }
 
 void WriteMbrPartition(uint8_t* mbr, unsigned index, const MbrPartition& p) {
@@ -26,6 +32,22 @@ void WriteMbrPartition(uint8_t* mbr, unsigned index, const MbrPartition& p) {
 /* dosfstools src/mkfs.fat.c: BOOT_SIGN 0xAA55 at 0x1FE, also on the FSInfo sector. */
 void WriteBootSignature(uint8_t* sector) {
     cerf::le::Put16(sector + kBootSignature, 0xAA55u);
+}
+
+bool HasBootSignature(const uint8_t* sector) {
+    return cerf::le::U16(sector, kBootSignature) == 0xAA55u;
+}
+
+MbrPartition ReadMbrPartition(const uint8_t* mbr, unsigned index) {
+    const uint8_t* e = mbr + MbrPartitionEntryOffset(index);
+    MbrPartition p;
+    p.status = e[kPartStatus];
+    std::memcpy(p.chs_first, e + kPartChsFirst, sizeof(p.chs_first));
+    p.type = e[kPartType];
+    std::memcpy(p.chs_last, e + kPartChsLast, sizeof(p.chs_last));
+    p.start_lba = cerf::le::U32(e, kPartStartLba);
+    p.sectors   = cerf::le::U32(e, kPartSectors);
+    return p;
 }
 
 void WriteBpb(uint8_t* bs, const Bpb& b) {

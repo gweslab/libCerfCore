@@ -6,7 +6,9 @@
 #include "qualcomm_pm8058_part_id.h"
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
+#include <cerfcore/core/log.h>
 #include <cerfcore/socs/guest_cpu_reset.h>
+#include <cerfcore/state/hibernation.h>
 #include <cerfcore/state/state_stream.h>
 
 namespace cerfcore {
@@ -56,6 +58,15 @@ void Pm8058Keypad::OnReady() {
     Reset();
     emu_.Get<GuestCpuReset>().RegisterResetListener(
         [this](ResetLineKind) { Reset(); });
+    emu_.Get<Hibernation>().RegisterPostRestoreListener([this] { ReleaseHeldKeys(); });
+}
+
+void Pm8058Keypad::ReleaseHeldKeys() {
+    std::lock_guard<std::mutex> lk(mtx_);
+    if (pressed_ == KeyMatrixCells<kMaxDrive>{}) return;
+    pressed_.ReleaseAll();
+    CaptureScan();
+    LOG(Periph, "[PM8058] keypad keys held in the restored image released\n");
 }
 
 void Pm8058Keypad::Reset() {
@@ -80,18 +91,13 @@ uint32_t Pm8058Keypad::SenseLines() const {
     return kSenseLineCount[(ctrl_ >> kCtrlSenseShift) & kCtrlSenseMask];
 }
 
-uint8_t Pm8058Keypad::ReadDataPort(uint8_t (&set)[kMaxDrive], uint32_t& index) {
+uint8_t Pm8058Keypad::ReadDataPort(uint8_t (&set)[kMaxDrive], uint32_t& index, bool delivers_events) {
     if ((ctrl_ & kCtrlEnable) == 0u) return kNoKeysPressed;
 
     const uint8_t value = set[index];
     if (++index >= DriveLines()) {
         index = 0;
-        if (events_ != 0u) {
-            emu_.Get<Fatal>().Die(
-                "pm8058 keypad: a %u-line data burst completed with %u events "
-                "counted, and nothing models when the block clears that count",
-                DriveLines(), events_);
-        }
+        if (delivers_events) events_ = 0;
     }
     return value;
 }
@@ -103,8 +109,8 @@ uint8_t Pm8058Keypad::ReadReg(uint16_t reg) {
         return (uint8_t)((ctrl_ & (uint8_t)~kCtrlEventMask) |
                          GrayEncode(events_));
     case kRegScan:    return scan_;
-    case kRegNewData: return ReadDataPort(latched_new_, new_index_);
-    case kRegOldData: return ReadDataPort(latched_old_, old_index_);
+    case kRegNewData: return ReadDataPort(latched_new_, new_index_, true);
+    case kRegOldData: return ReadDataPort(latched_old_, old_index_, false);
     default:
         emu_.Get<Fatal>().Die(
             "pm8058 keypad: register 0x%03X is not one of the four the block "

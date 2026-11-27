@@ -20,6 +20,7 @@ bool DiskImage::Open(const std::string& path, uint64_t size_bytes, bool create_i
 
     uint64_t physical = 0;
     if (!file_.Size(physical)) physical = 0;
+    file_bytes_ = physical;
     const uint64_t advertised = physical > size_bytes ? physical : size_bytes;
     sector_count_ = advertised / kSectorSize;
     LOG(Boot, "DiskImage: '%s' open, %llu sectors (%llu MB; logical %llu MB, "
@@ -37,11 +38,9 @@ bool DiskImage::ReadSectors(uint64_t lba, uint32_t count, void* dst) {
     const uint32_t want = count * kSectorSize;
     auto* out = static_cast<uint8_t*>(dst);
 
-    uint64_t psize = 0;
-    if (!file_.Size(psize)) return false;
-    if (off >= psize) { std::memset(out, 0, want); return true; }
+    if (off >= file_bytes_) { std::memset(out, 0, want); return true; }
 
-    const uint64_t avail   = psize - off;
+    const uint64_t avail   = file_bytes_ - off;
     const uint32_t in_file = (avail >= want) ? want : static_cast<uint32_t>(avail);
     if (!file_.SeekTo(off)) return false;
     uint32_t got = 0;
@@ -52,10 +51,17 @@ bool DiskImage::ReadSectors(uint64_t lba, uint32_t count, void* dst) {
 
 bool DiskImage::WriteSectors(uint64_t lba, uint32_t count, const void* src) {
     if (!file_.IsOpen() || lba + count > sector_count_) return false;
-    if (!file_.SeekTo(lba * kSectorSize)) return false;
+    const uint64_t off = lba * kSectorSize;
+    if (!file_.SeekTo(off)) return false;
     const uint32_t want = count * kSectorSize;
     uint32_t put = 0;
-    return file_.Write(src, want, put) && put == want;
+    if (!file_.Write(src, want, put) || put != want) {
+        uint64_t physical = 0;
+        if (file_.Size(physical)) file_bytes_ = physical;
+        return false;
+    }
+    if (off + want > file_bytes_) file_bytes_ = off + want;
+    return true;
 }
 
 bool DiskImage::PunchHole(uint64_t lba, uint32_t count) {

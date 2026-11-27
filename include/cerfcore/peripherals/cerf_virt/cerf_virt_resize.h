@@ -23,8 +23,13 @@ public:
     void RestoreState(StateReader& r) override;
 
     void RequestResize(uint32_t w, uint32_t h);
+    bool GuestFixedSize() const;
 
 private:
+    void SetFixedSize(uint32_t fixed);
+
+    std::atomic<uint32_t> fixed_size_{0};
+
     std::atomic<uint32_t> want_w_{0};
     std::atomic<uint32_t> want_h_{0};
     std::atomic<uint32_t> want_gen_{0};

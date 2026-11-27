@@ -28,7 +28,6 @@ private:
        the kernel ROMHDR's physlast. Only the backed-region VA span is copied;
        volatile_only as in PlaceRomXips. Single-XIP images place nothing. */
     void PlaceB000FFSections(const ParsedRom& rom, bool volatile_only);
-    bool IsVolatilePa(uint32_t pa);
 
     const ParsedXipRegion* placed_primary_ = nullptr;
 };

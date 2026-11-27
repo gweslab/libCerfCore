@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cerfcore/peripherals/cerf_virt/cerf_virt_blt_descriptor.h>
+#include "cerf_virt_blt_aatext.h"
 #include "cerf_virt_blt_surface.h"
 #include <cerfcore/core/service.h>
 
@@ -30,6 +31,7 @@ private:
     std::vector<int32_t> sx_lut_;
     std::vector<int32_t> sy_lut_;
     BltIndexConverter    index_converter_;
+    AaGammaTables        aa_gamma_;
 };
 
 }

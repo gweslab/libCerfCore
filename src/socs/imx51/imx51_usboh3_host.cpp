@@ -12,27 +12,7 @@ namespace cerfcore {
 
 namespace {
 
-constexpr uint32_t kOffUsbcmdRel  = 0x00000140u;
-constexpr uint32_t kOffUsbstsRel  = 0x00000144u;
-constexpr uint32_t kOffPeriodicListBaseRel = 0x00000154u;
-constexpr uint32_t kOffAsyncListRel = 0x00000158u;
-constexpr uint32_t kOffPortscRel  = 0x00000184u;
-constexpr uint32_t kCmdPseLocal = 1u << 4;
-constexpr uint32_t kStsUiLocal  = 1u << 0;
-constexpr uint32_t kStsUeiLocal = 1u << 1;
-/* EHCI 1.0 Spec Table 2-10 (p22): USBSTS bit 2, Port Change Detect. */
-constexpr uint32_t kStsPciLocal = 1u << 2;
-
-/* EHCI 1.0 Spec Table 2-16 (p26-29): PORTSC bit layout. */
-constexpr uint32_t kPortscCcs     = 1u << 0;
-constexpr uint32_t kPortscCsc     = 1u << 1;
-constexpr uint32_t kPortscPed     = 1u << 2;
-constexpr uint32_t kPortscPedc    = 1u << 3;
-constexpr uint32_t kPortscFpr     = 1u << 6;
-constexpr uint32_t kPortscSuspend = 1u << 7;
-constexpr uint32_t kPortscPr      = 1u << 8;
-/* MCIMX51RM Table 60-52 (PORTSCx Field Descriptions): PHCD, bit 23. */
-constexpr uint32_t kPortscPhcd    = 1u << 23;
+using Ci = ChipIdeaUsbCore;
 
 /* EHCI 1.0 Spec Figure 3-7 (p46): Queue Head Structure Layout. */
 constexpr uint32_t kQhEpCharOff       = 0x04u;
@@ -42,6 +22,7 @@ constexpr uint32_t kQhOverlayTokenOff = 0x18u;
 constexpr uint32_t kQhHorizLinkOff    = 0x00u;
 constexpr uint32_t kQhTypMask  = 0x6u;
 constexpr uint32_t kQhTypQh    = 0x2u;
+constexpr uint32_t kQhHeadOfReclamation = 1u << 15;
 
 /* EHCI 1.0 Spec Table 3-14/3-16 (p40-43): qTD structure and Token fields. */
 constexpr uint32_t kQtdNextOff = 0x00u;
@@ -71,68 +52,44 @@ uint32_t QhEndpointNumber(uint32_t ep_char) { return (ep_char >> 8) & 0xFu; }
 
 void Imx51Usboh3::OnPortConnectChanged(int port_index) {
     if (port_index != 0) return;
-    /* EHCI 1.0 Table 2-16: CCS reflects the powered port, independently of RS. */
-    const uint32_t idx = kOffPortscRel >> 2;
-    if (otg_host_root_port_.IsConnected()) {
-        regs_[idx] |= kPortscCcs | kPortscCsc;
-    } else {
-        regs_[idx] &= ~(kPortscCcs | kPortscPed | kPortscSuspend | kPortscPhcd);
-        regs_[idx] |= kPortscCsc;
-    }
-    regs_[kOffUsbstsRel >> 2] |= kStsPciLocal;
+    if (!cores_[0].ReportPortConnect(otg_host_root_port_.IsConnected())) return;
     RefreshDeviceIrq();
     UpdateScheduleTimer();
 }
 
-void Imx51Usboh3::WriteOtgHostPortsc(uint32_t value) {
-    const uint32_t idx = kOffPortscRel >> 2;
-    const uint32_t old = regs_[idx];
-    uint32_t next = old;
-
-    if ((value & kPortscPr) && !(old & kPortscPr)) {
-        /* MCIMX51RM 60.4.5.5.2 Discovery/Port Reset (p60-219): PORTSCx
-           auto-completes reset via its own 10ms counter and reports it via
-           a Port Enable Change interrupt; software never writes PR back. */
-        next &= ~kPortscPr;
-        if (old & kPortscCcs) {
-            next |= kPortscPed | kPortscPedc;
-            regs_[kOffUsbstsRel >> 2] |= kStsPciLocal;
-            if (UsbDevice* dev = otg_host_root_port_.Device()) dev->ResetToDefault();
-        }
+void Imx51Usboh3::WritePortsc(uint32_t core, uint32_t value) {
+    const UsbDevice* attached = core == 0u ? otg_host_root_port_.Device() : nullptr;
+    const ChipIdeaPortscWrite result = cores_[core].WritePortsc(value, attached);
+    if (result == ChipIdeaPortscWrite::kRejected) {
+        emu_.Get<Fatal>().Die("i.MX51 USB core %u PORTSC write 0x%08X over 0x%08X sets PIC, PTC, PFSC, STS, a "
+                              "device-mode FPR, or SUSP on a disabled port, which CERF does not model", core,
+                              value, cores_[core].Reg(Ci::kPortsc));
     }
-
-    if (value & kPortscCsc)  next &= ~kPortscCsc;
-    if (value & kPortscPedc) next &= ~kPortscPedc;
-
-    if (value & kPortscSuspend) next |= kPortscSuspend;
-    /* MCIMX51RM Table 60-52, FPR: host resume auto-completes; a write of zero
-       has no effect, unlike EHCI. */
-    if (value & kPortscFpr) {
-        next &= ~(kPortscFpr | kPortscSuspend);
+    if (result == ChipIdeaPortscWrite::kDeviceReset) {
+        if (UsbDevice* dev = otg_host_root_port_.Device()) dev->ResetToDefault();
     }
-
-    if (value & kPortscPhcd) next |= kPortscPhcd;
-    else                     next &= ~kPortscPhcd;
-
-    regs_[idx] = next;
     RefreshDeviceIrq();
 }
 
 void Imx51Usboh3::ExecuteAsyncSchedule() {
-    const uint32_t cmd = regs_[kOffUsbcmdRel >> 2];
-    constexpr uint32_t kCmdRsLocal  = 1u << 0;
-    constexpr uint32_t kCmdAseLocal = 1u << 5;
-    if (!(cmd & kCmdRsLocal)) return;
+    const uint32_t cmd = regs_[Ci::kUsbcmd >> 2];
+    if (!(cmd & Ci::kUsbcmdRunStop)) return;
 
-    if (!(cmd & kCmdAseLocal)) return;
-    const uint32_t start = regs_[kOffAsyncListRel >> 2] & ~0x1Fu;
+    if (!(cmd & Ci::kUsbcmdAse)) return;
+    const uint32_t start = regs_[Ci::kListAddr >> 2];
     if (start == 0u) return;
 
     auto& mem = emu_.Get<EmulatedMemory>();
+    ChipIdeaUsbCore& core = cores_[0];
+    core.SetReclamation(true);
     uint32_t qh = start;
     for (int i = 0; i < kQhRingGuard; ++i) {
         if (!mem.TryTranslate(qh)) break;
-        ExecuteQueueHead(qh);
+        if ((mem.ReadWord(qh + kQhEpCharOff) & kQhHeadOfReclamation) != 0u) {
+            if ((core.Usbsts() & Ci::kUsbstsReclaim) == 0u) break;
+            core.SetReclamation(false);
+        }
+        if (ExecuteQueueHead(qh)) core.SetReclamation(true);
         const uint32_t link = mem.ReadWord(qh + kQhHorizLinkOff);
         if (link & kQtdTerminate) break;
         if ((link & kQhTypMask) != kQhTypQh) break;
@@ -143,10 +100,10 @@ void Imx51Usboh3::ExecuteAsyncSchedule() {
 }
 
 void Imx51Usboh3::ExecutePeriodicSchedule() {
-    const uint32_t cmd = regs_[kOffUsbcmdRel >> 2];
-    if (!(cmd & 1u) || !(cmd & kCmdPseLocal)) return;
+    const uint32_t cmd = regs_[Ci::kUsbcmd >> 2];
+    if (!(cmd & Ci::kUsbcmdRunStop) || !(cmd & Ci::kUsbcmdPse)) return;
 
-    const uint32_t base = regs_[kOffPeriodicListBaseRel >> 2] & ~0xFFFu;
+    const uint32_t base = regs_[Ci::kPeriodicList >> 2] & ~0xFFFu;
     if (base == 0u) return;
 
     const uint32_t elements = FreescaleUsbFrameIndex::FrameListElements(
@@ -164,26 +121,28 @@ void Imx51Usboh3::ExecutePeriodicSchedule() {
     }
 }
 
-void Imx51Usboh3::ExecuteQueueHead(uint32_t qh_addr) {
+bool Imx51Usboh3::ExecuteQueueHead(uint32_t qh_addr) {
     auto& mem = emu_.Get<EmulatedMemory>();
     /* EHCI 1.0 Figure 4-14: a halted queue advances horizontally. */
-    if (mem.ReadWord(qh_addr + kQhOverlayTokenOff) & kQtdHalted) return;
+    if (mem.ReadWord(qh_addr + kQhOverlayTokenOff) & kQtdHalted) return false;
     const uint32_t ep_char = mem.ReadWord(qh_addr + kQhEpCharOff);
     const uint32_t dev_addr = QhDeviceAddress(ep_char);
     const uint32_t endpt    = QhEndpointNumber(ep_char);
 
     UsbDevice* root = otg_host_root_port_.Device();
     UsbDevice* dev  = root ? root->FindByAddress(static_cast<uint8_t>(dev_addr)) : nullptr;
-    if (!dev) return;
+    if (!dev) return false;
 
     uint32_t next_ptr = mem.ReadWord(qh_addr + kQhOverlayNextOff);
     uint32_t interrupts = 0;
+    bool     executed   = false;
     for (int i = 0; i < kQtdChainGuard && !(next_ptr & kQtdTerminate); ++i) {
         const uint32_t qtd_addr = next_ptr & ~0x1Fu;
         if (!mem.TryTranslate(qtd_addr)) break;
         const uint32_t token = mem.ReadWord(qtd_addr + kQtdTokenOff);
         if (!(token & kQtdActive)) break;
 
+        executed = true;
         const bool retired = ExecuteQtd(qtd_addr, dev, endpt);
         if (!retired) break;
         const uint32_t new_token = mem.ReadWord(qtd_addr + kQtdTokenOff);
@@ -192,8 +151,8 @@ void Imx51Usboh3::ExecuteQueueHead(uint32_t qh_addr) {
             ((token >> kQtdPidShift) & kQtdPidMask) == kQtdPidIn &&
             ((new_token >> kQtdTotalBytesShift) & kQtdTotalBytesMask) != 0;
         /* EHCI 1.0 Table 2-10 and Table 3-15. */
-        if (halted) interrupts |= kStsUeiLocal;
-        if ((token & kQtdIoc) || short_packet) interrupts |= kStsUiLocal;
+        if (halted) interrupts |= Ci::kUsbstsUei;
+        if ((token & kQtdIoc) || short_packet) interrupts |= Ci::kUsbstsUi;
         const uint32_t this_next = mem.ReadWord(qtd_addr + (short_packet ? 4u : kQtdNextOff));
         mem.WriteWord(qh_addr + kQhCurQtdOff, qtd_addr);
         mem.WriteWord(qh_addr + kQhOverlayNextOff, this_next);
@@ -203,9 +162,10 @@ void Imx51Usboh3::ExecuteQueueHead(uint32_t qh_addr) {
     }
 
     if (interrupts) {
-        regs_[kOffUsbstsRel >> 2] |= interrupts;
+        regs_[Ci::kUsbsts >> 2] |= interrupts;
         RefreshDeviceIrq();
     }
+    return executed;
 }
 
 bool Imx51Usboh3::ExecuteQtd(uint32_t qtd_addr, UsbDevice* dev, uint32_t endpt) {

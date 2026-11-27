@@ -7,6 +7,8 @@
     "pc_store_offset": "plus_12",
     "base_restored_abort_model": true,
     "dsp": true,
-    "load_store_double": true
+    "load_store_double": true,
+    "sctlr_read_only_mask": "0x3FFF8C78",
+    "sctlr_read_only_value": "0x00000078"
   }
 }

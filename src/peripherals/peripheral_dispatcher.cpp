@@ -375,6 +375,12 @@ void PeripheralDispatcher::WriteWord(uint32_t addr, uint32_t value) {
     Write(addr, value, MmioWidth::kWord);
 }
 
+uint64_t PeripheralDispatcher::ReadStableUntil(uint32_t addr, MmioWidth width) const {
+    const Entry* e = LookupEntry(addr);
+    if (e == nullptr || e->read == &GatedRead) return 0;
+    return e->p->ReadStableUntil(addr, width);
+}
+
 CERF_FORCEINLINE void PeripheralDispatcher::WriteDwordRouted(uint32_t addr, uint64_t value) {
     if (const Entry* e = LookupEntry(addr)) {
         if (e->inverted) value = ~value;
@@ -411,5 +417,10 @@ uint64_t CERFENGINE_FASTCALL cerfengine::host::MmioReadDword(void* context, uint
 void CERFENGINE_FASTCALL cerfengine::host::MmioWriteDword(void* context, uint32_t pa,
                                                           uint64_t value) {
     static_cast<cerfcore::PeripheralDispatcher*>(context)->WriteDwordRouted(pa, value);
+}
+
+uint64_t CERFENGINE_FASTCALL cerfengine::host::MmioReadStableUntil(void* context, uint32_t pa,
+                                                                   MmioWidth width) {
+    return static_cast<const cerfcore::PeripheralDispatcher*>(context)->ReadStableUntil(pa, width);
 }
 

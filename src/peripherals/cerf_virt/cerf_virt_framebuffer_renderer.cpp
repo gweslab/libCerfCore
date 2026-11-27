@@ -6,7 +6,10 @@
 #include <cerfcore/core/byte_order.h>
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/device_config.h>
+#include <cerfcore/core/fatal.h>
+#include <cerfcore/cpu/emulated_memory.h>
 #include "../../host/guest_additions_frame_renderer.h"
+#include "cerf_virt_overlay_plane.h"
 #include <cerfcore/lcd/lcd_pixel_expand.h>
 
 #include <algorithm>
@@ -36,21 +39,26 @@ public:
                     uint32_t  host_w,
                     uint32_t  host_h) override {
         auto& fb = emu_.Get<CerfVirtFramebuffer>();
+        const CerfVirtOverlay overlay = fb.Overlay();
+        std::memset(dib_bgra32, 0,
+                    static_cast<size_t>(host_w) * host_h * 4u);
+        if (overlay.layers != CerfVirt::kFbOverlayLayersOverlay) RenderBase(fb, dib_bgra32, host_w, host_h);
+        emu_.Get<CerfVirtOverlayPlane>().Compose(overlay, dib_bgra32, host_w, host_h);
+    }
+
+private:
+    void RenderBase(CerfVirtFramebuffer& fb, uint32_t* dib_bgra32, uint32_t host_w, uint32_t host_h) {
         const CerfVirtScanout s = fb.Scanout();
         const uint32_t guest_w = s.width;
         const uint32_t bpp     = s.bpp;
-        const uint8_t* src     = fb.Bytes() + s.offset;
-
-        std::memset(dib_bgra32, 0,
-                    static_cast<size_t>(host_w) * host_h * 4u);
+        const uint8_t* src     = s.guest_pa != 0u ? LayerBytes(s) : fb.Bytes() + s.offset;
 
         const uint32_t copy_w = std::min(guest_w, host_w);
         const uint32_t copy_h = std::min(s.height, host_h);
         if (copy_w == 0 || copy_h == 0) return;
 
-        const uint32_t guest_stride = CerfVirt::FbRowBytes(guest_w, bpp);
         for (uint32_t y = 0; y < copy_h; ++y) {
-            const uint8_t* src_row = src + static_cast<size_t>(y) * guest_stride;
+            const uint8_t* src_row = src + static_cast<size_t>(y) * s.stride;
             uint32_t* dst_row = dib_bgra32 + static_cast<size_t>(y) * host_w;
             if (bpp == 32u) {
                 std::memcpy(dst_row, src_row, static_cast<size_t>(copy_w) * 4u);
@@ -73,6 +81,15 @@ public:
                 }
             }
         }
+    }
+
+    const uint8_t* LayerBytes(const CerfVirtScanout& s) {
+        const uint8_t* bytes = emu_.Get<EmulatedMemory>().TryTranslateRange(
+            s.guest_pa, uint64_t{s.stride} * s.height);
+        if (!bytes)
+            emu_.Get<Fatal>().Die("[CerfVirtFramebufferRenderer] layer at 0x%08X, %u x %u B, left "
+                                  "backed guest memory", s.guest_pa, s.stride, s.height);
+        return bytes;
     }
 };
 

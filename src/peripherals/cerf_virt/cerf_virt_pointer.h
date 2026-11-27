@@ -27,6 +27,7 @@ public:
     void SetPointer(uint32_t nx, uint32_t ny, uint32_t buttons);
     void AddWheel(int delta);
     void ClearButtons();
+    bool GuestInjects() const { return !no_injector_.load(std::memory_order_acquire); }
 
 private:
     struct PointerState {
@@ -44,6 +45,7 @@ private:
     std::atomic<uint32_t>    buttons_{0};
     std::atomic<uint32_t>    wheel_{0};
     std::atomic<uint32_t>    seq_{0};
+    std::atomic<bool>        no_injector_{false};
     std::mutex                     mutex_;
     HeldInputQueue<PointerState>   held_;
     bool                           change_unseen_ = false;

@@ -1,5 +1,10 @@
 {
   "soc_id": "iop13xx",
   "inherits_cpu_config_id": "xscale",
-  "values": { "midr": "0x69056000", "ctr": "0x0B192192", "supersection_format": "pa36" }
+  "values": {
+    "midr": "0x69056000",
+    "ctr": "0x0B192192",
+    "supersection_format": "pa36",
+    "sctlr_read_only_mask": "0xFBFFC478"
+  }
 }

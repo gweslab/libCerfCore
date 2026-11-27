@@ -15,6 +15,7 @@ const uint32_t kPtrButtons     = 0x08u;
 const uint32_t kPtrWheelAccum  = 0x0Cu;
 const uint32_t kPtrSeq         = 0x10u;
 const uint32_t kPtrAttach      = 0x14u;
+const uint32_t kPtrNoInjector  = 0x18u;
 
 const uint32_t kPtrButtonLeft   = 0x1u;
 const uint32_t kPtrButtonRight  = 0x2u;

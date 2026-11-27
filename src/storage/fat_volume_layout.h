@@ -99,7 +99,9 @@ struct Fat32Extension {
 
 uint8_t* MbrPartitionEntry(uint8_t* mbr, unsigned index);
 void WriteMbrPartition(uint8_t* mbr, unsigned index, const MbrPartition& p);
+MbrPartition ReadMbrPartition(const uint8_t* mbr, unsigned index);
 void WriteBootSignature(uint8_t* sector);
+bool HasBootSignature(const uint8_t* sector);
 void WriteBpb(uint8_t* bs, const Bpb& b);
 void WriteFat16VolumeInfo(uint8_t* bs, const VolumeInfo& v);
 void WriteFat32Extension(uint8_t* bs, const Fat32Extension& e);

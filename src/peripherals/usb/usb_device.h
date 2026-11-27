@@ -51,6 +51,9 @@ public:
     static constexpr uint8_t kDescConfiguration = 2u;
     static constexpr uint8_t kDescString        = 3u;
     static constexpr uint8_t kDescEndpoint      = 5u;
+    static constexpr uint8_t kDescDeviceQualifier         = 6u;
+    static constexpr uint8_t kDescOtherSpeedConfiguration = 7u;
+    static constexpr uint8_t kMaxPacketSize0              = 64u;
 
     static constexpr uint32_t kDevDescSize           = 18u;
     static constexpr uint32_t kDevDescOffIdVendor    = 8u;
@@ -65,6 +68,7 @@ public:
     static std::vector<uint8_t> StandardDeviceDescriptor(uint8_t device_class, uint8_t subclass,
                                                          uint8_t protocol, uint16_t id_vendor,
                                                          uint16_t id_product, uint16_t bcd_device);
+    static std::vector<uint8_t> StandardDeviceQualifier(uint8_t device_class, uint8_t subclass, uint8_t protocol);
 
     bool HandleSetup(const SetupPacket& setup, std::vector<uint8_t>& data_stage);
     bool BeginControlTransfer(const SetupPacket& setup);
@@ -75,6 +79,8 @@ public:
        configuration+interface+endpoint blob (USB 2.0 Spec 9.6.3, p264). */
     virtual bool GetDescriptor(uint8_t type, uint8_t index, uint16_t lang_id,
                                std::vector<uint8_t>& out) = 0;
+
+    virtual bool HighSpeed() const = 0;
 
     virtual bool HandleClassRequest(const SetupPacket& setup,
                                     std::vector<uint8_t>& data_stage) {
@@ -119,6 +125,8 @@ public:
     }
 
 protected:
+    bool SelfPowered();
+
     virtual void SetEndpointStalled(uint8_t ep, bool stalled) {
         if (ep < kMaxEndpoints) stalled_[ep] = stalled;
     }

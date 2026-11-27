@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../socs/i2c_register_pointer.h"
 #include "../../socs/i2c_slave.h"
 
 #include <array>
@@ -31,6 +32,7 @@ public:
 private:
     static constexpr size_t kReadBytes = 6u;
 
+    uint8_t  Command() const;
     uint16_t Word(uint8_t cmd) const;
     void     LatchRead();
     void     WriteWord(uint8_t cmd, uint16_t value);
@@ -50,8 +52,7 @@ private:
     bool     fcc_staged_   = false;
     int64_t  busy_until_ns_ = 0;
 
-    uint8_t cmd_         = 0;
-    bool    cmd_pending_ = false;
+    I2cRegisterPointer cmd_;
     uint8_t write_lo_    = 0;
     uint8_t write_count_ = 0;
     std::array<uint8_t, kReadBytes> read_{};

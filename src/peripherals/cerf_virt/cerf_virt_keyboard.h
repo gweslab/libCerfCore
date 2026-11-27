@@ -24,10 +24,12 @@ public:
     void RestoreState(StateReader& r) override;
 
     void PushKey(uint8_t vk, bool key_up);
+    bool GuestInjects() const { return !no_injector_.load(std::memory_order_acquire); }
 
 private:
     std::atomic<uint32_t> ring_[CerfVirt::kKbRingCount]{};
     std::atomic<uint32_t> write_seq_{0};
+    std::atomic<bool>     no_injector_{false};
 };
 
 }

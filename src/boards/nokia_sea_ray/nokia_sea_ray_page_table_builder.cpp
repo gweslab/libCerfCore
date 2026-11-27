@@ -1,6 +1,7 @@
 #include "../page_table_builder.h"
 
 #include "../../socs/msm8255/msm8255_ram_partitions.h"
+#include "../../socs/msm8255/msm8255_smem.h"
 
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
@@ -27,11 +28,6 @@ constexpr OatEntry kOat[] = {
     { 0x83C00000u, 0x00000000u, MB(1)  },
 };
 
-/* Linux arch/arm/mach-msm msm_iomap-7x30.h:
-   MSM_SHARED_RAM_PHYS 0x00100000, MSM_SHARED_RAM_SIZE SZ_1M. */
-constexpr uint32_t kSharedRamPa   = 0x00100000u;
-constexpr uint32_t kSharedRamSize = MB(1);
-
 constexpr uint32_t DramTopPa() {
     uint32_t top = 0;
     for (const auto& e : kOat) {
@@ -54,7 +50,31 @@ public:
     std::vector<DramRegion>   CachedDramRegions()   const override;
     std::vector<BackedRegion> BackedMemoryRegions() const override;
     std::vector<DramRegion>   MappedVaSpans()       const override;
+
+private:
+    std::vector<Msm8255RamPartition> KernelRamOutsideOat() const;
 };
+
+bool InsideOat(const Msm8255RamPartition& part) {
+    for (const auto& e : kOat) {
+        if (part.start >= e.pa_base &&
+            uint64_t(part.start) + part.size <= uint64_t(e.pa_base) + e.size) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<Msm8255RamPartition> NokiaSeaRayPageTableBuilder::KernelRamOutsideOat() const {
+    std::vector<Msm8255RamPartition> out;
+    auto& parts = emu_.Get<Msm8255RamPartitions>();
+    const uint32_t count = parts.PartitionCount();
+    for (uint32_t i = 0; i < count; ++i) {
+        const Msm8255RamPartition part = parts.Partition(i);
+        if (Msm8255PartitionIsKernelRam(part) && !InsideOat(part)) out.push_back(part);
+    }
+    return out;
+}
 
 uint32_t NokiaSeaRayPageTableBuilder::VaToPa(uint32_t va) const {
     for (const auto& e : kOat) {
@@ -69,6 +89,9 @@ std::vector<DramRegion>
 NokiaSeaRayPageTableBuilder::CachedDramRegions() const {
     std::vector<DramRegion> regions;
     for (const auto& e : kOat) regions.push_back({ e.va_base, e.pa_base, e.size });
+    for (const auto& part : KernelRamOutsideOat()) {
+        regions.push_back({ part.start, part.start, part.size });
+    }
     return regions;
 }
 
@@ -78,15 +101,10 @@ NokiaSeaRayPageTableBuilder::BackedMemoryRegions() const {
     for (const auto& e : kOat) {
         regions.push_back({ e.va_base, e.pa_base, e.size, MemoryKind::kRam });
     }
-    regions.push_back({ kSharedRamPa, kSharedRamPa, kSharedRamSize,
+    regions.push_back({ kMsm8255SmemPa, kMsm8255SmemPa, kMsm8255SmemBytes,
                         MemoryKind::kRam });
-
-    auto& parts = emu_.Get<Msm8255RamPartitions>();
-    const uint32_t count = parts.PartitionCount();
-    for (uint32_t i = 0; i < count; ++i) {
-        const Msm8255RamPartition part = parts.Partition(i);
-        regions.push_back({ part.start, part.start, part.size,
-                            MemoryKind::kRam });
+    for (const auto& part : KernelRamOutsideOat()) {
+        regions.push_back({ part.start, part.start, part.size, MemoryKind::kRam });
     }
     return regions;
 }

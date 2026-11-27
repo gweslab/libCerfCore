@@ -3,6 +3,8 @@
 #include "pm8058_gpio.h"
 #include "pm8058_irq.h"
 #include "pm8058_keypad.h"
+#include "pm8058_power.h"
+#include "pm8058_power_key.h"
 #include "pm8058_rtc.h"
 
 #include "../../core/board_parts.h"
@@ -135,6 +137,8 @@ public:
         emu_.Get<Pm8058Keypad>().SaveState(w);
         emu_.Get<Pm8058Gpio>().SaveState(w);
         emu_.Get<Pm8058Rtc>().SaveState(w);
+        emu_.Get<Pm8058Power>().SaveState(w);
+        emu_.Get<Pm8058PowerKey>().SaveState(w);
         w.Write<uint16_t>("probe_next", probe_next_);
     }
 
@@ -143,6 +147,8 @@ public:
         emu_.Get<Pm8058Keypad>().RestoreState(r);
         emu_.Get<Pm8058Gpio>().RestoreState(r);
         emu_.Get<Pm8058Rtc>().RestoreState(r);
+        emu_.Get<Pm8058Power>().RestoreState(r);
+        emu_.Get<Pm8058PowerKey>().RestoreState(r);
         r.Read("probe_next", probe_next_);
         if (probe_next_ > kRegCount) {
             r.Reject(

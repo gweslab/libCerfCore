@@ -17,6 +17,7 @@ const uint32_t kRszAppliedW       = 0x10u;
 const uint32_t kRszAppliedH       = 0x14u;
 const uint32_t kRszAppliedGen     = 0x18u;
 const uint32_t kRszAppliedQuarter = 0x1Cu;
+const uint32_t kRszFixedSize      = 0x20u;
 
 const uint32_t kRszQuarterTurns = 4u;
 

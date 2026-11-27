@@ -9,8 +9,6 @@ namespace cerfcore {
 
 namespace {
 
-/* USB 2.0 Spec 11.23.1 (p408): Full-/Low-speed Operating Hub Device
-   Descriptor template. */
 constexpr uint8_t  kHubClassCode  = 0x09u;
 /* SYNC 2 hardware MsgLog2.txt, t=144941: USB!AttachDevice 0424:2640:08a2. */
 constexpr uint16_t kHubIdVendor   = 0x0424u;
@@ -23,8 +21,18 @@ constexpr uint8_t kHubDescriptorType = 0x29u;
 /* USB 2.0 Spec 11.23.1 (p408): a single-TT hub sets bDeviceProtocol=1 with
    the interface descriptor's bInterfaceProtocol left at 0. */
 constexpr uint8_t kHubDeviceProtocolSingleTt = 1u;
+constexpr uint8_t kHubDeviceProtocolFullSpeed = 0u;
+
+constexpr uint8_t kStatusIntervalHighSpeed = 0x0Cu;
+constexpr uint8_t kStatusIntervalFullSpeed = 0xFFu;
+
+constexpr uint16_t kHubStatusBytes          = 4u;
+constexpr uint16_t kHubStatusLocalPowerGood = 0u;
+constexpr uint16_t kHubChangeNone           = 0u;
 
 }
+
+bool UsbHub::HighSpeed() const { return kAttachesHighSpeed; }
 
 UsbHub::UsbHub(int num_ports) {
     for (int i = 0; i < num_ports; ++i) {
@@ -35,15 +43,16 @@ UsbHub::UsbHub(int num_ports) {
 }
 
 std::vector<uint8_t> UsbHub::BuildDeviceDescriptor() const {
-    return StandardDeviceDescriptor(kHubClassCode, 0u, kHubDeviceProtocolSingleTt,
+    return StandardDeviceDescriptor(kHubClassCode, 0u,
+                                    HighSpeed() ? kHubDeviceProtocolSingleTt : kHubDeviceProtocolFullSpeed,
                                     kHubIdVendor, kHubIdProduct, kHubBcdDevice);
 }
 
-std::vector<uint8_t> UsbHub::BuildConfigurationDescriptor() const {
+std::vector<uint8_t> UsbHub::BuildConfigurationDescriptor(uint8_t type, uint8_t status_interval) const {
     std::vector<uint8_t> d = {
-        9u, kDescConfiguration, 25u, 0u, 1u, 1u, 0u, 0xE0u, 0u,
+        9u, type, 25u, 0u, 1u, 1u, 0u, 0xE0u, 0u,
         9u, 4u, 0u, 0u, 1u, kHubClassCode, 0u, 0u, 0u,
-        7u, 5u, 0x81u, 0x03u, 8u, 0u, 0xFFu,
+        7u, 5u, 0x81u, 0x03u, 8u, 0u, status_interval,
     };
     return d;
 }
@@ -68,7 +77,16 @@ bool UsbHub::GetDescriptor(uint8_t type, uint8_t index, uint16_t /*lang_id*/,
         return true;
     }
     if (type == kDescConfiguration) {
-        out = BuildConfigurationDescriptor();
+        out = BuildConfigurationDescriptor(kDescConfiguration,
+                                           HighSpeed() ? kStatusIntervalHighSpeed : kStatusIntervalFullSpeed);
+        return true;
+    }
+    if (HighSpeed() && type == kDescOtherSpeedConfiguration) {
+        out = BuildConfigurationDescriptor(kDescOtherSpeedConfiguration, kStatusIntervalFullSpeed);
+        return true;
+    }
+    if (HighSpeed() && type == kDescDeviceQualifier) {
+        out = StandardDeviceQualifier(kHubClassCode, 0u, kHubDeviceProtocolFullSpeed);
         return true;
     }
     if (type == kHubDescriptorType) {
@@ -84,6 +102,13 @@ bool UsbHub::HandleClassRequest(const SetupPacket& setup,
 
     if (setup.bRequest == kHubReqGetDescriptor) {
         return GetDescriptor(kHubDescriptorType, 0u, 0u, data_stage);
+    }
+    if (setup.bRequest == kHubReqGetStatus && recip == kReqRecipDevice) {
+        if (setup.wValue != 0u || setup.wIndex != 0u || setup.wLength != kHubStatusBytes) return false;
+        data_stage.clear();
+        cerf::le::Append16(data_stage, kHubStatusLocalPowerGood);
+        cerf::le::Append16(data_stage, kHubChangeNone);
+        return true;
     }
     if (setup.bRequest == kHubReqGetStatus && recip == 3u) {
         const int port = static_cast<int>(setup.wIndex) - 1;
@@ -107,12 +132,13 @@ bool UsbHub::HandleClassRequest(const SetupPacket& setup,
             /* USB 2.0 Spec 11.8.2 (p343-344): "Upon exit from the reset
                process, the hub must set the PORT_HIGH_SPEED status bit
                according to the detected speed." */
-            status |= kPortStatusEnable | kPortStatusHighSpeed;
+            UsbDevice* dev = ports_[static_cast<size_t>(port)].Device();
+            status |= kPortStatusEnable;
+            status = (dev != nullptr && dev->HighSpeed()) ? (status | kPortStatusHighSpeed)
+                                                          : (status & ~kPortStatusHighSpeed);
             status &= ~kPortStatusReset;
             port_change_[static_cast<size_t>(port)] |= kPortChangeReset;
-            if (UsbDevice* dev = ports_[static_cast<size_t>(port)].Device()) {
-                dev->ResetToDefault();
-            }
+            if (dev != nullptr) dev->ResetToDefault();
             return true;
         }
         /* USB 2.0 9.4: unsupported requests return STALL. */

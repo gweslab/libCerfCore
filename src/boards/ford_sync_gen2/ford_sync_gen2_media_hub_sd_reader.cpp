@@ -1,5 +1,6 @@
 #include "ford_sync_gen2_media_hub_sd_reader.h"
 #include <cerfcore/core/log.h>
+#include "../../peripherals/usb/usb_hub.h"
 #include "../../peripherals/usb/usb_state.h"
 
 namespace cerfcore {
@@ -7,6 +8,8 @@ namespace cerfcore {
 /* SYNC 2 hardware MsgLog2.txt, t=145536: USB!AttachDevice 0424:4040:0203. */
 FordSyncGen2MediaHubSdReader::FordSyncGen2MediaHubSdReader(std::optional<SdCardCid> cid)
     : UsbMassStorageDevice(0x0424u, 0x4040u, 0x0203u), cid_(cid) {}
+
+bool FordSyncGen2MediaHubSdReader::HighSpeed() const { return UsbHub::kAttachesHighSpeed; }
 
 void FordSyncGen2MediaHubSdReader::SaveState(StateWriter& w) {
     UsbMassStorageDevice::SaveState(w);

@@ -22,13 +22,12 @@ public:
     std::vector<ButtonSpec> BoardButtons() override {
         static constexpr uint16_t     kBezelAdcX = 49;
         static constexpr RawTapButton kBezel[]   = {
-            { "settings",     "Settings",     212 },
-            { "backup",       "HP backup",    415 },
-            { "dialer",       "HP dialer",    640 },
-            { "media_player", "Media player", 865 },
+            { "settings",     "Settings",     kBezelAdcX, 212 },
+            { "backup",       "HP backup",    kBezelAdcX, 415 },
+            { "dialer",       "HP dialer",    kBezelAdcX, 640 },
+            { "media_player", "Media player", kBezelAdcX, 865 },
         };
-        return RawTapColumn(kBezel, kBezelAdcX,
-                            [this](uint16_t x, uint16_t y) { emu_.Get<HpJornada700Touch>().TapRawAdc(x, y); });
+        return RawTapButtons(kBezel, [this](uint16_t x, uint16_t y) { emu_.Get<HpJornada700Touch>().TapRawAdc(x, y); });
     }
 };
 

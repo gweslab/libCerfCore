@@ -11,17 +11,13 @@
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include "../../cpu/arm/arm_core_clock.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 
 namespace cerfcore {
 
 namespace {
-
-/* Linux arch/arm/mach-msm msm_iomap-7x30.h:
-   MSM_SHARED_RAM_PHYS 0x00100000, MSM_SHARED_RAM_SIZE SZ_1M. */
-constexpr uint32_t kSmemPa   = 0x00100000u;
-constexpr uint32_t kSmemSize = 0x00100000u;
 
 constexpr uint32_t kProcCommBytes = 4u * 16u;
 constexpr uint32_t kVersionBytes  = 32u * 4u;
@@ -107,7 +103,15 @@ constexpr uint32_t kDalBusFlags = 0x10000u;
 constexpr const char* kDalBusNames[] = {"PMIC_SSBI", "CODEC_SSBI"};
 constexpr uint32_t kDalBusCount =
     static_cast<uint32_t>(sizeof(kDalBusNames) / sizeof(kDalBusNames[0]));
-static_assert(kDalHdrBytes + kDalBusCount * kDalBusBytes <= kDalArenaBytes,
+
+constexpr uint32_t kDalLockBytes = 48u;
+constexpr uint32_t kDalLockFlags = 0x20000u;
+constexpr const char* kDalLockNames[] = {kMsm8255DalI2c1Lock, kMsm8255DalI2c2Lock};
+constexpr uint32_t kDalLockCount =
+    static_cast<uint32_t>(sizeof(kDalLockNames) / sizeof(kDalLockNames[0]));
+
+static_assert(kDalHdrBytes + kDalBusCount * kDalBusBytes +
+                  kDalLockCount * kDalLockBytes <= kDalArenaBytes,
               "the seeded dal records must fit the mapped arena page");
 
 constexpr uint32_t kDalCtxtVersionOff = 0x20u;
@@ -151,6 +155,11 @@ constexpr uint32_t kAvscsr       = 0x61u;
 constexpr uint32_t kBspSawCfgOff = 15380u;
 constexpr uint32_t kSawCfgSeed   = 6u;
 
+constexpr uint32_t kBspVddStepOff     = 20176u;
+constexpr uint32_t kBspVddStepTimeOff = 20180u;
+constexpr uint32_t kVddStepMv         = 25u;
+constexpr uint32_t kVddStepTimeUs     = 0u;
+
 constexpr uint32_t Align8(uint32_t v) { return (v + 7u) & ~7u; }
 
 constexpr uint32_t kBspOff = Align8(kFixedAreaEnd);
@@ -159,11 +168,15 @@ constexpr uint32_t kPtableOff = Align8(kSrcOff + kSrcBytes);
 constexpr uint32_t kBootInfoOff = Align8(kPtableOff + kPtableBytes);
 constexpr uint32_t kDalCtxtOff  = Align8(kBootInfoOff + kBootInfoBytes);
 constexpr uint32_t kDalArenaPad =
-    (kDalArenaBytes - ((kSmemPa + kDalCtxtOff) & (kDalArenaBytes - 1u)))
+    (kDalArenaBytes - ((kMsm8255SmemPa + kDalCtxtOff) & (kDalArenaBytes - 1u)))
     & (kDalArenaBytes - 1u);
 constexpr uint32_t kDalArenaOff = kDalCtxtOff + kDalArenaPad;
-constexpr uint32_t kHeapUsedEnd = Align8(kDalCtxtOff + kDalCtxtBytes);
-static_assert(kHeapUsedEnd <= kSmemSize,
+constexpr uint32_t kIdWmUuid    = 12u;
+constexpr uint32_t kWmUuidBytes = 16u;
+constexpr uint32_t kWmUuidFirstWord = 1u;
+constexpr uint32_t kWmUuidOff   = Align8(kDalCtxtOff + kDalCtxtBytes);
+constexpr uint32_t kHeapUsedEnd = Align8(kWmUuidOff + kWmUuidBytes);
+static_assert(kHeapUsedEnd <= kMsm8255SmemBytes,
               "the published smem items must fit the shared window");
 
 }
@@ -179,7 +192,7 @@ void Msm8255Smem::OnReady() {
     emu_.Get<GuestColdBoot>().RegisterReplay([this] { Seed(); });
 }
 
-uint32_t Msm8255Smem::SmemPa() { return kSmemPa; }
+uint32_t Msm8255Smem::SmemPa() { return kMsm8255SmemPa; }
 
 /* Linux arch/arm/mach-msm smd.c smem_find: the item pointer is handed out only
    when the caller's byte count, rounded up to 8, equals the allocated size. */
@@ -195,7 +208,7 @@ uint32_t Msm8255Smem::ItemPa(uint32_t id, uint32_t bytes) {
             "msm8255 smem: item %u holds %u bytes, and the modem peer models it "
             "as %u", id, size, want);
     }
-    return kSmemPa + off;
+    return kMsm8255SmemPa + off;
 }
 
 /* Linux arch/arm/mach-msm smd.c smem_item: the caller receives the item's own
@@ -206,7 +219,7 @@ bool Msm8255Smem::ItemPaAndSize(uint32_t id, uint32_t& pa, uint32_t& bytes) {
     if (!ReadTocEntry(id, off, size)) {
         return false;
     }
-    pa    = kSmemPa + off;
+    pa    = kMsm8255SmemPa + off;
     bytes = size;
     return true;
 }
@@ -219,10 +232,10 @@ bool Msm8255Smem::ReadTocEntry(uint32_t id, uint32_t& off, uint32_t& size) {
     }
     off  = mem.ReadWord(toc + kTocOffsetOff);
     size = mem.ReadWord(toc + kTocSizeOff);
-    if (off >= kSmemSize || size > kSmemSize - off) {
+    if (off >= kMsm8255SmemBytes || size > kMsm8255SmemBytes - off) {
         emu_.Get<Fatal>().Die(
             "msm8255 smem: item %u claims offset 0x%X and size %u, which leaves "
-            "the %u-byte shared window", id, off, size, kSmemSize);
+            "the %u-byte shared window", id, off, size, kMsm8255SmemBytes);
     }
     return true;
 }
@@ -233,38 +246,41 @@ uint32_t Msm8255Smem::TocEntryPa(uint32_t id) {
             "msm8255 smem: item id %u is outside the %u-entry heap toc",
             id, kHeapTocEntries);
     }
-    return kSmemPa + kHeapTocOff + kTocEntryBytes * id;
+    return kMsm8255SmemPa + kHeapTocOff + kTocEntryBytes * id;
 }
 
 void Msm8255Smem::Seed() {
     auto& mem = emu_.Get<EmulatedMemory>();
-    uint8_t* window = mem.TryTranslateRange(kSmemPa, kSmemSize, true);
+    uint8_t* window = mem.TryTranslateRange(kMsm8255SmemPa, kMsm8255SmemBytes, true);
     if (!window) {
         emu_.Get<Fatal>().Die("msm8255 smem: the shared window at PA 0x%08X is not backed RAM",
-                              kSmemPa);
+                              kMsm8255SmemPa);
     }
-    std::memset(window, 0, kSmemSize);
-    mem.WriteWord(kSmemPa + kHeapInitializedOff, kHeapInitialized);
-    mem.WriteWord(kSmemPa + kHeapFreeOffsetOff,  kHeapUsedEnd);
-    mem.WriteWord(kSmemPa + kHeapRemainingOff,   kSmemSize - kHeapUsedEnd);
-    mem.WriteWord(kSmemPa + kHeapReservedOff,    0u);
+    std::memset(window, 0, kMsm8255SmemBytes);
+    mem.WriteWord(kMsm8255SmemPa + kHeapInitializedOff, kHeapInitialized);
+    mem.WriteWord(kMsm8255SmemPa + kHeapFreeOffsetOff,  kHeapUsedEnd);
+    mem.WriteWord(kMsm8255SmemPa + kHeapRemainingOff,   kMsm8255SmemBytes - kHeapUsedEnd);
+    mem.WriteWord(kMsm8255SmemPa + kHeapReservedOff,    0u);
 
     PublishItem(kIdClkregimBsp,     kBspOff, kBspBytes, kBspMagic);
     PublishItem(kIdClkregimSources, kSrcOff, kSrcBytes, kSrcMagic);
     PublishRamPartitions();
 
     PublishItem(kIdBootInfo, kBootInfoOff, kBootInfoBytes, 0u);
-    mem.WriteWord(kSmemPa + kBootInfoOff + kBootFlagsOff, kBootFlags);
+    mem.WriteWord(kMsm8255SmemPa + kBootInfoOff + kBootFlagsOff, kBootFlags);
+
+    PublishItem(kIdWmUuid, kWmUuidOff, kWmUuidBytes, kWmUuidFirstWord);
 
     SeedDalGlobalContext();
 
     SeedSpeedRecord();
     SeedPerfLevels();
     SeedAvsConfig();
+    SeedVoltageSwitch();
 }
 
 uint32_t Msm8255Smem::RecordPa(uint32_t index) const {
-    return kSmemPa + kBspOff + kBspRecordsOff + kBspRecordBytes * index;
+    return kMsm8255SmemPa + kBspOff + kBspRecordsOff + kBspRecordBytes * index;
 }
 
 void Msm8255Smem::SeedSpeedRecord() {
@@ -280,7 +296,7 @@ void Msm8255Smem::SeedSpeedRecord() {
 
 void Msm8255Smem::SeedPerfLevels() {
     auto& mem = emu_.Get<EmulatedMemory>();
-    const uint32_t base = kSmemPa + kBspOff + kBspPerfLevelsOff;
+    const uint32_t base = kMsm8255SmemPa + kBspOff + kBspPerfLevelsOff;
     for (uint32_t i = 0; i < kBspPerfLevelCount; ++i) {
         mem.WriteWord(base + kBspPerfLevelStride * i, kBspRecordIndex);
     }
@@ -288,8 +304,14 @@ void Msm8255Smem::SeedPerfLevels() {
 
 void Msm8255Smem::SeedAvsConfig() {
     auto& mem = emu_.Get<EmulatedMemory>();
-    mem.WriteWord(kSmemPa + kBspOff + kBspAvscsrOff, kAvscsr);
-    mem.WriteWord(kSmemPa + kBspOff + kBspSawCfgOff, kSawCfgSeed);
+    mem.WriteWord(kMsm8255SmemPa + kBspOff + kBspAvscsrOff, kAvscsr);
+    mem.WriteWord(kMsm8255SmemPa + kBspOff + kBspSawCfgOff, kSawCfgSeed);
+}
+
+void Msm8255Smem::SeedVoltageSwitch() {
+    auto& mem = emu_.Get<EmulatedMemory>();
+    mem.WriteWord(kMsm8255SmemPa + kBspOff + kBspVddStepOff, kVddStepMv);
+    mem.WriteWord(kMsm8255SmemPa + kBspOff + kBspVddStepTimeOff, kVddStepTimeUs);
 }
 
 void Msm8255Smem::WriteDalRecordName(uint32_t rec, const char* name) {
@@ -305,22 +327,61 @@ void Msm8255Smem::SeedDalGlobalContext() {
 
     auto& mem = emu_.Get<EmulatedMemory>();
 
-    mem.WriteWord(kSmemPa + kDalCtxtOff, kDalArenaPad);
+    mem.WriteWord(kMsm8255SmemPa + kDalCtxtOff, kDalArenaPad);
 
-    const uint32_t hdr = kSmemPa + kDalArenaOff;
-    mem.WriteWord(hdr + kDalRecLenOff, kDalHdrBytes);
-    WriteDalRecordName(hdr, kDalHdrName);
-    mem.WriteWord(hdr + kDalRecFlagsOff, kDalHdrFlags);
-
-    uint32_t rec = hdr + kDalHdrBytes;
+    uint32_t rec = AppendDalRecord(kMsm8255SmemPa + kDalArenaOff, kDalHdrName,
+                                   kDalHdrBytes, kDalHdrFlags);
     for (uint32_t i = 0; i < kDalBusCount; ++i) {
-        mem.WriteWord(rec + kDalRecLenOff, kDalBusBytes);
-        WriteDalRecordName(rec, kDalBusNames[i]);
-        mem.WriteWord(rec + kDalRecFlagsOff,    kDalBusFlags);
         mem.WriteWord(rec + kDalCtxtVersionOff, kDalCtxtVersion);
         mem.WriteWord(rec + kDalCtxtPoweredOff, kDalCtxtPowered);
-        rec += kDalBusBytes;
+        rec = AppendDalRecord(rec, kDalBusNames[i], kDalBusBytes, kDalBusFlags);
     }
+    for (uint32_t i = 0; i < kDalLockCount; ++i) {
+        rec = AppendDalRecord(rec, kDalLockNames[i], kDalLockBytes, kDalLockFlags);
+    }
+}
+
+uint32_t Msm8255Smem::AppendDalRecord(uint32_t rec, const char* name,
+                                      uint32_t bytes, uint32_t flags) {
+    auto& mem = emu_.Get<EmulatedMemory>();
+    mem.WriteWord(rec + kDalRecLenOff, bytes);
+    WriteDalRecordName(rec, name);
+    mem.WriteWord(rec + kDalRecFlagsOff, flags);
+    return rec + bytes;
+}
+
+uint32_t Msm8255Smem::DalRecordPa(const char* name) {
+    auto& mem = emu_.Get<EmulatedMemory>();
+    const uint32_t base  = kMsm8255SmemPa + kDalArenaOff;
+    const uint32_t span  = kDalCtxtBytes - kDalArenaPad;
+    const uint32_t named = static_cast<uint32_t>(
+        std::min<size_t>(std::strlen(name), kDalRecNameMax));
+
+    uint32_t off = 0u;
+    while (off + kDalRecNameOff + named <= span) {
+        const uint32_t len = mem.ReadWord(base + off + kDalRecLenOff);
+        if (len == 0u) {
+            return 0u;
+        }
+        bool same = true;
+        for (uint32_t i = 0; i < named; ++i) {
+            if (mem.ReadByte(base + off + kDalRecNameOff + i) !=
+                static_cast<uint8_t>(name[i])) {
+                same = false;
+                break;
+            }
+        }
+        if (same) {
+            return base + off;
+        }
+        if (len > span - off) {
+            emu_.Get<Fatal>().Die(
+                "msm8255 smem: the dal record at arena offset 0x%X claims %u "
+                "bytes, past the %u-byte arena", off, len, span);
+        }
+        off += len;
+    }
+    return 0u;
 }
 
 void Msm8255Smem::PublishRamPartitions() {
@@ -339,7 +400,7 @@ void Msm8255Smem::PublishRamPartitions() {
     PublishItem(kIdRamPtable, kPtableOff, kPtableBytes, kPtableMagic1);
 
     auto& mem = emu_.Get<EmulatedMemory>();
-    const uint32_t base = kSmemPa + kPtableOff;
+    const uint32_t base = kMsm8255SmemPa + kPtableOff;
     mem.WriteWord(base + kPtableMagic2Off, kPtableMagic2);
     mem.WriteWord(base + kPtableLenOff,    count);
     for (uint32_t i = 0; i < count; ++i) {
@@ -362,7 +423,7 @@ void Msm8255Smem::PublishItem(uint32_t id, uint32_t off, uint32_t size,
     mem.WriteWord(toc +  4u, off);
     mem.WriteWord(toc +  8u, Align8(size));
     mem.WriteWord(toc + 12u, 0u);
-    mem.WriteWord(kSmemPa + off, magic);
+    mem.WriteWord(kMsm8255SmemPa + off, magic);
 }
 
 REGISTER_SERVICE(Msm8255Smem);

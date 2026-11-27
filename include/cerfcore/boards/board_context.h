@@ -20,7 +20,7 @@ public:
     std::string_view GetBoardId()        const;
     std::string_view GetSocId()          const;
     CpuArch          GetCpuArch()        const;
-    RomPlacingMode   GetRomPlacingMode() const;
+    std::string_view GetRomPlacingMode() const;
 
     const char* BoardName()      const;
     const char* ShortBoardName() const;

@@ -28,7 +28,7 @@ public:
     uint64_t AdPortScanCycles() const;
 
     void Save(StateWriter& w, uint64_t now) const;
-    void Restore(StateReader& r, uint64_t now);
+    void Restore(StateReader& r);
 
 private:
     uint64_t ReadyCycle(uint16_t kind, uint16_t stable, uint64_t start_tick, uint64_t start_cycle);

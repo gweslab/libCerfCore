@@ -10,6 +10,7 @@ public:
     static constexpr uint32_t kStateKind = 3;
     explicit FordSyncGen2MediaHubSdReader(std::optional<SdCardCid> cid = {});
     uint32_t StateKind() const override { return kStateKind; }
+    bool HighSpeed() const override;
     const std::optional<SdCardCid>& Cid() const { return cid_; }
     void SaveState(StateWriter& w) override;
     void RestoreState(StateReader& r) override;

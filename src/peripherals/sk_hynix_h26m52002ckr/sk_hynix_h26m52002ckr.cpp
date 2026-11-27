@@ -52,7 +52,7 @@ constexpr EmmcExtCsdByte kExtCsdProperties[] = {
     {157u, 0x9Au},
 };
 
-constexpr uint32_t kSectorCount = 0x01D74000u;
+constexpr uint32_t kSectorCount = 0x01DB0000u;
 
 }  // namespace
 

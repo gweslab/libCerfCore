@@ -17,6 +17,9 @@ constexpr uint8_t  kMscClass    = 0x08u;
 constexpr uint8_t  kMscSubClass = 0x06u;
 constexpr uint8_t  kMscProtocol = 0x50u;
 
+constexpr uint16_t kFullSpeedBulkMaxPacket = 64u;
+constexpr uint16_t kHighSpeedBulkMaxPacket = 512u;
+
 /* USB Mass Storage Class Bulk-Only Transport Rev. 1.0, Table 5.1 (p13). */
 constexpr uint32_t kCbwSignature = 0x43425355u;
 constexpr uint32_t kCswSignature = 0x53425355u;
@@ -72,14 +75,19 @@ std::vector<uint8_t> UsbMassStorageDevice::BuildDeviceDescriptor() const {
     return StandardDeviceDescriptor(0u, 0u, 0u, id_vendor_, id_product_, bcd_device_);
 }
 
-std::vector<uint8_t> UsbMassStorageDevice::BuildConfigurationDescriptor() const {
+std::vector<uint8_t> UsbMassStorageDevice::BuildConfigurationDescriptor(uint8_t type, bool high_speed) const {
+    const uint16_t bulk = high_speed ? kHighSpeedBulkMaxPacket : kFullSpeedBulkMaxPacket;
+    const uint8_t  lo   = static_cast<uint8_t>(bulk);
+    const uint8_t  hi   = static_cast<uint8_t>(bulk >> 8);
     return {
-        9u, kDescConfiguration, 32u, 0u, 1u, 1u, 0u, 0xC0u, 0u,
+        9u, type, 32u, 0u, 1u, 1u, 0u, 0xC0u, 0u,
         9u, 4u, 0u, 0u, 2u, kMscClass, kMscSubClass, kMscProtocol, 0u,
-        7u, 5u, 0x81u, 0x02u, 64u, 0u, 0u,
-        7u, 5u, 0x02u, 0x02u, 64u, 0u, 0u,
+        7u, 5u, 0x81u, 0x02u, lo, hi, 0u,
+        7u, 5u, 0x02u, 0x02u, lo, hi, 0u,
     };
 }
+
+bool UsbMassStorageDevice::HighSpeed() const { return false; }
 
 bool UsbMassStorageDevice::GetDescriptor(uint8_t type, uint8_t /*index*/, uint16_t /*lang_id*/,
                                          std::vector<uint8_t>& out) {
@@ -88,7 +96,16 @@ bool UsbMassStorageDevice::GetDescriptor(uint8_t type, uint8_t /*index*/, uint16
         return true;
     }
     if (type == kDescConfiguration) {
-        out = BuildConfigurationDescriptor();
+        out = BuildConfigurationDescriptor(kDescConfiguration, HighSpeed());
+        return true;
+    }
+    if (!HighSpeed()) return false;
+    if (type == kDescDeviceQualifier) {
+        out = StandardDeviceQualifier(0u, 0u, 0u);
+        return true;
+    }
+    if (type == kDescOtherSpeedConfiguration) {
+        out = BuildConfigurationDescriptor(kDescOtherSpeedConfiguration, false);
         return true;
     }
     return false;

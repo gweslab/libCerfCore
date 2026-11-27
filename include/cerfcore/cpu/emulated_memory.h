@@ -16,6 +16,7 @@ namespace cerfcore {
 
 class StateWriter;
 class StateReader;
+class GuestPageFences;
 
 class EmulatedMemory : public Service {
 public:
@@ -28,9 +29,6 @@ public:
 
     static constexpr size_t kMaxRegions = 64;
 
-    /* `decode_span` (0 = `size`) is the address space the chip select decodes onto
-       this region. A span wider than `size` repeats the region through the window,
-       which requires a power-of-two `size` dividing the span. */
     void AddRegion(uint32_t base, uint32_t size,
                    MemoryKind kind = MemoryKind::kRam,
                    uint32_t decode_span = 0);
@@ -55,6 +53,8 @@ public:
 
     uint8_t* TryTranslateRange(uint64_t paddr, uint64_t size, bool write = false);
 
+    uint8_t* TryTranslateRangeUnfenced(uint64_t paddr, uint64_t size, bool write);
+
     uint8_t  ReadByte(uint32_t vaddr);
     uint16_t ReadHalf(uint32_t vaddr);
     uint32_t ReadWord(uint32_t vaddr);
@@ -64,15 +64,10 @@ public:
     void     WriteWord(uint32_t vaddr, uint32_t value);
     void     WriteDword(uint32_t vaddr, uint64_t value);
 
-    /* Bulk copy from host buffer into emulated memory at vaddr. The
-       entire range must fall inside one declared region; halts on
-       unmapped destination or boundary-crossing copy. */
     void CopyIn(uint32_t vaddr, const void* host_src, size_t size);
 
     void LoadContents(uint32_t paddr, const void* host_src, size_t size);
 
-    /* Bulk copy out of emulated memory. Same one-region contract as
-       CopyIn. */
     void CopyOut(uint32_t vaddr, void* host_dst, size_t size);
 
     uint32_t TryCopyOut(uint32_t paddr, uint8_t* host_dst, uint32_t size);
@@ -81,20 +76,10 @@ public:
 
     bool CanCopyRange(uint32_t paddr, size_t size, bool writable);
 
-    void WipeVolatileRegions();
-
-    void SaveState(StateWriter& w);
-    void RestoreState(StateReader& r);
-
-    void SaveFlashRegions(StateWriter& w);
-    void RestoreFlashRegions(StateReader& r);
-
-    void RestoreRegions(StateReader& r, bool flash, bool write);
-
-    /* Total bytes across volatile regions - the save-progress denominator. */
     uint64_t VolatileByteCount() const;
 
 private:
+    friend class EmulatedMemoryImage;
     friend uint8_t* CERFENGINE_FASTCALL cerfengine::host::PhysicalTranslate(
         void* context, uint32_t pa, bool write, cerfengine::PhysicalPage& page);
     friend bool CERFENGINE_FASTCALL cerfengine::host::PhysicalSpanUniform(
@@ -106,12 +91,12 @@ private:
 
     struct Region {
         uint32_t              base         = 0;
-        uint32_t              size         = 0;   /* backed bytes */
+        uint32_t              size         = 0;
         uint32_t              span         = 0;
         uint32_t              wrap_mask    = 0xFFFFFFFFu;
         std::atomic<const AddressDecode*> decode{nullptr};
         MemoryKind            kind         = MemoryKind::kRam;
-        std::atomic<uint8_t*> host_ptr{nullptr};  /* lazy first-touch */
+        std::atomic<uint8_t*> host_ptr{nullptr};
         std::atomic<bool>     bus_access{true};
     };
 
@@ -132,24 +117,20 @@ private:
     static bool RangeLinear(const Region& r, uint64_t offset, uint64_t size,
                             uint64_t backed_offset) {
         if (size > r.span - offset || size > r.size - backed_offset) return false;
-        const uint64_t block = DecodeBlock(r);
-        return offset / block == (offset + size - 1u) / block;
+        return (offset ^ (offset + size - 1u)) < DecodeBlock(r);
     }
 
-    /* Lock-free read: load_acquire count_, linear scan regions_[0..n). */
     Region*  FindRegion(uint32_t vaddr);
     Region*  FindBackingRegion(uint32_t pa);
-    /* Shared CopyIn/CopyOut gate: region containing [vaddr, vaddr+size)
-       or fatal (unmapped / boundary-crossing). */
     Region*  BulkRegionFor(uint32_t vaddr, size_t size, const char* op);
+    uint8_t* TranslateUnfenced(uint32_t vaddr);
     Region*  BulkRegion(uint32_t vaddr, size_t size);
     void     CopyIntoRegion(Region* r, uint32_t vaddr, const void* host_src, size_t size);
     static bool IsFlash(const Region& r);
     static bool InStateImage(const Region& r, bool flash);
-    uint32_t RegionCount(bool flash) const;
-    void     SaveRegions(StateWriter& w, bool flash);
     uint8_t* EnsureBacked(Region* r);
 
+    GuestPageFences*    fences_ = nullptr;
     Region              regions_[kMaxRegions]{};
     std::atomic<size_t> count_{0};
     std::mutex          add_mutex_;

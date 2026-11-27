@@ -1,0 +1,1 @@
+{ "name": "PMU overflow interrupt line", "arch": "ARM", "type": "integer" }

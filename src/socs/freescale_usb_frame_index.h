@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../execution/guest_cycle_clock.h"
-#include "cycle_anchored_counter.h"
+#include "oscillator_ticks.h"
 
 #include <array>
 #include <cstdint>
@@ -21,7 +20,7 @@ public:
 
     enum class Role : uint8_t { kHost, kDeviceHighSpeed, kDevicePrelude };
 
-    explicit FreescaleUsbFrameIndex(CerfEmulator& emu) : emu_(emu), uframes_(emu) {}
+    explicit FreescaleUsbFrameIndex(CerfEmulator& emu) : uframes_(emu, false) {}
 
     static uint32_t FrameListSizeCode(uint32_t usbcmd);
     static uint32_t FrameListElements(uint32_t fs) { return 1024u >> fs; }
@@ -46,16 +45,14 @@ public:
     void Restore(StateReader& r);
 
 private:
-    uint32_t Now() const;
+    uint32_t Now() { return static_cast<uint32_t>(uframes_.Now()); }
     bool     Counting(uint32_t core) const { return running_[core] && clocked_[core]; }
     uint32_t FrindexAt(uint32_t core, uint32_t now) const;
     uint32_t StatusAt(uint32_t core, uint32_t now) const;
     uint32_t PreludeAgeAt(uint32_t core, uint32_t now) const;
     void     Latch(uint32_t core, uint32_t now);
 
-    CerfEmulator&                emu_;
-    GuestCycleClock*             clock_ = nullptr;
-    CycleAnchoredCounter         uframes_;
+    OscillatorTicks              uframes_;
     std::array<bool, kCores>     clocked_{};
     std::array<bool, kCores>     running_{};
     std::array<Role, kCores>     role_{};

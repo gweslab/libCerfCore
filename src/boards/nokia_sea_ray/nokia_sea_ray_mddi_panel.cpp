@@ -3,15 +3,17 @@
 #include <cerfcore/core/cerf_emulator.h>
 #include <cerfcore/core/fatal.h>
 #include <cerfcore/core/log.h>
-#include <cerfcore/cpu/emulated_memory.h>
 #include "../../lcd/display_size_latch.h"
 #include <cerfcore/socs/guest_cpu_reset.h>
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/boards/board_context.h>
 #include "nokia_sea_ray_family_id.h"
+#include "nokia_sea_ray_panel_te.h"
 
 #include <algorithm>
+#include <bit>
 #include <cstdint>
+#include <iterator>
 #include <vector>
 
 namespace cerfcore {
@@ -47,10 +49,13 @@ constexpr uint32_t kMaxPayloadBytes = 8u;
 constexpr uint32_t kTriggerShortPacket = 1u;
 constexpr uint32_t kTriggerLongPacket  = 13u;
 
+constexpr uint32_t kDcsEnterSleepMode      = 0x10u;
 constexpr uint32_t kDcsExitSleepMode       = 0x11u;
 constexpr uint32_t kDcsEnterPartialMode    = 0x12u;
 constexpr uint32_t kDcsEnterNormalMode     = 0x13u;
+constexpr uint32_t kDcsSetDisplayOff       = 0x28u;
 constexpr uint32_t kDcsSetDisplayOn        = 0x29u;
+constexpr uint32_t kDcsSetTearOff          = 0x34u;
 constexpr uint32_t kDcsSetTearOn           = 0x35u;
 constexpr uint32_t kDcsSetAddressMode      = 0x36u;
 constexpr uint32_t kDcsSetPixelFormat      = 0x3Au;
@@ -60,6 +65,34 @@ constexpr uint32_t kDcsWriteControlDisplay = 0x53u;
 constexpr uint32_t kDcsWritePowerSave      = 0x55u;
 constexpr uint32_t kDcsReadId1             = 0xDAu;
 constexpr uint32_t kDcsReadId3             = 0xDCu;
+constexpr uint32_t kDcsGetPowerMode        = 0x0Au;
+
+constexpr uint32_t kTearModeVblank = 0u;
+constexpr uint32_t kDisplayOnFillByte = 0u;
+
+constexpr uint32_t kPowerModeDisplayOn = 1u << 2;
+constexpr uint32_t kPowerModeNormal    = 1u << 3;
+constexpr uint32_t kPowerModeSleepOut  = 1u << 4;
+constexpr uint32_t kPowerModePartial   = 1u << 5;
+
+constexpr uint32_t kDsiDcsShortReadResponse1Byte = 0x21u;
+constexpr uint32_t kDsiHeaderDataShift           = 8u;
+constexpr uint32_t kDsiHeaderEccShift            = 24u;
+constexpr uint32_t kDsiHeaderEccParity[] = {0xF12CB7u, 0xF2555Bu, 0x749A6Du,
+                                            0xB8E38Eu, 0xDF03F0u, 0xEFFC00u};
+
+constexpr uint32_t DsiHeaderEcc(uint32_t header) {
+    uint32_t ecc = 0u;
+    for (uint32_t bit = 0u; bit < std::size(kDsiHeaderEccParity); ++bit) {
+        if ((std::popcount(header & kDsiHeaderEccParity[bit]) & 1) != 0) ecc |= 1u << bit;
+    }
+    return ecc;
+}
+
+constexpr uint32_t DcsShortReadResponse(uint32_t data) {
+    const uint32_t header = kDsiDcsShortReadResponse1Byte | (data << kDsiHeaderDataShift);
+    return header | (DsiHeaderEcc(header) << kDsiHeaderEccShift);
+}
 
 constexpr uint32_t kPixelFormat16Bpp = 0x05u;
 
@@ -68,10 +101,13 @@ constexpr uint32_t kStrideBytes   = kPanelWidth * kBytesPerPixel;
 constexpr uint32_t kSurfaceBytes  = kStrideBytes * kPanelHeight;
 
 constexpr uint16_t kVideoFormatRgb565 = 0x4565u;
+constexpr uint16_t kVideoFormatPacked = 0x1000u;
 constexpr uint16_t kVideoAttributes   = 0x00C3u;
 
-constexpr uint32_t kId1Value = 0x0100FE21u;
-constexpr uint32_t kId3Value = 0x27009621u;
+constexpr uint32_t kId1Data = 0xFEu;
+constexpr uint32_t kId3Data = 0x96u;
+static_assert(DcsShortReadResponse(kId1Data) == 0x0100FE21u);
+static_assert(DcsShortReadResponse(kId3Data) == 0x27009621u);
 
 class NokiaSeaRayMddiPanel : public Msm8255MddiClient {
 public:
@@ -83,6 +119,7 @@ public:
     }
 
     void OnReady() override {
+        te_ = &emu_.Get<NokiaSeaRayPanelTe>();
         emu_.Get<GuestCpuReset>().RegisterResetListener(
             [this](ResetLineKind) { PowerOnReset(); });
     }
@@ -124,11 +161,12 @@ public:
     }
 
     void WriteVideoStream(const Msm8255MddiVideoStream& video,
-                          uint32_t data_pa, uint32_t data_bytes) override {
-        if (video.format_descriptor != kVideoFormatRgb565) {
+                          const uint8_t* data, uint32_t data_bytes) override {
+        if ((video.format_descriptor & ~kVideoFormatPacked) != kVideoFormatRgb565) {
             emu_.Get<Fatal>().Die(
                 "nokia lumia 800 mddi panel: the display driver streamed "
-                "pixels in data format 0x%04X, and this panel accepts 0x%04X",
+                "pixels in data format 0x%04X, and this panel accepts 0x%04X "
+                "packed or byte-aligned",
                 video.format_descriptor, kVideoFormatRgb565);
         }
         if (video.pixel_attributes != kVideoAttributes) {
@@ -144,16 +182,15 @@ public:
                                     kStrideBytes +
                                 static_cast<uint32_t>(video.x_start) *
                                     kBytesPerPixel;
-        emu_.Get<EmulatedMemory>().CopyOut(data_pa, surface_.data() + offset,
-                                           data_bytes);
+        std::copy(data, data + data_bytes, surface_.begin() + offset);
 
         if (!streamed_) {
             streamed_ = true;
             LOG(Lcd, "NokiaSeaRayMddiPanel: first streamed run, window "
-                     "%u,%u..%u,%u, %u pixels from %u,%u at PA 0x%08X\n",
+                     "%u,%u..%u,%u, %u pixels from %u,%u\n",
                 video.x_left_edge, video.y_top_edge, video.x_right_edge,
                 video.y_bottom_edge, video.pixel_count, video.x_start,
-                video.y_start, data_pa);
+                video.y_start);
         }
     }
 
@@ -174,12 +211,15 @@ public:
         w.Write<uint32_t>("brightness", brightness_);
         w.Write<uint32_t>("display_on", display_on_ ? 1u : 0u);
         w.Write<uint32_t>("sleeping", sleeping_ ? 1u : 0u);
+        w.Write<uint32_t>("partial_mode", partial_ ? 1u : 0u);
+        te_->SaveState(w);
     }
 
     void RestoreState(StateReader& r) override {
         uint32_t armed = 0;
         uint32_t on    = 0;
         uint32_t sleep = 0;
+        uint32_t part  = 0;
         r.ReadBytes("surface", surface_.data(), surface_.size());
         size_latch_.RestoreState(r);
         r.Read("packet", packet_);
@@ -190,9 +230,12 @@ public:
         r.Read("brightness", brightness_);
         r.Read("display_on", on);
         r.Read("sleeping", sleep);
+        r.Read("partial_mode", part);
+        te_->RestoreState(r);
         read_armed_ = armed != 0u;
         display_on_ = on != 0u;
         sleeping_   = sleep != 0u;
+        partial_    = part != 0u;
     }
 
 private:
@@ -205,7 +248,9 @@ private:
         brightness_  = 0;
         display_on_  = false;
         sleeping_    = true;
+        partial_     = false;
         streamed_    = false;
+        te_->PowerOn();
         size_latch_.Reset();
         std::fill(surface_.begin(), surface_.end(), uint8_t{0});
     }
@@ -306,24 +351,53 @@ private:
 
     void ExecuteDisplayCommand(uint32_t command, uint32_t parameters) {
         switch (command) {
+            case kDcsEnterSleepMode:
+                RequireParameters(command, parameters, 0u);
+                sleeping_ = true;
+                te_->SetScanning(false);
+                return;
             case kDcsExitSleepMode:
                 RequireParameters(command, parameters, 0u);
                 sleeping_ = false;
+                te_->SetScanning(true);
+                return;
+            case kDcsSetDisplayOff:
+                RequireParameters(command, parameters, 0u);
+                display_on_ = false;
+                return;
+            case kDcsSetTearOff:
+                RequireParameters(command, parameters, 0u);
+                te_->SetTearOff();
                 return;
             case kDcsSetDisplayOn:
-                RequireParameters(command, parameters, 0u);
+                if (parameters != 0u) {
+                    RequireParameters(command, parameters, 1u);
+                    if (PayloadByte(1u) != kDisplayOnFillByte) {
+                        emu_.Get<Fatal>().Die(
+                            "nokia lumia 800 mddi panel: set_display_on with parameter 0x%02X",
+                            PayloadByte(1u));
+                    }
+                }
                 display_on_ = true;
                 size_latch_.PublishOnce(emu_, display_on_ && !sleeping_);
                 return;
             case kDcsEnterPartialMode:
             case kDcsEnterNormalMode:
                 RequireParameters(command, parameters, 0u);
+                partial_ = command == kDcsEnterPartialMode;
                 return;
             case kDcsWriteBrightness:
                 RequireParameters(command, parameters, 1u);
                 brightness_ = PayloadByte(1u);
                 return;
             case kDcsSetTearOn:
+                RequireParameters(command, parameters, 1u);
+                if (PayloadByte(1u) != kTearModeVblank) {
+                    emu_.Get<Fatal>().Die(
+                        "nokia lumia 800 mddi panel: set_tear_on mode %u", PayloadByte(1u));
+                }
+                te_->SetTearLine(0u);
+                return;
             case kDcsSetAddressMode:
             case kDcsWriteControlDisplay:
             case kDcsWritePowerSave:
@@ -331,6 +405,7 @@ private:
                 return;
             case kDcsSetTearScanline:
                 RequireParameters(command, parameters, 2u);
+                te_->SetTearLine((PayloadByte(1u) << 8) | PayloadByte(2u));
                 return;
             case kDcsSetPixelFormat:
                 RequireParameters(command, parameters, 1u);
@@ -350,15 +425,24 @@ private:
             "command", command, parameters);
     }
 
+    uint32_t PowerMode() const {
+        uint32_t mode = 0u;
+        if (display_on_) mode |= kPowerModeDisplayOn;
+        if (!sleeping_) mode |= kPowerModeSleepOut;
+        mode |= partial_ ? kPowerModePartial : kPowerModeNormal;
+        return mode;
+    }
+
     void ArmRead(uint32_t command) {
         switch (command) {
-            case kDcsReadId1: read_result_ = kId1Value; break;
-            case kDcsReadId3: read_result_ = kId3Value; break;
+            case kDcsReadId1:      read_result_ = DcsShortReadResponse(kId1Data); break;
+            case kDcsReadId3:      read_result_ = DcsShortReadResponse(kId3Data); break;
+            case kDcsGetPowerMode: read_result_ = DcsShortReadResponse(PowerMode()); break;
             default:
                 emu_.Get<Fatal>().Die(
                     "nokia lumia 800 mddi panel: the display driver read "
                     "display command 0x%02X, and this panel answers only its "
-                    "identification commands", command);
+                    "identification and power mode reads", command);
         }
         read_armed_ = true;
     }
@@ -386,10 +470,12 @@ private:
     uint32_t brightness_ = 0;
     bool     display_on_ = false;
     bool     sleeping_   = true;
+    bool     partial_    = false;
 
     std::vector<uint8_t> surface_ = std::vector<uint8_t>(kSurfaceBytes, 0u);
     DisplaySizeLatch     size_latch_;
     bool                 streamed_ = false;
+    NokiaSeaRayPanelTe*  te_       = nullptr;
 };
 
 }

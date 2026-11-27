@@ -12,6 +12,7 @@ public:
 
 private:
     bool IsDevicePresent();
+    bool HasEmmcStore();
 };
 
 }
