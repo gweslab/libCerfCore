@@ -2,17 +2,26 @@
   "name": "Nokia Sea Ray",
   "soc_id": "msm8255",
   "device_year": 2011,
-  "notes": [],
+  "notes": [
+    "NOT SUPPORTED! Lumia 800 only boots to its shell - every other feature crashes the emulator. Don't write bug reports please."
+  ],
   "ga_color_depth": 24,
   "rom_placing_mode": "lumia800_emmc",
   "board_config": {
     "camera_sensor": {
       "default": "toshiba_jt8ew9",
-      "values": ["toshiba_jt8ew9", "sony_imx125"]
+      "values": [
+        "toshiba_jt8ew9",
+        "sony_imx125"
+      ]
     },
     "hw_revision": {
       "default": "4",
-      "values": ["2", "3", "4"]
+      "values": [
+        "2",
+        "3",
+        "4"
+      ]
     }
   }
 }
